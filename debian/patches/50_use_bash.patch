@@ -1,0 +1,9 @@
+diff -Naurp net-snmp-5.4.2.1.orig/net-snmp-config.in net-snmp-5.4.2.1/net-snmp-config.in
+--- net-snmp-5.4.2.1.orig/net-snmp-config.in	2008-07-30 13:28:08.000000000 -0400
++++ net-snmp-5.4.2.1/net-snmp-config.in	2009-11-26 08:51:39.911487988 -0500
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ #
+ # $Id: net-snmp-config.in 17139 2008-07-30 17:28:08Z dts12 $
+ #

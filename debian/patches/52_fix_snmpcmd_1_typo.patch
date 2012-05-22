@@ -1,0 +1,12 @@
+diff -Naurp net-snmp-5.4.2.1.orig/man/snmpcmd.1.def net-snmp-5.4.2.1/man/snmpcmd.1.def
+--- net-snmp-5.4.2.1.orig/man/snmpcmd.1.def	2008-07-24 19:22:31.000000000 -0400
++++ net-snmp-5.4.2.1/man/snmpcmd.1.def	2009-11-26 08:54:56.311487921 -0500
+@@ -560,7 +560,7 @@ Do not print the UNITS suffix at the end
+ Display the varbind value only, not the OID:
+ .RS
+ .nf
+-\fC    $ snmpget -c public -v 1 \fB-Oe\fP localhost ipForwarding.0
++\fC    $ snmpget -c public -v 1 \fB-Ov\fP localhost ipForwarding.0
+     INTEGER: forwarding(1)\fR
+ .fi
+ .RE

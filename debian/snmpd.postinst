@@ -1,0 +1,23 @@
+#! /bin/sh
+
+set -e
+
+. /usr/share/debconf/confmodule
+db_version 2.0
+
+if [ "x$1" = xconfigure ]; then
+	if [ ! `getent group snmp >/dev/null` ]; then
+		 deluser --quiet --system snmp
+	fi
+	adduser --quiet --system --group --no-create-home --home /var/lib/snmp snmp
+	chown -R snmp:snmp /var/lib/snmp
+fi
+
+# Remove shutdown and reboot links; this init script does not need them.
+if [ "x$2" = x5.4.2.1~dfsg-3ubuntu2 ]; then
+	rm -f /etc/rc0.d/K20snmpd /etc/rc6.d/K20snmpd
+fi
+
+#DEBHELPER#
+
+exit 0

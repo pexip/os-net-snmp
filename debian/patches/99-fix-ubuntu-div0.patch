@@ -1,0 +1,21 @@
+diff -Naurp net-snmp-5.4.2.1.orig/agent/mibgroup/host/hr_proc.c net-snmp-5.4.2.1/agent/mibgroup/host/hr_proc.c
+--- net-snmp-5.4.2.1.orig/agent/mibgroup/host/hr_proc.c	2007-05-11 12:32:30.000000000 -0400
++++ net-snmp-5.4.2.1/agent/mibgroup/host/hr_proc.c	2009-11-26 09:00:29.561487970 -0500
+@@ -175,11 +175,15 @@ var_hrproc(struct variable * vp,
+         return (u_char *) nullOid;
+     case HRPROC_LOAD:
+         cpu = netsnmp_cpu_get_byIdx( proc_idx & HRDEV_TYPE_MASK, 0 );
+-        if ( !cpu || !cpu->history || !cpu->history[0].total_hist )
++        if ( !cpu || !cpu->history || !cpu->history[0].total_hist ||
++		( cpu->history[0].total_hist == cpu->total_ticks ))
+             return NULL;
+ 
+         long_return  = (cpu->idle_ticks  - cpu->history[0].idle_hist)*100;
+-        long_return /= (cpu->total_ticks - cpu->history[0].total_hist);
++	if (cpu->total_ticks > cpu->history[0].total_hist) /* avoid div. by 0 */
++        	long_return /= (cpu->total_ticks - cpu->history[0].total_hist);
++	else
++		long_return = 0;
+         long_return  = 100 - long_return;
+         if (long_return < 0)
+             long_return = 0;
