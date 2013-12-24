@@ -1,8 +1,9 @@
 Source: net-snmp
 Section: net
 Priority: optional
-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-Uploaders: Jochen Friedrich <jochen@scram.de>, Thomas Anders <tanders@users.sourceforge.net>, Noah Meyerhans <noahm@debian.org>
+Maintainer: Pexip AS <packaging@pexip.com>
+XSBC-Pexip-Original-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Pexip-Original-Uploaders: Jochen Friedrich <jochen@scram.de>, Thomas Anders <tanders@users.sourceforge.net>, Noah Meyerhans <noahm@debian.org>
 XSBC-Original-Maintainer: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
 Build-Depends: debhelper (>= 7.0.50~), libtool, libwrap0-dev, libssl-dev (>> 0.9.8), perl (>=5.8), libperl-dev, python-all-dev, python (>=2.3.5-7), python-setuptools (>=0.6b3), autoconf, automake1.9, autotools-dev, debianutils (>=1.13.1), bash (>=2.05), findutils (>=4.1.20), procps, quilt, libbsd-dev [kfreebsd-i386 kfreebsd-amd64], libkvm-dev [kfreebsd-i386 kfreebsd-amd64], libsensors4-dev [!hurd-i386 !kfreebsd-i386 !kfreebsd-amd64], dh-apport
 Standards-Version: 3.8.4
@@ -10,6 +11,7 @@ Vcs-Svn: svn://svn.debian.org/pkg-net-snmp/
 Vcs-Browser: http://svn.debian.org/wsvn/pkg-net-snmp/
 XS-Python-Version: all
 Homepage: http://net-snmp.sourceforge.net/
+XS-Pexip-Upstream: http://archive.ubuntu.com/ubuntu/ precise
 
 Package: snmpd
 Section: net

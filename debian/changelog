@@ -1,3 +1,9 @@
+net-snmp (5.4.3~dfsg-2.4ubuntu1.1pexip1) pexip; urgency=low
+
+  * Prepare Pexip packaging
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 24 Dec 2013 23:51:11 +0000
+
 net-snmp (5.4.3~dfsg-2.4ubuntu1.1) precise-security; urgency=low
 
   * SECURITY UPDATE: denial of service via SNMP GET with non-existent
