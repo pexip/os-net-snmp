@@ -54,7 +54,7 @@ override_dh_auto_configure:
 	  --enable-mfd-rewrites \
 	  --with-mnttab=/etc/mtab \
 	  --with-mibdirs="\$$HOME/.snmp/mibs:/usr/share/mibs/site:/usr/share/snmp/mibs:/usr/share/mibs/iana:/usr/share/mibs/ietf:/usr/share/mibs/netsnmp" \
-	  --with-defaults
+	  --with-defaults --disable-md5
 
 .PHONY: override_dh_clean
 override_dh_clean:
