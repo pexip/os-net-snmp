@@ -1,3 +1,21 @@
+net-snmp (5.4.3~dfsg-2.4ubuntu1.2) precise-security; urgency=medium
+
+  * SECURITY UPDATE: denial of service via AgentX subagent timeout
+    - debian/patches/CVE-2012-6151.patch: track cancelled sessions in
+      agent/mibgroup/agentx/{master.c,master_admin.c}, agent/snmp_agent.c,
+      include/net-snmp/agent/snmp_agent.h.
+    - CVE-2012-6151
+  * SECURITY UPDATE: denial of service in perl trap handler
+    - debian/patches/CVE-2014-2285.patch: handle empty community string in
+      perl/TrapReceiver/TrapReceiver.xs.
+    - CVE-2014-2285
+  * SECURITY UPDATE: denial of service via multiple-object requests
+    - debian/patches/CVE-2014-2310.patch: fix lengths in
+      agent/mibgroup/agentx/protocol.c.
+    - CVE-2014-2310
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Tue, 11 Mar 2014 10:08:53 -0400
+
 net-snmp (5.4.3~dfsg-2.4ubuntu1.1) precise-security; urgency=low
 
   * SECURITY UPDATE: denial of service via SNMP GET with non-existent
