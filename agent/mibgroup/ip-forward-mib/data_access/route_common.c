@@ -1,7 +1,7 @@
 /*
  *  Interface MIB architecture support
  *
- * $Id: route_common.c 16612 2007-07-16 23:59:44Z hardaker $
+ * $Id$
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -47,12 +47,15 @@ netsnmp_access_route_container_load(netsnmp_container* container, u_int load_fla
 
     DEBUGMSGTL(("access:route:container", "load\n"));
 
-    if (NULL == container)
-        container = netsnmp_container_find("access:_route:table_container");
     if (NULL == container) {
-        snmp_log(LOG_ERR, "no container specified/found for access_route\n");
-        return NULL;
+        container = netsnmp_container_find("access:_route:fifo");
+        if (NULL == container) {
+            snmp_log(LOG_ERR, "no container specified/found for access_route\n");
+            return NULL;
+        }
     }
+
+    container->container_name = strdup("_route");
 
     rc =  netsnmp_access_route_container_arch_load(container, load_flags);
     if (0 != rc) {
@@ -239,8 +242,7 @@ netsnmp_access_route_entry_copy(netsnmp_route_entry *lhs,
     lhs->rt_proto = rhs->rt_proto;
 
 #ifdef USING_IP_FORWARD_MIB_IPCIDRROUTETABLE_IPCIDRROUTETABLE_MODULE
-    if (NULL != lhs->rt_info)
-        SNMP_FREE(lhs->rt_info);
+    SNMP_FREE(lhs->rt_info);
     if (NULL != rhs->rt_info)
         snmp_clone_mem((void **) &lhs->rt_info, rhs->rt_info,
                        rhs->rt_info_len * sizeof(oid));

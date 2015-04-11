@@ -3,6 +3,7 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 #include <stdlib.h>
 
 #if HAVE_STRING_H
@@ -11,37 +12,44 @@
 #include <strings.h>
 #endif
 
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
-
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-#include "util_funcs.h"
+#include "util_funcs/header_generic.h"
 #include "usmUser.h"
 
+#ifndef NETSNMP_NO_WRITE_SUPPORT 
 int usmStatusCheck(struct usmUser *uptr);
+#endif  /* !NETSNMP_NO_WRITE_SUPPORT */
+
+netsnmp_feature_child_of(usmuser_all, libnetsnmpmibs)
+netsnmp_feature_child_of(init_register_usmuser_context, usmuser_all)
 
 struct variable4 usmUser_variables[] = {
-    {USMUSERSPINLOCK, ASN_INTEGER, RWRITE, var_usmUser, 1, {1}},
-    {USMUSERSECURITYNAME, ASN_OCTET_STR, RONLY, var_usmUser, 3, {2, 1, 3}},
-    {USMUSERCLONEFROM, ASN_OBJECT_ID, RWRITE, var_usmUser, 3, {2, 1, 4}},
-    {USMUSERAUTHPROTOCOL, ASN_OBJECT_ID, RWRITE, var_usmUser, 3,
-     {2, 1, 5}},
-    {USMUSERAUTHKEYCHANGE, ASN_OCTET_STR, RWRITE, var_usmUser, 3,
-     {2, 1, 6}},
-    {USMUSEROWNAUTHKEYCHANGE, ASN_OCTET_STR, RWRITE, var_usmUser, 3,
-     {2, 1, 7}},
-    {USMUSERPRIVPROTOCOL, ASN_OBJECT_ID, RWRITE, var_usmUser, 3,
-     {2, 1, 8}},
-    {USMUSERPRIVKEYCHANGE, ASN_OCTET_STR, RWRITE, var_usmUser, 3,
-     {2, 1, 9}},
-    {USMUSEROWNPRIVKEYCHANGE, ASN_OCTET_STR, RWRITE, var_usmUser, 3,
-     {2, 1, 10}},
-    {USMUSERPUBLIC, ASN_OCTET_STR, RWRITE, var_usmUser, 3, {2, 1, 11}},
-    {USMUSERSTORAGETYPE, ASN_INTEGER, RWRITE, var_usmUser, 3, {2, 1, 12}},
-    {USMUSERSTATUS, ASN_INTEGER, RWRITE, var_usmUser, 3, {2, 1, 13}},
+    {USMUSERSPINLOCK, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 1, {1}},
+    {USMUSERSECURITYNAME, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+     var_usmUser, 3, {2, 1, 3}},
+    {USMUSERCLONEFROM, ASN_OBJECT_ID, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 4}},
+    {USMUSERAUTHPROTOCOL, ASN_OBJECT_ID, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 5}},
+    {USMUSERAUTHKEYCHANGE, ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 6}},
+    {USMUSEROWNAUTHKEYCHANGE, ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 7}},
+    {USMUSERPRIVPROTOCOL, ASN_OBJECT_ID, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 8}},
+    {USMUSERPRIVKEYCHANGE, ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 9}},
+    {USMUSEROWNPRIVKEYCHANGE, ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 10}},
+    {USMUSERPUBLIC, ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 11}},
+    {USMUSERSTORAGETYPE, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 12}},
+    {USMUSERSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_usmUser, 3, {2, 1, 13}},
 
 };
 
@@ -62,6 +70,7 @@ init_usmUser(void)
                  usmUser_variables_oid);
 }
 
+#ifndef NETSNMP_FEATURE_REMOVE_INIT_REGISTER_USMUSER_CONTEXT
 void
 init_register_usmUser_context(const char *contextName) {
     register_mib_context("snmpv3/usmUser",
@@ -73,6 +82,7 @@ init_register_usmUser_context(const char *contextName) {
                          DEFAULT_MIB_PRIORITY, 0, 0, NULL,
                          contextName, -1, 0);
 }
+#endif /* NETSNMP_FEATURE_REMOVE_INIT_REGISTER_USMUSER_CONTEXT */
 
 /*******************************************************************-o-******
  * usm_generate_OID
@@ -286,7 +296,7 @@ var_usmUser(struct variable * vp,
             size_t * length,
             int exact, size_t * var_len, WriteMethod ** write_method)
 {
-    struct usmUser *uptr = NULL, *nptr, *pptr;
+    struct usmUser *uptr = NULL, *nptr;
     int             i, rtest, result;
     oid            *indexOid;
     size_t          len;
@@ -301,8 +311,11 @@ var_usmUser(struct variable * vp,
     if (!vp || !name || !length || !var_len)
         return NULL;
 
-    *write_method = 0;          /* assume it isnt writable for the time being */
-    *var_len = sizeof(long_ret);        /* assume an integer and change later if not */
+    /* assume it isnt writable for the time being */
+    *write_method = (WriteMethod*)0;    
+
+    /* assume an integer and change later if not */
+    *var_len = sizeof(long_ret);
 
     if (vp->magic != USMUSERSPINLOCK) {
         oid             newname[MAX_OID_LEN];
@@ -315,7 +328,7 @@ var_usmUser(struct variable * vp,
             (exact == 1 && rtest != 0)) {
             if (var_len)
                 *var_len = 0;
-            return 0;
+            return NULL;
         }
         memset(newname, 0, sizeof(newname));
         if (((int) *length) <= (int) vp->namelen || rtest == -1) {
@@ -328,8 +341,8 @@ var_usmUser(struct variable * vp,
             uptr = usm_get_userList();
 
         } else {
-            for (nptr = usm_get_userList(), pptr = NULL, uptr = NULL;
-                 nptr != NULL; pptr = nptr, nptr = nptr->next) {
+            for (nptr = usm_get_userList(), uptr = NULL;
+                 nptr != NULL; nptr = nptr->next) {
                 indexOid =
                     usm_generate_OID(vp->name, vp->namelen, nptr, &len);
                 result = snmp_oid_compare(name, *length, indexOid, len);
@@ -372,6 +385,7 @@ var_usmUser(struct variable * vp,
             indexOid = usm_generate_OID(vp->name, vp->namelen, uptr, &len);
             *length = len;
             memmove(name, indexOid, len * sizeof(oid));
+
             DEBUGMSGTL(("usmUser", "Found user: %s - ", uptr->name));
             for (i = 0; i < (int) uptr->engineIDLen; i++) {
                 DEBUGMSG(("usmUser", " %x", uptr->engineID[i]));
@@ -384,10 +398,11 @@ var_usmUser(struct variable * vp,
         }
     } else {
         if (header_generic(vp, name, length, exact, var_len, write_method))
-            return 0;
+            return NULL;
     }                           /* endif -- vp->magic != USMUSERSPINLOCK */
 
     switch (vp->magic) {
+#ifndef NETSNMP_NO_WRITE_SUPPORT 
     case USMUSERSPINLOCK:
         *write_method = write_usmUserSpinLock;
         long_ret = usmUserSpinLock;
@@ -458,7 +473,7 @@ var_usmUser(struct variable * vp,
         *write_method = write_usmUserPublic;
         if (uptr) {
             if (uptr->userPublicString) {
-                *var_len = strlen((char *) uptr->userPublicString);
+                *var_len = uptr->userPublicStringLen;
                 return uptr->userPublicString;
             }
             *string = 0;
@@ -483,14 +498,20 @@ var_usmUser(struct variable * vp,
             return (unsigned char *) &long_ret;
         }
         return NULL;
-
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_usmUser\n",
                     vp->magic));
+#else /* !NETSNMP_NO_WRITE_SUPPORT */ 
+    default:
+        DEBUGMSGTL(("snmpd", "no write support for var_usmUser\n"));
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */ 
     }
-    return 0;
+    return NULL;
 
 }                               /* end var_usmUser() */
+
+
+#ifndef NETSNMP_NO_WRITE_SUPPORT 
 
 /*
  * write_usmUserSpinLock(): called when a set is performed on the
@@ -745,7 +766,6 @@ write_usmUserAuthProtocol(int action,
         }
     } else if (action == COMMIT) {
         SNMP_FREE(optr);
-        optr = NULL;
     } else if (action == FREE || action == UNDO) {
         if ((uptr = usm_parse_user(name, name_len)) != NULL) {
             if (resetOnFail) {
@@ -888,7 +908,6 @@ write_usmUserAuthKeyChange(int action,
         uptr->authKeyLen = buflen;
     } else if (action == COMMIT) {
         SNMP_FREE(oldkey);
-        oldkey = NULL;
     } else if (action == UNDO) {
         if ((uptr = usm_parse_user(name, name_len)) != NULL && resetOnFail) {
             SNMP_FREE(uptr->authKey);
@@ -1013,7 +1032,6 @@ write_usmUserPrivProtocol(int action,
         }
     } else if (action == COMMIT) {
         SNMP_FREE(optr);
-        optr = NULL;
     } else if (action == FREE || action == UNDO) {
         if ((uptr = usm_parse_user(name, name_len)) != NULL) {
             if (resetOnFail) {
@@ -1138,7 +1156,6 @@ write_usmUserPrivKeyChange(int action,
         uptr->privKeyLen = buflen;
     } else if (action == COMMIT) {
         SNMP_FREE(oldkey);
-        oldkey = NULL;
     } else if (action == UNDO) {
         if ((uptr = usm_parse_user(name, name_len)) != NULL && resetOnFail) {
             SNMP_FREE(uptr->privKey);
@@ -1164,7 +1181,7 @@ write_usmUserPublic(int action,
                     "write to usmUserPublic not ASN_OCTET_STR\n"));
         return SNMP_ERR_WRONGTYPE;
     }
-    if (var_val_len < 0 || var_val_len > 32) {
+    if (var_val_len > 32) {
         DEBUGMSGTL(("usmUser", "write to usmUserPublic: bad length\n"));
         return SNMP_ERR_WRONGLENGTH;
     }
@@ -1177,14 +1194,15 @@ write_usmUserPublic(int action,
         }
         if (uptr->userPublicString)
             free(uptr->userPublicString);
-        uptr->userPublicString = (u_char *) malloc(var_val_len + 1);
+        uptr->userPublicString = (u_char *) malloc(var_val_len);
         if (uptr->userPublicString == NULL) {
             return SNMP_ERR_GENERR;
         }
         memcpy(uptr->userPublicString, var_val, var_val_len);
-        uptr->userPublicString[var_val_len] = 0;
-        DEBUGMSG(("usmUser", "setting public string: %d - %s\n",
-                  var_val_len, uptr->userPublicString));
+        uptr->userPublicStringLen = var_val_len;
+        DEBUGMSG(("usmUser", "setting public string: %d - ", (int)var_val_len));
+        DEBUGMSGHEX(("usmUser", uptr->userPublicString, var_val_len));
+        DEBUGMSG(("usmUser", "\n"));
     }
     return SNMP_ERR_NOERROR;
 }                               /* end write_usmUserPublic() */
@@ -1241,7 +1259,7 @@ write_usmUserStorageType(int action,
              * Convention apply.  
              */
             DEBUGMSGTL(("usmUser",
-                        "long_ret %d uptr->st %d uptr->status %d\n",
+                        "long_ret %ld uptr->st %d uptr->status %d\n",
                         long_ret, uptr->userStorageType,
                         uptr->userStatus));
 
@@ -1272,6 +1290,7 @@ write_usmUserStorageType(int action,
     }
     return SNMP_ERR_NOERROR;
 }                               /* end write_usmUserStorageType() */
+
 
 /*
  * Return 1 if enough objects have been set up to transition rowStatus to
@@ -1479,7 +1498,9 @@ write_usmUserStatus(int action,
     }
 
     return SNMP_ERR_NOERROR;
-}
+}  /* write_usmUserStatus */
+
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */ 
 
 #if 0
 

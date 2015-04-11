@@ -1,7 +1,7 @@
 /*
  *  Ipaddress MIB architecture support
  *
- * $Id: ipaddress_common.c 16724 2007-10-14 22:10:09Z magfr $
+ * $Id$
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -11,6 +11,19 @@
 #include <net-snmp/data_access/interface.h>
 
 #include "ip-mib/ipAddressTable/ipAddressTable_constants.h"
+
+#include <net-snmp/net-snmp-features.h>
+
+netsnmp_feature_child_of(ipaddress_common, libnetsnmpmibs)
+
+netsnmp_feature_child_of(ipaddress_common_copy_utilities, ipaddress_common)
+netsnmp_feature_child_of(ipaddress_entry_copy, ipaddress_common)
+netsnmp_feature_child_of(ipaddress_entry_update, ipaddress_common)
+netsnmp_feature_child_of(ipaddress_prefix_copy, ipaddress_common_copy_utilities)
+
+#ifdef NETSNMP_FEATURE_REQUIRE_IPADDRESS_ENTRY_COPY
+netsnmp_feature_require(ipaddress_arch_entry_copy)
+#endif /* NETSNMP_FEATURE_REQUIRE_IPADDRESS_ENTRY_COPY */
 
 /**---------------------------------------------------------------------*/
 /*
@@ -211,7 +224,8 @@ netsnmp_access_ipaddress_entry_set(netsnmp_ipaddress_entry * entry)
      * make sure interface and ifIndex match up
      */
     if (NULL == netsnmp_access_interface_name_find(entry->if_index)) {
-        DEBUGMSGT(("access:ipaddress:set", "cant find name for index %d\n",
+        DEBUGMSGT(("access:ipaddress:set",
+                   "cant find name for index %" NETSNMP_PRIo "d\n",
                   entry->if_index));
         return -1;
     }
@@ -246,6 +260,7 @@ netsnmp_access_ipaddress_entry_set(netsnmp_ipaddress_entry * entry)
     return rc;
 }
 
+#ifndef NETSNMP_FEATURE_REMOVE_IPADDRESS_ENTRY_UPDATE
 /**
  * update an old ipaddress_entry from a new one
  *
@@ -304,10 +319,33 @@ netsnmp_access_ipaddress_entry_update(netsnmp_ipaddress_entry *lhs,
         ++changed;
         lhs->ia_origin = rhs->ia_origin;
     }
+   
+    if (lhs->ia_onlink_flag != rhs->ia_onlink_flag) {
+        ++changed;
+        lhs->ia_onlink_flag = rhs->ia_onlink_flag;
+    }
+
+    if (lhs->ia_autonomous_flag != rhs->ia_autonomous_flag) {
+        ++changed;
+        lhs->ia_autonomous_flag = rhs->ia_autonomous_flag;
+    }
+
+    if (lhs->ia_prefered_lifetime != rhs->ia_prefered_lifetime) {
+        ++changed;
+        lhs->ia_prefered_lifetime = rhs->ia_prefered_lifetime;
+    }
+
+    if (lhs->ia_valid_lifetime != rhs->ia_valid_lifetime) {
+        ++changed;
+        lhs->ia_valid_lifetime = rhs->ia_valid_lifetime;
+    }
+
 
     return changed;
 }
+#endif /* NETSNMP_FEATURE_REMOVE_IPADDRESS_ENTRY_UPDATE */
 
+#ifndef NETSNMP_FEATURE_REMOVE_IPADDRESS_ENTRY_COPY
 /**
  * copy an  ipaddress_entry
  *
@@ -339,12 +377,14 @@ netsnmp_access_ipaddress_entry_copy(netsnmp_ipaddress_entry *lhs,
     
     return 0;
 }
+#endif /* NETSNMP_FEATURE_REMOVE_IPADDRESS_ENTRY_COPY */
 
 /**---------------------------------------------------------------------*/
 /*
  * Utility routines
  */
 
+#ifndef NETSNMP_FEATURE_REMOVE_IPADDRESS_PREFIX_COPY
 /**
  * copy the prefix portion of an ip address
  */
@@ -370,6 +410,7 @@ netsnmp_ipaddress_prefix_copy(u_char *dst, u_char *src, int addr_len, int pfx_le
 
     return pfx_len;
 }
+#endif /* NETSNMP_FEATURE_REMOVE_IPADDRESS_PREFIX_COPY */
 
 
 /**
@@ -428,3 +469,51 @@ static int _access_ipaddress_entry_compare_addr(const void *lhs,
      */
     return memcmp(lh->ia_address, rh->ia_address, lh->ia_address_len);
 }
+
+#ifndef NETSNMP_FEATURE_REMOVE_IPADDRESS_COMMON_COPY_UTILITIES
+int
+netsnmp_ipaddress_flags_copy(u_long *ipAddressPrefixAdvPreferredLifetime,
+                             u_long *ipAddressPrefixAdvValidLifetime,
+                             u_long *ipAddressPrefixOnLinkFlag,
+                             u_long *ipAddressPrefixAutonomousFlag, 
+                             u_long *ia_prefered_lifetime,
+                             u_long *ia_valid_lifetime,
+                             u_char *ia_onlink_flag,
+                             u_char *ia_autonomous_flag)
+{
+
+    /*Copy all the flags*/
+    *ipAddressPrefixAdvPreferredLifetime = *ia_prefered_lifetime;
+    *ipAddressPrefixAdvValidLifetime = *ia_valid_lifetime;
+    *ipAddressPrefixOnLinkFlag = *ia_onlink_flag;
+    *ipAddressPrefixAutonomousFlag = *ia_autonomous_flag;
+    return 0;
+}
+
+int
+netsnmp_ipaddress_prefix_origin_copy(u_long *ipAddressPrefixOrigin,
+                                     u_char ia_origin,
+                                     int flags,
+                                     u_long ipAddressAddrType)
+{
+    if(ipAddressAddrType == INETADDRESSTYPE_IPV4){
+       if(ia_origin == 6) /*Random*/
+          (*ipAddressPrefixOrigin) = 3 /*IPADDRESSPREFIXORIGINTC_WELLKNOWN*/;
+       else
+          (*ipAddressPrefixOrigin) = ia_origin;
+    } else {
+       if(ia_origin == 5) { /*Link Layer*/
+          if(!flags) /*Global address assigned by router adv*/
+             (*ipAddressPrefixOrigin) = 5 /*IPADDRESSPREFIXORIGINTC_ROUTERADV*/;
+          else
+             (*ipAddressPrefixOrigin) = 3 /*IPADDRESSPREFIXORIGINTC_WELLKNOWN*/;
+       }
+       else if(ia_origin == 6) /*Random*/
+          (*ipAddressPrefixOrigin) = 5 /*IPADDRESSPREFIXORIGINTC_ROUTERADV*/;
+       else
+          (*ipAddressPrefixOrigin) = ia_origin;
+    }
+    return 0;
+}
+#endif /* NETSNMP_FEATURE_REMOVE_IPADDRESS_COMMON_COPY_UTILITIES */
+

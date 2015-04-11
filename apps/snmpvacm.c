@@ -23,11 +23,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
+# include <sys/time.h>
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -38,9 +34,6 @@
 #endif
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
-#if HAVE_WINSOCK_H
-#include <winsock.h>
 #endif
 #if HAVE_NETDB_H
 #include <netdb.h>
@@ -90,19 +83,15 @@ static const char *successNotes[CMD_NUM] = {
 
 static oid      vacmGroupName[MAX_OID_LEN] =
     { 1, 3, 6, 1, 6, 3, 16, 1, 2, 1, 3 },
-    vacmSec2GroupStorageType[MAX_OID_LEN] = {
-1, 3, 6, 1, 6, 3, 16, 1, 2, 1, 4}, vacmSec2GroupStatus[MAX_OID_LEN] = {
+    vacmSec2GroupStatus[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 2, 1, 5}, vacmAccessContextMatch[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 4}, vacmAccessReadViewName[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 5}, vacmAccessWriteViewName[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 6}, vacmAccessNotifyViewName[MAX_OID_LEN] = {
-1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 7}, vacmAccessStorageType[MAX_OID_LEN] = {
-1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 8}, vacmAccessStatus[MAX_OID_LEN] = {
+1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 7}, vacmAccessStatus[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 4, 1, 9}, vacmViewTreeFamilyMask[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 5, 2, 1, 3}, vacmViewTreeFamilyType[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 5, 2, 1, 4},
-    vacmViewTreeFamilyStorageType[MAX_OID_LEN] = {
-1, 3, 6, 1, 6, 3, 16, 1, 5, 2, 1, 5},
     vacmViewTreeFamilyStatus[MAX_OID_LEN] = {
 1, 3, 6, 1, 6, 3, 16, 1, 5, 2, 1, 6}
 
@@ -111,7 +100,6 @@ static oid      vacmGroupName[MAX_OID_LEN] =
 #define NSVACMACCESSTABLE    1, 3, 6, 1, 4, 1, 8072, 1, 9, 1
 static oid nsVacmContextPfx[MAX_OID_LEN]  = { NSVACMACCESSTABLE, 1, 2 };
 static oid nsVacmViewName[MAX_OID_LEN]    = { NSVACMACCESSTABLE, 1, 3 };
-static oid nsVacmStorageType[MAX_OID_LEN] = { NSVACMACCESSTABLE, 1, 4 };
 static oid nsVacmRowStatus[MAX_OID_LEN]   = { NSVACMACCESSTABLE, 1, 5 };
 
 int             viewTreeFamilyType = 1;
@@ -284,7 +272,8 @@ main(int argc, char *argv[])
     int             exitval = 0;
     int             command = 0;
     long            longvar;
-    int             secModel, secLevel, contextMatch, val, i = 0;
+    int             secModel, secLevel, contextMatch;
+    unsigned int    val, i = 0;
     char           *mask, *groupName, *prefix, *authtype;
     u_char          viewMask[VACMSTRINGLEN];
     char           *st;
@@ -294,9 +283,11 @@ main(int argc, char *argv[])
      * get the common command line arguments 
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
-    case -2:
+    case NETSNMP_PARSE_ARGS_ERROR:
+        exit(1);
+    case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
         exit(0);
-    case -1:
+    case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
         exit(1);
     default:
@@ -393,7 +384,7 @@ main(int argc, char *argv[])
                 i++;
             }
 	} else {
-            for (i=0 ; i < ((int)name_length+7)/8; i++)
+            for (i=0 ; i < (name_length+7)/8; i++)
                 viewMask[i] = (u_char)0xff;
         }
         view_oid(vacmViewTreeFamilyMask, &name_length, argv[arg],

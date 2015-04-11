@@ -6,9 +6,12 @@
 #define _MIBGROUP_TCP_H
 
 
-config_require(mibII/tcpTable util_funcs)
-config_arch_require(solaris2, kernel_sunos5)
-config_arch_require(linux, mibII/kernel_linux)
+config_require(mibII/tcpTable)
+
+config_arch_require(solaris2,        kernel_sunos5)
+config_arch_require(linux,     mibII/kernel_linux)
+config_arch_require(netbsd,    mibII/kernel_netbsd)
+config_arch_require(netbsdelf, mibII/kernel_netbsd)
 
 extern void     init_tcp(void);
 extern Netsnmp_Node_Handler tcp_handler;

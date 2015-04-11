@@ -39,10 +39,10 @@ msgstr ""
 "PO-Revision-Date: 2007-06-03 17:39+0200\n"
 "Last-Translator: Javier Fernández-Sanguino <jfs@debian.org>\n"
 "Language-Team: Debian Spanish <debian-l10n-spanish@lists.debian.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: \n"
 
 #. Type: note
 #. Description
@@ -67,9 +67,10 @@ msgid ""
 "with SNMP multiplexing (SMUX) support disabled. These parameters can all be "
 "individually changed in /etc/default/snmpd."
 msgstr ""
-"El demonio se ejecuta ahora como usuario «snmp», sólo se enlaza a la interfaz "
-"local y el soporte de multiplexación SNMP (SMUX) está deshabilitado. Puede "
-"modificar cada uno de estos parámetros en «/etc/default/snmpd»."
+"El demonio se ejecuta ahora como usuario «snmp», sólo se enlaza a la "
+"interfaz local y el soporte de multiplexación SNMP (SMUX) está "
+"deshabilitado. Puede modificar cada uno de estos parámetros en «/etc/default/"
+"snmpd»."
 
 #. Type: note
 #. Description

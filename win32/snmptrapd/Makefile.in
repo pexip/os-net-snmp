@@ -14,12 +14,6 @@ NULL=
 NULL=nul
 !ENDIF 
 
-!IF $(SSL) == 1
-OPENSSL=libeay32.lib gdi32.lib
-!ELSE
-OPENSSL=""
-!ENDIF
-
 !IF  "$(CFG)" == "release"
 
 ALL : "..\bin\$(OUTDIR)\$(PROGNAME).exe" "$(INTDIR)"
@@ -32,6 +26,7 @@ CLEAN :
 	-@erase "$(INTDIR)\vc??.idb"
 	-@erase "$(INTDIR)\$(PROGNAME).pch"
 	-@erase "..\bin\$(OUTDIR)\$(PROGNAME).exe"
+	-@erase "..\bin\$(OUTDIR)\$(PROGNAME).exe.manifest"
 
 "..\bin\$(OUTDIR)" :
     if not exist "..\bin\$(OUTDIR)/$(NULL)" mkdir "..\bin\$(OUTDIR)"
@@ -40,7 +35,7 @@ CLEAN :
     if not exist "$(INTDIR)/$(NULL)" mkdir "$(INTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /GX /O2 /I "." /I ".." /I "..\..\snmplib" /I "..\.." /I "..\..\include" /I "..\..\agent\mibgroup" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\$(PROGNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /EHsc /Zi /O2 /I "." /I ".." /I "..\..\snmplib" /I "..\.." /I "..\..\include" /I "..\..\agent\mibgroup" /D "WIN32" /D "_BIND_TO_CURRENT_VCLIBS_VERSION" /D "NDEBUG" /D "_CONSOLE" /D "_CRT_SECURE_NO_WARNINGS" /D "_CRT_NONSTDC_NO_WARNINGS" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\$(PROGNAME).pdb" /FD /c 
 
 !IF "$(LINKTYPE)" == "dynamic"
 CPP_PROJ=$(CPP_PROJ) /D "NMAKE_NETSNMP_USE_DLL"
@@ -81,9 +76,9 @@ RSC_PROJ=/l 0x409 /fo"$(INTDIR)\winservice.res" /d "NDEBUG"
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(INTDIR)\$(PROGNAME).bsc" 
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
-LINK32_FLAGS=$(OPENSSL) netsnmp.lib netsnmpagent.lib netsnmpmibs.lib netsnmphelpers.lib netsnmptrapd.lib advapi32.lib ws2_32.lib kernel32.lib user32.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"..\bin\$(OUTDIR)/$(PROGNAME).exe" /libpath:"../lib/release" 
+LINK32_FLAGS=netsnmp.lib netsnmpagent.lib netsnmpmibs.lib netsnmptrapd.lib advapi32.lib ws2_32.lib kernel32.lib user32.lib /nologo /subsystem:console /pdb:"../bin/$(OUTDIR)/$(PROGNAME).pdb" /debug /out:"..\bin\$(OUTDIR)/$(PROGNAME).exe" /libpath:"../lib/release" 
 LINK32_OBJS= \
 	"$(INTDIR)\$(PROGNAME).obj" \
 	"$(INTDIR)\winservice.obj" \
@@ -94,6 +89,8 @@ LINK32_OBJS= \
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
+ if exist "..\bin\$(OUTDIR)\$(PROGNAME).exe.manifest" \
+	    mt.exe -manifest "..\bin\$(OUTDIR)\$(PROGNAME).exe.manifest" -outputresource:"..\bin\$(OUTDIR)\$(PROGNAME).exe";1
 !ELSE	# Linktype check
 	-@echo .
 	-@echo Aborting build.  Applications can not be built using --linktype=dynamic
@@ -117,6 +114,7 @@ CLEAN :
 	-@erase "$(INTDIR)\$(PROGNAME).bsc"
 	-@erase "$(INTDIR)\$(PROGNAME).pdb"
 	-@erase "..\bin\$(OUTDIR)\$(PROGNAME).exe"
+	-@erase "..\bin\$(OUTDIR)\$(PROGNAME).exe.manifest"
 
 "..\bin\$(OUTDIR)" :
     if not exist "..\bin\$(OUTDIR)/$(NULL)" mkdir "..\bin\$(OUTDIR)"
@@ -125,7 +123,7 @@ CLEAN :
     if not exist "$(INTDIR)/$(NULL)" mkdir "$(INTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Gm /GX /Zi /Od /I "." /I ".." /I "..\..\snmplib" /I "..\.." /I "..\..\include" /I "..\..\agent\mibgroup" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\$(PROGNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MDd /W3 /Gm /EHsc /Zi /Od /I "." /I ".." /I "..\..\snmplib" /I "..\.." /I "..\..\include" /I "..\..\agent\mibgroup" /D "WIN32" /D "_BIND_TO_CURRENT_VCLIBS_VERSION" /D "_DEBUG" /D "_CONSOLE" /D "_CRT_SECURE_NO_WARNINGS" /D "_CRT_NONSTDC_NO_WARNINGS" /D "_MBCS" /FR"$(INTDIR)\\" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\$(PROGNAME).pdb" /FD /c 
 
 !IF "$(LINKTYPE)" == "dynamic"
 CPP_PROJ=$(CPP_PROJ) /D "NMAKE_NETSNMP_USE_DLL"
@@ -175,7 +173,7 @@ BSC32_SBRS= \
 <<
 
 LINK32=link.exe
-LINK32_FLAGS=$(OPENSSL) netsnmp.lib netsnmpagent.lib netsnmpmibs.lib netsnmphelpers.lib netsnmptrapd.lib advapi32.lib ws2_32.lib kernel32.lib user32.lib /nologo /subsystem:console /incremental:no /pdb:"$(INTDIR)\$(PROGNAME).pdb" /debug /machine:I386 /out:"..\bin\$(OUTDIR)/$(PROGNAME).exe" /pdbtype:sept /libpath:"../lib/debug" 
+LINK32_FLAGS=netsnmp.lib netsnmpagent.lib netsnmpmibs.lib netsnmptrapd.lib advapi32.lib ws2_32.lib kernel32.lib user32.lib /nologo /subsystem:console /incremental:no /pdb:"../bin/$(OUTDIR)/$(PROGNAME).pdb" /debug /out:"..\bin\$(OUTDIR)/$(PROGNAME).exe" /pdbtype:sept /libpath:"../lib/debug" 
 LINK32_OBJS= \
 	"$(INTDIR)\$(PROGNAME).obj" \
 	"$(INTDIR)\winservice.obj" \
@@ -186,6 +184,8 @@ LINK32_OBJS= \
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
+ if exist "..\bin\$(OUTDIR)\$(PROGNAME).exe.manifest" \
+	    mt.exe -manifest "..\bin\$(OUTDIR)\$(PROGNAME).exe.manifest" -outputresource:"..\bin\$(OUTDIR)\$(PROGNAME).exe";1
 !ELSE	# Linktype check
 	-@echo .
 	-@echo Aborting build.  Applications can not be built using --linktype=dynamic
@@ -203,25 +203,6 @@ LINK32_OBJS= \
 !ENDIF 
 !ENDIF 
 
-
-!IF "$(CFG)" == "release" || "$(CFG)" == "debug"
-SOURCE=..\..\agent\mibgroup\notification-log-mib\notification_log.c
-
-!IF  "$(CFG)" == "release"
-
-
-"$(INTDIR)\notification_log.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-!ELSEIF  "$(CFG)" == "debug"
-
-
-"$(INTDIR)\notification_log.obj"	"$(INTDIR)\notification_log.sbr" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-!ENDIF 
 
 SOURCE=..\..\apps\$(PROGNAME).c
 
@@ -312,7 +293,3 @@ SOURCE=..\..\snmplib\winservice.rc
 
 
 !ENDIF 
-
-
-!ENDIF 
-

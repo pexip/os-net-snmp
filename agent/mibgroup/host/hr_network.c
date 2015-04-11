@@ -4,6 +4,7 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/data_access/interface.h>
@@ -22,6 +23,9 @@
 #include "mibII/interfaces.h"
 #include "hr_network.h"
 
+#if !defined( solaris2 )
+netsnmp_feature_require(interface_legacy)
+#endif /* !solaris2 */
 
         /*********************
 	 *
@@ -51,7 +55,8 @@ int             header_hrnet(struct variable *, oid *, size_t *, int,
 #define	HRNET_IFINDEX		1
 
 struct variable4 hrnet_variables[] = {
-    {HRNET_IFINDEX, ASN_INTEGER, RONLY, var_hrnet, 2, {1, 1}}
+    {HRNET_IFINDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_hrnet, 2, {1, 1}}
 };
 oid             hrnet_variables_oid[] = { 1, 3, 6, 1, 2, 1, 25, 3, 4 };
 
@@ -136,7 +141,7 @@ header_hrnet(struct variable *vp,
     memcpy((char *) name, (char *) newname,
            (vp->namelen + 1) * sizeof(oid));
     *length = vp->namelen + 1;
-    *write_method = 0;
+    *write_method = (WriteMethod*)0;
     *var_len = sizeof(long);    /* default to 'long' results */
 
     DEBUGMSGTL(("host/hr_network", "... get net stats "));
@@ -188,17 +193,21 @@ var_hrnet(struct variable * vp,
 #if defined( USING_IF_MIB_IFTABLE_IFTABLE_DATA_ACCESS_MODULE )
 static char     HRN_name[16];
 static netsnmp_interface_entry *HRN_ifnet;
-#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_Next(a, b, c, d)
+#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_NextInt(a, b, c, d)
 #elif defined(hpux11)
 static char     HRN_name[MAX_PHYSADDR_LEN];
 static nmapi_phystat HRN_ifnet;
-#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_Next(a, b, c)
+#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_NextInt(a, b, c)
+#elif defined darwin
+static char     HRN_name[IFNAMSIZ];
+static struct if_msghdr HRN_ifnet;
+#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_NextInt(a, b, c, d)
 #else                           /* hpux11 */
 static char     HRN_name[16];
 #ifndef WIN32
 static struct ifnet HRN_ifnet;
 #endif /* WIN32 */
-#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_Next(a, b, c, d)
+#define M_Interface_Scan_Next(a, b, c, d)	Interface_Scan_NextInt(a, b, c, d)
 #endif
 
 #ifdef hpux11
@@ -221,8 +230,8 @@ Init_HR_Network(void)
 int
 Get_Next_HR_Network(void)
 {
-short    HRN_index;
-#if !defined( solaris2) && ! defined( WIN32 )
+int      HRN_index;
+#if !(defined(solaris2) || defined(darwin) || defined(WIN32))
     if (M_Interface_Scan_Next(&HRN_index, HRN_name, &HRN_ifnet, NULL) == 0)
         HRN_index = -1;
 #else
@@ -230,6 +239,17 @@ short    HRN_index;
 #endif
     if (-1 == HRN_index)
         return HRN_index;
+
+    /*
+     * If the index is greater than the shift registry space,
+     * this will overrun into the next device type block,
+     * potentially resulting in duplicate index values
+     * which may cause the agent to crash.
+     *   To avoid this, we silently drop interfaces greater
+     * than the shift registry size can handle.
+     */
+    if (HRN_index > (1 << HRDEV_TYPE_SHIFT ))
+        return -1;
 
     return (HRDEV_NETWORK << HRDEV_TYPE_SHIFT) + HRN_index;
 }
@@ -239,18 +259,20 @@ Save_HR_Network_Info(void)
 {
     strcpy(HRN_savedName, HRN_name);
 #if defined( USING_IF_MIB_IFTABLE_IFTABLE_DATA_ACCESS_MODULE )
-    HRN_savedFlags = HRN_ifnet->os_flags;
+    HRN_savedFlags  = HRN_ifnet->os_flags;
     HRN_savedErrors = HRN_ifnet->stats.ierrors + HRN_ifnet->stats.oerrors;
 #elif defined( hpux11 )
-    HRN_savedFlags = HRN_ifnet.if_entry.ifOper;
+    HRN_savedFlags  = HRN_ifnet.if_entry.ifOper;
     HRN_savedErrors = HRN_ifnet.if_entry.ifInErrors +
-        HRN_ifnet.if_entry.ifOutErrors;
-#else                           /* hpux11 */
-#ifndef WIN32
+                      HRN_ifnet.if_entry.ifOutErrors;
+#elif defined(__APPLE__)       /* or darwin? */
+    HRN_savedFlags  = HRN_ifnet.ifm_flags;
+    HRN_savedErrors = HRN_ifnet.ifm_data.ifi_ierrors +
+                      HRN_ifnet.ifm_data.ifi_oerrors;
+#elif !defined(WIN32)
     HRN_savedFlags = HRN_ifnet.if_flags;
     HRN_savedErrors = HRN_ifnet.if_ierrors + HRN_ifnet.if_oerrors;
-#endif /* WIN32 */
-#endif                          /* hpux11 */
+#endif
 }
 
 

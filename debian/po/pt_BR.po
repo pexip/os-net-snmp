@@ -12,10 +12,10 @@ msgstr ""
 "PO-Revision-Date: 2007-06-02 09:04:21-0300\n"
 "Last-Translator: Herbert Parentes Fortes Neto <h_p_f_n@yahoo.com.br>\n"
 "Language-Team: l10n portuguese <debian-l10n-portuguese@lists.debian.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: \n"
 "pt_BR utf-8\n"
 
 #. Type: note

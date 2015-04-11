@@ -1,7 +1,7 @@
 /*
  * arp data access header
  *
- * $Id: arp.h 13310 2005-10-29 03:31:29Z rstory $
+ * $Id$
  */
 /**---------------------------------------------------------------------*/
 /*
@@ -18,13 +18,14 @@
  *    be handled in the *_hpux.h header file.
  */
 config_require(ip-mib/data_access/arp_common)
-#if defined( linux )
+#if defined( HAVE_LINUX_RTNETLINK_H )
+config_require(ip-mib/data_access/arp_netlink)
+#elif defined( linux )
 config_require(ip-mib/data_access/arp_linux)
 #else
 /*
  * couldn't determine the correct file!
- * require a bogus file to generate an error.
  */
-config_require(ip-mib/data_access/arp-unknown-arch)
+config_error(the arp data access library is not available in this environment.)
 #endif
 

@@ -41,11 +41,12 @@ PERFORMANCE OF THIS SOFTWARE.
  * (schoenfr@ibr.cs.tu-bs.de) 1994/1995.
  * Linux additions taken from CMU to UCD stack by Jennifer Bray of Origin
  * (jbray@origin-at.co.uk) 1997
- * Support for system({CTL_NET,PF_ROUTE,...) by Simon Leinen
+ * Support for sysctl({CTL_NET,PF_ROUTE,...) by Simon Leinen
  * (simon@switch.ch) 1997
  */
 
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 
 #include "route_headers.h"
 #define CACHE_TIME (120)        /* Seconds */
@@ -61,7 +62,8 @@ PERFORMANCE OF THIS SOFTWARE.
 #include "kernel.h"
 #include "interfaces.h"
 #include "struct.h"
-#include "util_funcs.h"
+
+netsnmp_feature_child_of(get_routes, libnetsnmpmibs)
 
 #ifndef  MIN
 #define  MIN(a,b)                     (((a) < (b)) ? (a) : (b))
@@ -313,17 +315,19 @@ static int      rtsize = 0;
 static mib_ipRouteEnt *rt = (mib_ipRouteEnt *) 0;
 static void     Route_Scan_Reload(void);
 #elif !defined(solaris2)
-static RTENTRY **rthead = 0;
+static RTENTRY **rthead = NULL;
 static int      rtsize = 0, rtallocate = 0;
 
 static void     Route_Scan_Reload(void);
 
+#ifndef NETSNMP_FEATURE_REMOVE_GET_ROUTES
 RTENTRY **netsnmp_get_routes(size_t *size) {
     Route_Scan_Reload();
     if (size)
         *size = rtsize;
     return rthead;
 }
+#endif /* NETSNMP_FEATURE_REMOVE_GET_ROUTES */
 #endif                          /* hpux11 */
 
 #if !(defined(linux) || defined(solaris2) || defined(hpux11)) && defined(RTHOST_SYMBOL) && defined(RTNET_SYMBOL)
@@ -432,7 +436,8 @@ var_ipRouteEntry(struct variable * vp,
      * IPADDR starts at offset 10.
      */
     register int    Save_Valid, result, RtIndex;
-    static int      saveNameLen = 0, saveExact = 0, saveRtIndex = 0;
+    static size_t   saveNameLen = 0;
+    static int      saveExact = 0, saveRtIndex = 0;
     static oid      saveName[MAX_OID_LEN], Current[MAX_OID_LEN];
     u_char         *cp;
     oid            *op;
@@ -762,6 +767,10 @@ var_ipRouteEntry(struct variable * vp,
         if (getMibstat(MIB_IP_ROUTE, &entry, sizeof(mib2_ipRouteEntry_t),
                        req_type, &IP_Cmp_Route, &Nextentry) != 0)
             break;
+#ifdef HAVE_DEFINED_IRE_CACHE
+        if(entry.ipRouteInfo.re_ire_type&IRE_CACHE)
+            continue;
+#endif /* HAVE_DEFINED_IRE_CACHE */
         COPY_IPADDR(cp, (u_char *) & entry.ipRouteDest, op,
                     current + IP_ROUTEADDR_OFF);
         if (exact) {
@@ -865,7 +874,7 @@ var_ipRouteEntry(struct variable * vp,
 static int      qsort_compare(const void *, const void *);
 #endif
 
-#if defined(RTENTRY_4_4) || defined(RTENTRY_RT_NEXT) || defined(hpux11)
+#if defined(RTENTRY_4_4) || defined(RTENTRY_RT_NEXT) || defined (hpux11)
 
 #if defined(RTENTRY_4_4) && !defined(hpux11)
 void
@@ -875,7 +884,7 @@ load_rtentries(struct radix_node *pt)
     RTENTRY         rt;
     struct ifnet    ifnet;
     char            name[16], temp[16];
-#if !STRUCT_IFNET_HAS_IF_XNAME
+#if !HAVE_STRUCT_IFNET_IF_XNAME
     register char  *cp;
 #endif
 
@@ -908,9 +917,9 @@ load_rtentries(struct radix_node *pt)
                 DEBUGMSGTL(("mibII/var_route", "klookup failed\n"));
                 return;
             }
-#if STRUCT_IFNET_HAS_IF_XNAME
+#if HAVE_STRUCT_IFNET_IF_XNAME
 #if defined(netbsd1) || defined(openbsd2)
-            strncpy(name, ifnet.if_xname, sizeof name);
+            strlcpy(name, ifnet.if_xname, sizeof(name));
 #else
             if (!NETSNMP_KLOOKUP(ifnet.if_xname, name, sizeof name)) {
                 DEBUGMSGTL(("mibII/var_route", "klookup failed\n"));
@@ -919,6 +928,10 @@ load_rtentries(struct radix_node *pt)
 #endif
             name[sizeof(name) - 1] = '\0';
 #else
+#ifdef NETSNMP_FEATURE_CHECKIN
+            /* this exists here just so we don't copy ifdef logic elsewhere */
+            netsnmp_feature_require(string_append_int);
+#endif
             if (!NETSNMP_KLOOKUP(ifnet.if_name, name, sizeof name)) {
                 DEBUGMSGTL(("mibII/var_route", "klookup failed\n"));
                 return;
@@ -927,6 +940,9 @@ load_rtentries(struct radix_node *pt)
             cp = (char *) strchr(name, '\0');
             string_append_int(cp, ifnet.if_unit);
 #endif
+#ifdef NETSNMP_FEATURE_CHECKIN
+            netsnmp_feature_require(interface_legacy)
+#endif /* NETSNMP_FEATURE_CHECKIN */
             Interface_Scan_Init();
             rt.rt_unit = 0;
             while (Interface_Scan_Next
@@ -1031,10 +1047,10 @@ Route_Scan_Reload(void)
     char            name[16], temp[16];
     int             hashsize;
 #endif
-    static int      Time_Of_Last_Reload = 0;
+    static time_t   Time_Of_Last_Reload;
     struct timeval  now;
 
-    gettimeofday(&now, (struct timezone *) 0);
+    netsnmp_get_monotonic_clock(&now);
     if (Time_Of_Last_Reload + CACHE_TIME > now.tv_sec)
         return;
     Time_Of_Last_Reload = now.tv_sec;
@@ -1076,6 +1092,11 @@ Route_Scan_Reload(void)
     }
 
 #else                           /* rtentry is a BSD 4.3 compat */
+#ifdef NETSNMP_FEATURE_CHECKIN
+    /* this exists here just so we don't copy ifdef logic elsewhere */
+    netsnmp_feature_require(string_append_int);
+    netsnmp_feature_require(interface_legacy)
+#endif
     for (table = 0; table < NUM_ROUTE_SYMBOLS; table++) {
         auto_nlist(RTHASHSIZE_SYMBOL, (char *) &hashsize,
                    sizeof(hashsize));
@@ -1160,6 +1181,8 @@ Route_Scan_Reload(void)
 #else
 
 #if HAVE_SYS_MBUF_H
+netsnmp_feature_require(string_append_int)
+netsnmp_feature_require(interface_legacy)
 static void
 Route_Scan_Reload(void)
 {
@@ -1170,11 +1193,11 @@ Route_Scan_Reload(void)
     int             i, table;
     register char  *cp;
     char            name[16], temp[16];
-    static int      Time_Of_Last_Reload = 0;
+    static time_t   Time_Of_Last_Reload;
     struct timeval  now;
     int             hashsize;
 
-    gettimeofday(&now, (struct timezone *) 0);
+    netsnmp_get_monotonic_clock(&now);
     if (Time_Of_Last_Reload + CACHE_TIME > now.tv_sec)
         return;
     Time_Of_Last_Reload = now.tv_sec;
@@ -1286,10 +1309,10 @@ Route_Scan_Reload(void)
     char            line[256];
     struct rtentry *rt;
     char            name[16];
-    static int      Time_Of_Last_Reload = 0;
+    static time_t   Time_Of_Last_Reload;
     struct timeval  now;
 
-    gettimeofday(&now, (struct timezone *) 0);
+    netsnmp_get_monotonic_clock(&now);
     if (Time_Of_Last_Reload + CACHE_TIME > now.tv_sec)
         return;
     Time_Of_Last_Reload = now.tv_sec;
@@ -1313,15 +1336,15 @@ Route_Scan_Reload(void)
     rtsize = 0;
 
     if (!(in = fopen("/proc/net/route", "r"))) {
-        snmp_log(LOG_ERR, "cannot open /proc/net/route - burps\n");
+        NETSNMP_LOGONCE((LOG_ERR, "cannot open /proc/net/route - burps\n"));
         return;
     }
 
     while (fgets(line, sizeof(line), in)) {
         struct rtentry  rtent;
         char            rtent_name[32];
-        int             refcnt, flags, metric;
-        unsigned        use;
+        int             refcnt, metric;
+        unsigned        flags, use;
 
         rt = &rtent;
         memset((char *) rt, (0), sizeof(*rt));
@@ -1332,22 +1355,18 @@ Route_Scan_Reload(void)
          * Iface Dest GW Flags RefCnt Use Metric Mask MTU Win IRTT
          * eth0 0A0A0A0A 00000000 05 0 0 0 FFFFFFFF 1500 0 0 
          */
-        if (8 != sscanf(line, "%s %x %x %x %u %d %d %x %*d %*d %*d\n",
+        if (8 != sscanf(line, "%s %x %x %x %d %u %d %x %*d %*d %*d\n",
                         rt->rt_dev,
-                        &(((struct sockaddr_in *) &(rtent.rt_dst))->
-                          sin_addr.s_addr),
-                        &(((struct sockaddr_in *) &(rtent.rt_gateway))->
-                          sin_addr.s_addr),
+                        &(((struct sockaddr_in *) &(rtent.rt_dst))->sin_addr.s_addr),
+                        &(((struct sockaddr_in *) &(rtent.rt_gateway))->sin_addr.s_addr),
                         /*
                          * XXX: fix type of the args 
                          */
                         &flags, &refcnt, &use, &metric,
-                        &(((struct sockaddr_in *) &(rtent.rt_genmask))->
-                          sin_addr.s_addr)))
+                        &(((struct sockaddr_in *) &(rtent.rt_genmask))->sin_addr.s_addr)))
             continue;
 
-        strncpy(name, rt->rt_dev, sizeof(name));
-        name[ sizeof(name)-1 ] = 0;
+        strlcpy(name, rt->rt_dev, sizeof(name));
 
         rt->rt_flags = flags, rt->rt_refcnt = refcnt;
         rt->rt_use = use, rt->rt_metric = metric;
@@ -1443,7 +1462,7 @@ qsort_compare(const void *v1, const void *v2)
 
 #endif                          /* solaris2 */
 
-#else                           /* WIN32 cygwin */
+#elif defined(HAVE_IPHLPAPI_H)  /* WIN32 cygwin */
 #include <iphlpapi.h>
 #ifndef MIB_IPPROTO_NETMGMT
 #define MIB_IPPROTO_NETMGMT 3
@@ -1467,7 +1486,7 @@ var_ipRouteEntry(struct variable *vp,
      * 1.3.6.1.2.1.4.21.1.?.A.B.C.D,  where A.B.C.D is IP address.
      * IPADDR starts at offset 10.
      */
-    register int    Save_Valid, result, RtIndex;
+    register int    Save_Valid, result, RtIndex = 0;
     static int      saveNameLen = 0, saveExact = 0, saveRtIndex =
         0, rtsize = 0;
     static oid      saveName[MAX_OID_LEN], Current[MAX_OID_LEN];
@@ -1477,9 +1496,7 @@ var_ipRouteEntry(struct variable *vp,
     DWORD           dwActualSize = 0;
     static PMIB_IPFORWARDTABLE pIpRtrTable = NULL;
     struct timeval  now;
-    static long     Time_Of_Last_Reload = 0;
-    u_char          dest_addr[4];
-    MIB_IPFORWARDROW temp_row;
+    static time_t    Time_Of_Last_Reload;
     static in_addr_t addr_ret;
 
 
@@ -1496,7 +1513,7 @@ var_ipRouteEntry(struct variable *vp,
          */
         route_row = (PMIB_IPFORWARDROW) malloc(sizeof(MIB_IPFORWARDROW));
     }
-    gettimeofday(&now, (struct timezone *) 0);
+    netsnmp_get_monotonic_clock(&now);
     if ((rtsize <= 1) || (Time_Of_Last_Reload + 5 <= now.tv_sec))
         Save_Valid = 0;
     else
@@ -1574,12 +1591,16 @@ var_ipRouteEntry(struct variable *vp,
              * for creation of new row, only ipNetToMediaTable case is considered 
              */
             if (*length == 14) {
+                u_char           dest_addr[4];
+                MIB_IPFORWARDROW temp_row;
+
                 create_flag = 1;
                 *write_method = write_rte;
                 dest_addr[0] = (u_char) name[10];
                 dest_addr[1] = (u_char) name[11];
                 dest_addr[2] = (u_char) name[12];
                 dest_addr[3] = (u_char) name[13];
+                memset(&temp_row, 0, sizeof(temp_row));
                 temp_row.dwForwardDest = *((DWORD *) dest_addr);
                 temp_row.dwForwardPolicy = 0;
                 temp_row.dwForwardProto = MIB_IPPROTO_NETMGMT;

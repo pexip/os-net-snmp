@@ -11,9 +11,6 @@
 #include <strings.h>
 #endif
 #include <sys/types.h>
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
 
 #if HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -28,7 +25,7 @@
 #if HAVE_SYS_TCPIPSTATS_H
 #include <sys/tcpipstats.h>
 #endif
-#if defined(IFNET_NEEDS_KERNEL) && !defined(_KERNEL)
+#if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL)
 #define _KERNEL 1
 #define _I_DEFINED_KERNEL
 #endif
@@ -99,6 +96,9 @@
 #endif
 #ifdef linux
 #include "kernel_linux.h"
+#endif
+#ifdef NETBSD_STATS_VIA_SYSCTL
+#include "kernel_netbsd.h"
 #endif
 	/* or MIB_xxxCOUNTER_SYMBOL || hpux11 */
 #ifdef hpux

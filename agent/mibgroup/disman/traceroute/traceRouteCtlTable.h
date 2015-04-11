@@ -113,8 +113,9 @@ struct traceRouteResultsTable_data {
     size_t          traceRouteResultsIpTgtAddrLen;
     unsigned long   traceRouteResultsTestAttempts;
     unsigned long   traceRouteResultsTestSuccesses;
-    char           *traceRouteResultsLastGoodPath;
+    u_char         *traceRouteResultsLastGoodPath;
     size_t          traceRouteResultsLastGoodPathLen;
+    time_t          traceRouteResultsLastGoodPath_time;
 
     int             storageType;
 
@@ -138,8 +139,9 @@ struct traceRouteProbeHistoryTable_data {
     unsigned long   traceRouteProbeHistoryResponse;
     long            traceRouteProbeHistoryStatus;
     long            traceRouteProbeHistoryLastRC;
-    char           *traceRouteProbeHistoryTime;
+    u_char         *traceRouteProbeHistoryTime;
     size_t          traceRouteProbeHistoryTimeLen;
+    time_t          traceRouteProbeHistoryTime_time;
 
     int             storageType;
 
@@ -165,8 +167,9 @@ struct traceRouteHopsTable_data {
     unsigned long   traceRouteHopsRttSumOfSquares;
     unsigned long   traceRouteHopsSentProbes;
     unsigned long   traceRouteHopsProbeResponses;
-    char           *traceRouteHopsLastGoodProbe;
+    u_char         *traceRouteHopsLastGoodProbe;
     size_t          traceRouteHopsLastGoodProbeLen;
+    time_t          traceRouteHopsLastGoodProbe_time;
 
     int             storageType;
 };
@@ -272,7 +275,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996, 1997, 1998, 1999, 2000\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Id: traceRouteCtlTable.h 10899 2004-08-24 15:15:03Z dts12 $ (LBL)";
+    "@(#)$Id$ (LBL)";
 #endif
 
 /*
@@ -455,23 +458,16 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/time.h>
 
-/* include <linux/ipv6.h> */
-/* include <linux/in6.h> */
-
-#include "in6.h"
-#include "ipv6.h"
-
-#include <linux/icmpv6.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include "ip_var.h"
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
-#include "udp_var.h"
 
-/* include <linux/if.h> */
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
+
 #include <arpa/inet.h>
 
 #include <ctype.h>
@@ -487,7 +483,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -530,7 +525,7 @@ static const char rcsid[] =
 #define FD_SET(n, p)    ((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
 #define FD_CLR(n, p)    ((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
 #define FD_ISSET(n, p)  ((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
-#define FD_ZERO(p)      bzero((char *)(p), sizeof(*(p)))
+#define FD_ZERO(p)      memset((p), '\0', sizeof(*(p)))
 #endif
 
 #define Fprintf (void)fprintf
@@ -570,26 +565,17 @@ struct ifaddrlist {
 };
 
 
-
-
-char           *prog;
-
 struct pkt_format {
-    __u32           ident;
-    __u32           seq;
+    u_int32_t       ident;
+    u_int32_t       seq;
     struct timeval  tv;
 };
 
-
-extern int      optind;
-extern int      opterr;
-extern char    *optarg;
 
 /*
  * Forwards 
  */
 unsigned long   deltaT(struct timeval *, struct timeval *);
-unsigned long   round(double);
 void            freehostinfo(struct hostinfo *);
 void            getaddr(u_int32_t *, char *);
 struct hostinfo *gethostinfo(char *);

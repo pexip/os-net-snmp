@@ -42,11 +42,7 @@ SOFTWARE.
 # include <netinet/in.h>
 #endif
 #if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
+# include <sys/time.h>
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -59,9 +55,6 @@ SOFTWARE.
 #include <sys/select.h>
 #endif
 #include <stdio.h>
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
 #if HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -76,9 +69,12 @@ SOFTWARE.
 #define NETSNMP_DS_WALK_DONT_CHECK_LEXICOGRAPHIC	3
 #define NETSNMP_DS_WALK_TIME_RESULTS     	        4
 #define NETSNMP_DS_WALK_DONT_GET_REQUESTED	        5
+#define NETSNMP_DS_WALK_TIME_RESULTS_SINGLE	        6
 
 oid             objid_mib[] = { 1, 3, 6, 1, 2, 1 };
 int             numprinted = 0;
+
+char           *end_name = NULL;
 
 void
 usage(void)
@@ -95,7 +91,10 @@ usage(void)
     fprintf(stderr,
             "\t\t\t  c:  do not check returned OIDs are increasing\n");
     fprintf(stderr,
-            "\t\t\t  t:  Display wall-clock time to complete the request\n");
+            "\t\t\t  t:  Display wall-clock time to complete the walk\n");
+    fprintf(stderr,
+            "\t\t\t  T:  Display wall-clock time to complete each request\n");
+    fprintf(stderr, "\t\t\t  E {OID}:  End the walk at the specified OID\n");
 }
 
 void
@@ -151,6 +150,15 @@ optProc(int argc, char *const *argv, int opt)
                 netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
                                           NETSNMP_DS_WALK_TIME_RESULTS);
                 break;
+
+            case 'E':
+                end_name = argv[optind++];
+                break;
+
+            case 'T':
+                netsnmp_ds_toggle_boolean(NETSNMP_DS_APPLICATION_ID,
+                                          NETSNMP_DS_WALK_TIME_RESULTS_SINGLE);
+                break;
                 
             default:
                 fprintf(stderr, "Unknown flag passed to -C: %c\n",
@@ -173,12 +181,14 @@ main(int argc, char *argv[])
     size_t          name_length;
     oid             root[MAX_OID_LEN];
     size_t          rootlen;
+    oid             end_oid[MAX_OID_LEN];
+    size_t          end_len = 0;
     int             count;
     int             running;
-    int             status;
+    int             status = STAT_ERROR;
     int             check;
     int             exitval = 0;
-    struct timeval  tv1, tv2;
+    struct timeval  tv1, tv2, tv_a, tv_b;
 
     netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "includeRequested",
 			       NETSNMP_DS_APPLICATION_ID, 
@@ -198,15 +208,21 @@ main(int argc, char *argv[])
 
     netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "timeResults",
                                NETSNMP_DS_APPLICATION_ID,
-			       NETSNMP_DS_WALK_TIME_RESULTS);
+                               NETSNMP_DS_WALK_TIME_RESULTS);
+
+    netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "timeResultsSingle",
+                               NETSNMP_DS_APPLICATION_ID,
+                               NETSNMP_DS_WALK_TIME_RESULTS_SINGLE);
 
     /*
      * get the common command line arguments 
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
-    case -2:
+    case NETSNMP_PARSE_ARGS_ERROR:
+        exit(1);
+    case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
         exit(0);
-    case -1:
+    case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
         exit(1);
     default:
@@ -231,6 +247,23 @@ main(int argc, char *argv[])
          */
         memmove(root, objid_mib, sizeof(objid_mib));
         rootlen = sizeof(objid_mib) / sizeof(oid);
+    }
+
+    /*
+     * If we've been given an explicit end point,
+     *  then convert this to an OID, otherwise
+     *  move to the next sibling of the start.
+     */
+    if ( end_name ) {
+        end_len = MAX_OID_LEN;
+        if (snmp_parse_oid(end_name, end_oid, &end_len) == NULL) {
+            snmp_perror(end_name);
+            exit(1);
+        }
+    } else {
+        memmove(end_oid, root, rootlen*sizeof(oid));
+        end_len = rootlen;
+        end_oid[end_len-1]++;
     }
 
     SOCK_STARTUP;
@@ -265,7 +298,7 @@ main(int argc, char *argv[])
 
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                                NETSNMP_DS_WALK_TIME_RESULTS))
-        gettimeofday(&tv1, NULL);
+        netsnmp_get_monotonic_clock(&tv1);
     while (running) {
         /*
          * create PDU for GETNEXT request and add object name to request 
@@ -276,17 +309,20 @@ main(int argc, char *argv[])
         /*
          * do the request 
          */
+        if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_TIME_RESULTS_SINGLE))
+            netsnmp_get_monotonic_clock(&tv_a);
         status = snmp_synch_response(ss, pdu, &response);
         if (status == STAT_SUCCESS) {
+            if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_TIME_RESULTS_SINGLE))
+                netsnmp_get_monotonic_clock(&tv_b);
             if (response->errstat == SNMP_ERR_NOERROR) {
                 /*
                  * check resulting variables 
                  */
                 for (vars = response->variables; vars;
                      vars = vars->next_variable) {
-                    if ((vars->name_length < rootlen)
-                        || (memcmp(root, vars->name, rootlen * sizeof(oid))
-                            != 0)) {
+                    if (snmp_oid_compare(end_oid, end_len,
+                                         vars->name, vars->name_length) <= 0) {
                         /*
                          * not part of this subtree 
                          */
@@ -294,6 +330,10 @@ main(int argc, char *argv[])
                         continue;
                     }
                     numprinted++;
+                    if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_WALK_TIME_RESULTS_SINGLE))
+                        fprintf(stdout, "%f s: ",  
+                                (double) (tv_b.tv_usec - tv_a.tv_usec)/1000000 +
+                                (double) (tv_b.tv_sec - tv_a.tv_sec));
                     print_variable(vars->name, vars->name_length, vars);
                     if ((vars->type != SNMP_ENDOFMIBVIEW) &&
                         (vars->type != SNMP_NOSUCHOBJECT) &&
@@ -362,7 +402,7 @@ main(int argc, char *argv[])
     }
     if (netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                                NETSNMP_DS_WALK_TIME_RESULTS))
-        gettimeofday(&tv2, NULL);
+        netsnmp_get_monotonic_clock(&tv2);
 
     if (numprinted == 0 && status == STAT_SUCCESS) {
         /*

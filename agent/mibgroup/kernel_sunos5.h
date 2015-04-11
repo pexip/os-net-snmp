@@ -71,9 +71,19 @@ typedef enum {
     MIB_TRANSMISSION = 14,
     MIB_SNMP = 15,
 #ifdef SOLARIS_HAVE_IPV6_MIB_SUPPORT
-    MIB_IP6_ADDR = 16,
+#ifdef SOLARIS_HAVE_RFC4293_SUPPORT
+    MIB_IP_TRAFFIC_STATS,
+#endif
+    MIB_IP6,
+    MIB_IP6_ADDR,
     MIB_TCP6_CONN,
     MIB_UDP6_ENDPOINT,
+#endif
+#ifdef MIB2_SCTP
+    MIB_SCTP,
+    MIB_SCTP_CONN,
+    MIB_SCTP_CONN_LOCAL,
+    MIB_SCTP_CONN_REMOTE,
 #endif
     MIBCACHE_SIZE	
 } mibgroup_e;
