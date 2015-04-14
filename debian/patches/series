@@ -19,4 +19,5 @@ CVE-2012-2141.patch
 CVE-2012-6151.patch
 CVE-2014-2285.patch
 CVE-2014-2310.patch
+CVE-2015-XXXX.patch
 use_evp_api.patch
