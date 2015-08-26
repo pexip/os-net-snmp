@@ -1,3 +1,24 @@
+net-snmp (5.4.3~dfsg-2.4ubuntu1.3pexip1) pexip; urgency=low
+
+  * New upstream release
+  * d/p/CVE-2015-XXXX.patch: drop; merged upstream
+
+ -- John-Mark Bell <jmb@pexip.com>  Wed, 26 Aug 2015 12:58:24 +0100
+
+net-snmp (5.4.3~dfsg-2.4ubuntu1.3) precise-security; urgency=medium
+
+  * SECURITY UPDATE: denial of service via crafted SNMP trap message
+    - debian/patches/CVE-2014-3565.patch: handle variables with wrong types
+      in snmplib/mib.c.
+    - CVE-2014-3565
+  * SECURITY UPDATE: denial of service and possible code execution via
+    incompletely parsed varBind variables
+    - debian/patches/CVE-2015-5621.patch: don't return incorrectly parsed
+      varbinds in snmplib/snmp_api.c.
+    - CVE-2015-5621
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 13 Aug 2015 10:31:34 -0400
+
 net-snmp (5.4.3~dfsg-2.4ubuntu1.2pexip3) pexip; urgency=low
 
   * SECURITY UPDATE: denial of service via PDU parsing
