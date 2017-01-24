@@ -4,16 +4,18 @@ Priority: optional
 Maintainer: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
 Uploaders: Jochen Friedrich <jochen@scram.de>, Thomas Anders <tanders@users.sourceforge.net>, Noah Meyerhans <noahm@debian.org>,
  Hideki Yamane <henrich@debian.org>
-Build-Depends: debhelper (>= 9), libtool, libwrap0-dev, libssl-dev (>> 0.9.8), perl (>=5.8), libperl-dev,
+Build-Depends: debhelper (>= 9), libtool, libwrap0-dev, libssl1.0-dev | libssl-dev (<< 1.1), perl (>=5.8), libperl-dev,
  python-all (>= 2.6.6-3~), python-setuptools (>=0.6b3), python2.7-dev,
- autoconf, automake, autotools-dev, debianutils (>=1.13.1), dh-autoreconf,
+ autoconf, automake, autotools-dev, debianutils (>=1.13.1),
+ dh-autoreconf, dh-systemd,
  bash (>=2.05), findutils (>=4.1.20), procps, 
+ pkg-config [kfreebsd-i386 kfreebsd-amd64], 
  libbsd-dev [kfreebsd-i386 kfreebsd-amd64], 
  libkvm-dev [kfreebsd-i386 kfreebsd-amd64], 
  libsensors4-dev [!hurd-i386 !kfreebsd-i386 !kfreebsd-amd64],
- libmysqld-dev, libpci-dev
+ default-libmysqlclient-dev, libpci-dev, dh-python
 Build-Conflicts: libsnmp-dev
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Vcs-Git: git://anonscm.debian.org/pkg-net-snmp/pkg-net-snmp.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-net-snmp/pkg-net-snmp.git
 XS-Python-Version: 2.7
@@ -33,7 +35,7 @@ Description: SNMP (Simple Network Management Protocol) agents
 
 Package: snmptrapd
 Architecture: any
-Recommends: perl-modules
+Recommends: perl
 Depends: ${shlibs:Depends}, ${misc:Depends}, snmpd
 Conflicts: snmpd (<< 5.7.2.1~dfsg-1), snmp (<< 5.7.2.1~dfsg-1)
 Breaks: snmpd (<< 5.7.2.1~dfsg-1)
@@ -48,7 +50,7 @@ Description: Net-SNMP notification receiver
 
 Package: snmp
 Architecture: any
-Recommends: perl-modules
+Recommends: perl
 Depends: ${shlibs:Depends}, ${misc:Depends}, libsnmp-base
 Breaks: libsnmp15 (<< 5.7.2~dfsg-0.1)
 Description: SNMP (Simple Network Management Protocol) applications
@@ -118,7 +120,7 @@ Replaces: libsnmp9-dev, libsnmp15-dev, snmp (<< 5.4~dfsg), libsnmp-base (<< 5.7.
 Provides: libsnmp9-dev
 Conflicts: libsnmp9-dev, libsnmp15-dev, snmp (<< 5.4~dfsg)
 Breaks: libsnmp-base (<< 5.7.2~dfsg-8.1~)
-Depends: libc6-dev, libsnmp30 (=${binary:Version}), libwrap0-dev, libssl-dev, procps, 
+Depends: libc6-dev, libsnmp30 (=${binary:Version}), libwrap0-dev, procps, 
          libkvm-dev [kfreebsd-any], libsensors4-dev [linux-any], ${misc:Depends},
          libpci-dev
 Description: SNMP (Simple Network Management Protocol) development files

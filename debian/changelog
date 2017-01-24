@@ -1,9 +1,134 @@
-net-snmp (5.7.2.1+dfsg-1+deb8u1) jessie-security; urgency=high
+net-snmp (5.7.3+dfsg-1.7) unstable; urgency=medium
 
-  * CVE-2018-1000116: Correct a heap corruption vulnerability prior to the
-    authentication process. (Closes: #894110)
+  [ Niels Thykier ]
+  * Non-maintainer upload with the following changes from
+    other people.
 
- -- Chris Lamb <lamby@debian.org>  Sun, 25 Mar 2018 20:58:00 -0400
+  [ Sebastian Andrzej Siewior ]
+  * drop dep on libssl1.0-dev in the dev package.  (Closes: #851946)
+  * add a guard to catch users of the wrong library
+  * remove "-lcrypto" from the pkg-config when linking statically.
+    This is technical suboptimal and should ideally be reverted
+    for buster (when all packages migrate to the same ssl version).
+
+  [ Adrian Bunk ]
+  * Re-able "pie" hardening as its absence is causing issues for
+    reverse dependencies.  (Closes: #852023)
+
+ -- Niels Thykier <niels@thykier.net>  Tue, 24 Jan 2017 20:16:23 +0000
+
+net-snmp (5.7.3+dfsg-1.6) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Update Build-Depends to use libssl1.0-dev and
+    default-libmysqlclient-dev.  (Closes: #846569, #836312)
+  * Use "perl" instead of the (now removed) "perl-modules" package
+    in Recommends.
+  * Add dh-python build-depends because dh_python2 asked for it.
+  * Drop debian/libsnmp30.postinst - its entire contents was handled
+    by debhelper.
+
+ -- Niels Thykier <niels@thykier.net>  Sat, 14 Jan 2017 08:40:05 +0000
+
+net-snmp (5.7.3+dfsg-1.5) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Fix "FTBFS with Perl 5.24: error: conflicting types for 'U64'":
+    add patch from upstream git which removes the U64 typedef from the
+    Net-SNMP header files.
+    Thanks to Niky Tyni for extracting the patch.
+    (Closes: #825014)
+  * Additionally add another patch from upstream git which fixes
+    perl/*/Makefile.PL to fix build failures with Perl 5.24.
+    Cf. https://sourceforge.net/p/net-snmp/bugs/2712/
+
+ -- gregor herrmann <gregoa@debian.org>  Fri, 02 Sep 2016 16:43:42 +0200
+
+net-snmp (5.7.3+dfsg-1.4) unstable; urgency=medium
+
+  [ Sophie Brun ]
+  * Non-maintainer upload.
+  * Add a snmpd.service and a snmptrapd.service (Closes: #782243)
+
+  [ Raphaël Hertzog ]
+  * Fix the package so that it can build "Arch: all" without "Arch: any" (and
+    thus letting us make source only uploads).
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 20 Jun 2016 10:24:35 +0200
+
+net-snmp (5.7.3+dfsg-1.3) unstable; urgency=medium
+
+  * _Really_ add missing Build-Depends: pkg-config on kfreebsd
+    (Closes: #810982).
+
+ -- Steinar H. Gunderson <sesse@debian.org>  Thu, 31 Mar 2016 01:05:01 +0200
+
+net-snmp (5.7.3+dfsg-1.2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+
+  [ Steven Chamberlain ]
+  * Add missing Build-Depends: pkg-config on kfreebsd (Closes: #810982)
+
+  [ Steinar H. Gunderson ] 
+  * Add --force-badname when creating the Debian-snmp user, as the name would
+    otherwise be rejected. (Closes: #819531)
+
+ -- Steinar H. Gunderson <sesse@debian.org>  Wed, 30 Mar 2016 21:46:44 +0200
+
+net-snmp (5.7.3+dfsg-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload, done on top of the latest version in pkg-net-snmp
+    git, as well as adding Steven Chamberlain's kFreeBSD patches from
+    bug #810892.
+
+  [ Hideki Yamane ]
+  * debian/patches
+    - add Bug-788964-net-snmp-snmp_pdu_parse-DoS.patch (Closes: #788964)
+    - add 0026-fix-Bug-785380-incorrect-date-format.patch (Closes: #785380)
+      Thanks to Gabor Kiss <kissg@ssg.ki.iif.hu>
+    - add 0027-fix-455707-traptoemail-use-FQDN.patch (Closes: #455707)
+      Thanks to Ferenc Wagner <wferi@niif.hu>
+  * debian/snmpd.{preinst,postinst,postrm}
+    - change SNMP user from "snmp" to "Debian-snmp" to avoid confusion with
+      non-system user. It satisfy to work with some LDAP system. Thanks to
+      Vincent Bernat <bernat@debian.org> for suggestions.
+      (Closes: #794641, #794647)
+  * debian/snmp.preinst
+    - revert "killall", it is unnecessary anymore (Closes: #781257)
+
+  [ Steven Chamberlain ]
+  * Fix a typo in 26_kfreebsd.patch
+  * Add 27_kfreebsd.patch: (Closes: #810982)
+    - Add missing dependency of mibII/icmp on kfreebsd
+    - Add kfreebsd definitions not in GNU libc's icmp6.h
+  * Remove obsolete Fix-kfreebsd-builds-with-kernel-headers-10.patch
+  * Re-enable IPv6 on kfreebsd (Closes: #765846)
+  * Build with the libbsd overlay on kfreebsd, for nlist
+
+  [ Steinar H. Gunderson ]
+  * New patches, mostly for various bug fixes (some of them for crash bugs):
+    * fix_engineid_reprobe.diff: Do not probe engineID for USM
+      if it is already given. (Closes: #765873)
+    * callback_print.diff: Fix enum formatting when doing asynchronous queries
+      from Perl. (Closes: #765289)
+    * do_not_callback_for_failed_reports.diff: Fix access of freed data due to
+      callbacks for reports occasionally coming twice.
+    * fix_perl_bulk_gets.diff: Fix handling of truncated bulk get responses
+      in the Perl module. (Patch 1278 in upstream patch tracker.)
+    * let_perl_access_engineid.diff: Add a new functions to let Perl code
+      access the security engine ID.
+
+ -- Steinar H. Gunderson <sesse@debian.org>  Tue, 29 Mar 2016 10:30:24 +0200
+
+net-snmp (5.7.3+dfsg-1) unstable; urgency=medium
+
+  * Imported Upstream version 5.7.3+dfsg
+  * refresh debian/patches and drop unnecessary patches from upstream
+  * debian/control
+    - set Standards-Version: 3.9.6
+
+ -- Hideki Yamane <henrich@debian.org>  Tue, 28 Apr 2015 20:58:18 +0900
 
 net-snmp (5.7.2.1+dfsg-1) unstable; urgency=medium
 

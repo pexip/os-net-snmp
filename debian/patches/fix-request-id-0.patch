@@ -1,16 +1,16 @@
-Description: SNMP GET REQUESTS with REQUEST ID 0 triggered a memory leak that
- is fixed by this patch
-Origin: upstream bug tracker
-Bug: http://sourceforge.net/p/net-snmp/bugs/2387/
-Forwarded: https://bugs.debian.org/746225
-Author: Roland Stigge <stigge@antcom.de>
-Reviewed-by: gregor herrmann <gregoa@debian.org>
-Last-Update: 2014-07-18
-Applied-Upstream: http://sourceforge.net/p/net-snmp/patches/1040/
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: fix-request-id-0
 
+---
+ snmplib/snmp_api.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
+index 191debf..d2568bf 100644
 --- a/snmplib/snmp_api.c
 +++ b/snmplib/snmp_api.c
-@@ -4998,6 +4998,9 @@
+@@ -5025,6 +5025,9 @@ _sess_async_send(void *sessp,
          /*
           * No response expected...  
           */

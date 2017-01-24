@@ -1,8 +1,17 @@
-Index: net-snmp-5.7.2~dfsg/apps/Makefile.in
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/apps/Makefile.in	2012-10-09 22:28:58.000000000 +0000
-+++ net-snmp-5.7.2~dfsg/apps/Makefile.in	2013-01-14 05:56:10.000000000 +0000
-@@ -83,6 +83,8 @@
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: _missing_lib
+
+---
+ apps/Makefile.in | 6 ++++--
+ configure.ac     | 3 +++
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/apps/Makefile.in b/apps/Makefile.in
+index 77404dd..c611e01 100644
+--- a/apps/Makefile.in
++++ b/apps/Makefile.in
+@@ -83,6 +83,8 @@ MIBLIB          = ../agent/libnetsnmpmibs.$(LIB_EXTENSION)$(LIB_VERSION)
  USEAGENTLIBS	= $(MIBLIB) $(AGENTLIB) $(USELIBS)
  MYSQL_LIBS	= @MYSQL_LIBS@
  MYSQL_INCLUDES	= @MYSQL_INCLUDES@
@@ -11,7 +20,7 @@ Index: net-snmp-5.7.2~dfsg/apps/Makefile.in
  
  VAL_LIBS	= @VAL_LIBS@
  LIBS		= $(USELIBS) $(VAL_LIBS) @LIBS@
-@@ -170,7 +172,7 @@
+@@ -170,7 +172,7 @@ snmptest$(EXEEXT):    snmptest.$(OSUFFIX) $(USELIBS)
  	$(LINK) ${CFLAGS} -o $@ snmptest.$(OSUFFIX) ${LDFLAGS} ${LIBS}
  
  snmptrapd$(EXEEXT):    $(TRAPD_OBJECTS) $(USETRAPLIBS) $(INSTALLLIBS)
@@ -20,7 +29,7 @@ Index: net-snmp-5.7.2~dfsg/apps/Makefile.in
  
  snmptrap$(EXEEXT):    snmptrap.$(OSUFFIX) $(USELIBS)
  	$(LINK) ${CFLAGS} -o $@ snmptrap.$(OSUFFIX) ${LDFLAGS} ${LIBS}
-@@ -183,7 +185,7 @@
+@@ -183,7 +185,7 @@ snmpset$(EXEEXT):    snmpset.$(OSUFFIX) $(USELIBS)
  	$(LINK) ${CFLAGS} -o $@ snmpset.$(OSUFFIX) ${LDFLAGS} ${LIBS}
  
  snmpusm$(EXEEXT):    snmpusm.$(OSUFFIX) $(USELIBS)
@@ -29,11 +38,11 @@ Index: net-snmp-5.7.2~dfsg/apps/Makefile.in
  
  snmpvacm$(EXEEXT):    snmpvacm.$(OSUFFIX) $(USELIBS)
  	$(LINK) ${CFLAGS} -o $@ snmpvacm.$(OSUFFIX) ${LDFLAGS} ${LIBS}
-Index: net-snmp-5.7.2~dfsg/configure.ac
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/configure.ac	2012-10-09 22:28:58.000000000 +0000
-+++ net-snmp-5.7.2~dfsg/configure.ac	2013-01-14 05:56:44.894900017 +0000
-@@ -78,6 +78,9 @@
+diff --git a/configure.ac b/configure.ac
+index ecf761f..6d28e67 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -78,6 +78,9 @@ AC_SUBST(DLLIBS)
  
  AC_SUBST(PARTIALTARGETFLAGS)
  AC_SUBST(ac_cv_NETSNMP_SYSTEM_INCLUDE_FILE)

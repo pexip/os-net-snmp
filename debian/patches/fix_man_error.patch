@@ -1,20 +1,16 @@
-Description: fix man error
- 
- - mib2c.conf
-   http://lintian.debian.org/tags/manpage-has-bad-whatis-entry.html
-
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: fix_man_error
 
 Author: Hideki Yamane <henrich@debian.org>
-
 ---
-Origin: vendor
-Forwarded: no
-Last-Update: 2013-01-26
+ man/mib2c.conf.5.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: net-snmp-5.7.2~dfsg/man/mib2c.conf.5.in
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/man/mib2c.conf.5.in	2013-01-26 19:04:05.000000000 +0900
-+++ net-snmp-5.7.2~dfsg/man/mib2c.conf.5.in	2013-01-26 19:04:05.000000000 +0900
+diff --git a/man/mib2c.conf.5.in b/man/mib2c.conf.5.in
+index 3692a65..d756055 100644
+--- a/man/mib2c.conf.5.in
++++ b/man/mib2c.conf.5.in
 @@ -1,6 +1,6 @@
  .TH MIB2C.CONF 5 "28 Apr 2004" VVERSIONINFO "Net-SNMP"
  .SH NAME

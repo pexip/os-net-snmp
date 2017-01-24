@@ -1,6 +1,9 @@
-#! /bin/sh
+#!/bin/sh
 
-SNMPDIR=/var/lib/snmp
+SNMP_DIR="/var/lib/snmp"
+SNMP_USER="Debian-snmp"
+SNMP_GROUP="$SNMP_USER"
+SNMP_SHELL="/bin/false"
 
 set -e
 
@@ -10,31 +13,12 @@ case "$1" in
 	. /usr/share/debconf/confmodule
 	db_version 2.0
 
-	if [ ! `getent passwd snmp >/dev/null` ]; then
+        adduser --quiet --system --group --home "$SNMP_DIR" \
+                --disabled-password  --disabled-login \
+                --shell "$SNMP_SHELL" --force-badname "$SNMP_USER"
 
-	  if [ ! `getent group snmp >/dev/null` ]; then
-	     # no snmp user & group
-	     adduser --quiet --system --group --home $SNMPDIR \
-	             --shell /usr/sbin/nologin snmp
-	  else
-	     # no snmp user, but snmp group exists
-	     adduser --quiet --system --ingroup snmp --home $SNMPDIR \
-	             --shell /usr/sbin/nologin snmp
-	  fi
-
-	elif [ ! `getent group snmp >/dev/null` ]; then
-
-	  # snmp user exists but no snmp group
-	  addgroup --quiet --system snmp
-
-	  # if user is local system user (not LDAP or so), then exec usermod
-	  # see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=482041#25
-	  if [ ! `getent passwd snmp | cut -d':' -f3` -ge 1000 ]; then
-	    mkdir -p $SNMPDIR || true
-	    usermod -d $SNMPDIR -m -g snmp -s /usr/sbin/nologin snmp
-	  fi
-
-	fi
+        # care if SNMP_DIR is used by previous "snmp" user
+        chown -R "$SNMP_USER"."$SNMP_GROUP" "$SNMP_DIR"
 
 	# Bug#709087
         DOCDIR=/usr/share/doc/snmpd

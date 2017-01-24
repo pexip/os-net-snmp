@@ -1,10 +1,17 @@
-Patch from Jonathan Nieder <jrnieder@gmail.com> to update lmsensors API to libsensors4.
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: _libsensors_api
 
-Index: net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/agent/mibgroup/ucd-snmp/lmSensors.c	2013-01-14 15:20:53.481713884 +0900
-+++ net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c	2013-01-14 15:34:53.367634884 +0900
-@@ -94,7 +94,6 @@
+Patch from Jonathan Nieder <jrnieder@gmail.com> to update lmsensors API to libsensors4.
+---
+ agent/mibgroup/ucd-snmp/lmSensors.c | 162 +++++++++++++++++-------------------
+ 1 file changed, 78 insertions(+), 84 deletions(-)
+
+diff --git a/agent/mibgroup/ucd-snmp/lmSensors.c b/agent/mibgroup/ucd-snmp/lmSensors.c
+index 05c60b7..888731f 100644
+--- a/agent/mibgroup/ucd-snmp/lmSensors.c
++++ b/agent/mibgroup/ucd-snmp/lmSensors.c
+@@ -94,7 +94,6 @@ netsnmp_feature_require(table_container)
      #endif 
  #else
      #include <sensors/sensors.h>
@@ -12,7 +19,7 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c
  #endif
  
  #include "lmSensors.h"
-@@ -357,9 +356,7 @@
+@@ -357,9 +356,7 @@ sensor_init(void)
  {
      int             res;
  #ifndef solaris2
@@ -22,7 +29,7 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c
      int             i = 0;
    
      DEBUGMSG(("ucd-snmp/lmSensors", "=> sensor_init\n"));
-@@ -371,13 +368,7 @@
+@@ -371,13 +368,7 @@ sensor_init(void)
          sensor_array[i].sensor = NULL;
      }
  
@@ -37,7 +44,7 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c
      {
          res = 2;
          goto leaving;
-@@ -395,7 +386,7 @@
+@@ -395,7 +386,7 @@ static int
  sensor_load(void)
  {
      int rc = 0;
@@ -46,7 +53,7 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c
  
      if (t > timestamp + 7) /* this may require some tuning - currently 7 seconds*/
      {
-@@ -947,7 +938,8 @@
+@@ -947,7 +938,8 @@ else{
  #else /* end solaris2 only ie. ifdef everything else */
  
      const sensors_chip_name *chip;
@@ -56,7 +63,7 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/ucd-snmp/lmSensors.c
      int             chip_nr = 0;
      unsigned int    i = 0;
  
-@@ -969,78 +961,80 @@
+@@ -969,78 +961,80 @@ else{
          sensor_array[i].current_len = DEFAULT_SENSORS;
      } /* end for */
  
