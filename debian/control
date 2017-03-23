@@ -11,7 +11,7 @@ Vcs-Svn: svn://svn.debian.org/pkg-net-snmp/
 Vcs-Browser: http://svn.debian.org/wsvn/pkg-net-snmp/
 XS-Python-Version: all
 Homepage: http://net-snmp.sourceforge.net/
-XS-Pexip-Upstream: http://archive.ubuntu.com/ubuntu/ precise
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ jessie
 
 Package: snmpd
 Section: net
