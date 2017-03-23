@@ -24,11 +24,7 @@
 #include <stdlib.h>
 #endif
 #if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
+# include <sys/time.h>
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -43,8 +39,6 @@
 
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-
-#include "util_funcs.h"
 
 #include "history.h"
 
@@ -187,7 +181,7 @@ write_historyControl(int action, u_char * var_val, u_char var_val_type,
                                                var_val_len,
                                                MIN_historyControlBucketsRequested,
                                                MAX_historyControlBucketsRequested,
-                                               &cloned_body->scrlr.
+                                               (long *) &cloned_body->scrlr.
                                                data_requested);
             if (SNMP_ERR_NOERROR != snmp_status) {
                 return snmp_status;
@@ -204,7 +198,7 @@ write_historyControl(int action, u_char * var_val, u_char var_val_type,
                                                var_val_len,
                                                MIN_historyControlInterval,
                                                MAX_historyControlInterval,
-                                               &cloned_body->interval);
+                                               (long *) &cloned_body->interval);
             if (SNMP_ERR_NOERROR != snmp_status) {
                 return snmp_status;
             }
@@ -263,6 +257,7 @@ var_historyControlTable(struct variable *vp,
                         int exact,
                         size_t * var_len, WriteMethod ** write_method)
 {
+    static unsigned char zero_octet_string[1];
     static long     long_ret;
     static CRTL_ENTRY_T theEntry;
     RMON_ENTRY_T   *hdr;
@@ -304,7 +299,7 @@ var_historyControlTable(struct variable *vp,
             return (unsigned char *) hdr->owner;
         } else {
             *var_len = 0;
-            return (unsigned char *) "";
+            return zero_octet_string;
         }
 
     case CTRL_STATUS:
@@ -536,7 +531,6 @@ var_etherHistoryTable(struct variable *vp,
     static long     long_ret;
     static DATA_ENTRY_T theBucket;
     RMON_ENTRY_T   *hdr;
-    CRTL_ENTRY_T   *ctrl;
 
     *write_method = NULL;
     hdr = ROWDATAAPI_header_DataEntry(vp, name, length, exact, var_len,
@@ -547,8 +541,6 @@ var_etherHistoryTable(struct variable *vp,
         return NULL;
 
     *var_len = sizeof(long);    /* default */
-
-    ctrl = (CRTL_ENTRY_T *) hdr->body;
 
     switch (vp->magic) {
     case DATA_INDEX:
@@ -658,18 +650,20 @@ struct variable2 historyControlTable_variables[] = {
     /*
      * magic number        , variable type, ro/rw , callback fn  ,           L, oidsuffix 
      */
-    {CTRL_INDEX, ASN_INTEGER, RONLY, var_historyControlTable, 2, {1, 1}},
-    {CTRL_DATASOURCE, ASN_OBJECT_ID, RWRITE, var_historyControlTable, 2,
-     {1, 2}},
-    {CTRL_BUCKETSREQUESTED, ASN_INTEGER, RWRITE, var_historyControlTable,
-     2, {1, 3}},
-    {CTRL_BUCKETSGRANTED, ASN_INTEGER, RONLY, var_historyControlTable, 2,
-     {1, 4}},
-    {CTRL_INTERVAL, ASN_INTEGER, RWRITE, var_historyControlTable, 2,
-     {1, 5}},
-    {CTRL_OWNER, ASN_OCTET_STR, RWRITE, var_historyControlTable, 2,
-     {1, 6}},
-    {CTRL_STATUS, ASN_INTEGER, RWRITE, var_historyControlTable, 2, {1, 7}},
+    {CTRL_INDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_historyControlTable, 2, {1, 1}},
+    {CTRL_DATASOURCE, ASN_OBJECT_ID, NETSNMP_OLDAPI_RWRITE,
+     var_historyControlTable, 2, {1, 2}},
+    {CTRL_BUCKETSREQUESTED, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_historyControlTable, 2, {1, 3}},
+    {CTRL_BUCKETSGRANTED, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_historyControlTable, 2, {1, 4}},
+    {CTRL_INTERVAL, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_historyControlTable, 2, {1, 5}},
+    {CTRL_OWNER, ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_historyControlTable, 2, {1, 6}},
+    {CTRL_STATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_historyControlTable, 2, {1, 7}},
 
 };
 
@@ -680,32 +674,36 @@ struct variable2 etherHistoryTable_variables[] = {
     /*
      * magic number     , variable type , ro/rw , callback fn  ,        L, oidsuffix 
      */
-    {DATA_INDEX, ASN_INTEGER, RONLY, var_etherHistoryTable, 2, {1, 1}},
-    {DATA_SAMPLEINDEX, ASN_INTEGER, RONLY, var_etherHistoryTable, 2,
-     {1, 2}},
-    {DATA_INTERVALSTART, ASN_TIMETICKS, RONLY, var_etherHistoryTable, 2,
-     {1, 3}},
-    {DATA_DROPEVENTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 4}},
-    {DATA_OCTETS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2, {1, 5}},
-    {DATA_PKTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2, {1, 6}},
-    {DATA_BROADCASTPKTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 7}},
-    {DATA_MULTICASTPKTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 8}},
-    {DATA_CRCALIGNERRORS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 9}},
-    {DATA_UNDERSIZEPKTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 10}},
-    {DATA_OVERSIZEPKTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 11}},
-    {DATA_FRAGMENTS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 12}},
-    {DATA_JABBERS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2, {1, 13}},
-    {DATA_COLLISIONS, ASN_COUNTER, RONLY, var_etherHistoryTable, 2,
-     {1, 14}},
-    {DATA_UTILIZATION, ASN_INTEGER, RONLY, var_etherHistoryTable, 2,
-     {1, 15}},
+    {DATA_INDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 1}},
+    {DATA_SAMPLEINDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 2}},
+    {DATA_INTERVALSTART, ASN_TIMETICKS, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 3}},
+    {DATA_DROPEVENTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 4}},
+    {DATA_OCTETS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 5}},
+    {DATA_PKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 6}},
+    {DATA_BROADCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 7}},
+    {DATA_MULTICASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 8}},
+    {DATA_CRCALIGNERRORS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 9}},
+    {DATA_UNDERSIZEPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 10}},
+    {DATA_OVERSIZEPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 11}},
+    {DATA_FRAGMENTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 12}},
+    {DATA_JABBERS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 13}},
+    {DATA_COLLISIONS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 14}},
+    {DATA_UTILIZATION, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_etherHistoryTable, 2, {1, 15}},
 
 };
 

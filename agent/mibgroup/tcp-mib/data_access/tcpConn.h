@@ -1,7 +1,7 @@
 /*
  * tcpConn data access header
  *
- * $Id: tcpConn.h 15387 2006-10-10 21:13:36Z tanders $
+ * $Id$
  */
 /**---------------------------------------------------------------------*/
 /*
@@ -20,8 +20,15 @@
 config_require(tcp-mib/data_access/tcpConn_common)
 #if defined( linux )
 config_require(tcp-mib/data_access/tcpConn_linux)
+config_require(util_funcs/get_pid_from_inode)
 #elif defined( solaris2 )
 config_require(tcp-mib/data_access/tcpConn_solaris2)
+#elif defined(freebsd4) || defined(dragonfly)
+config_require(tcp-mib/data_access/tcpConn_freebsd4)
+#elif defined(openbsd4)
+config_require(tcp-mib/data_access/tcpConn_openbsd)
+#elif defined(netbsd1)
+config_require(tcp-mib/data_access/tcpConn_netbsd)
 #else
 #   define NETSNMP_TCPCONN_COMMON_ONLY
 #endif

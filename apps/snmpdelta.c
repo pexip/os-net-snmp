@@ -46,11 +46,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
+# include <sys/time.h>
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -61,9 +57,6 @@
 #endif
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
-#if HAVE_WINSOCK_H
-#include <winsock.h>
 #endif
 #if HAVE_NETDB_H
 #include <netdb.h>
@@ -221,7 +214,7 @@ wait_for_peak_start(int period, int peak)
     /*
      * Now figure out the amount of time to sleep 
      */
-    target = (SecondsAtNextHour - tv->tv_sec) % seconds;
+    target = (int)(SecondsAtNextHour - tv->tv_sec) % seconds;
 
     return target;
 }
@@ -256,7 +249,7 @@ sprint_descriptor(char *buffer, struct varInfo *vip)
 
     for (cp = buf; *cp; cp++);
     while (cp >= buf) {
-        if (isalpha(*cp))
+        if (isalpha((unsigned char)(*cp)))
             break;
         cp--;
     }
@@ -296,7 +289,7 @@ processFileArgs(char *fileName)
             continue;
         blank = TRUE;
         for (cp = buf; *cp; cp++)
-            if (!isspace(*cp)) {
+            if (!isspace((unsigned char)(*cp))) {
                 blank = FALSE;
                 break;
             }
@@ -357,7 +350,7 @@ wait_for_period(int period)
     }
     count = 1;
     while (count != 0) {
-        count = select(0, 0, 0, 0, tv);
+        count = select(0, NULL, NULL, NULL, tv);
         switch (count) {
         case 0:
             break;
@@ -408,9 +401,11 @@ main(int argc, char *argv[])
     int             exit_code = 0;
 
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", &optProc)) {
-    case -2:
+    case NETSNMP_PARSE_ARGS_ERROR:
+        exit(1);
+    case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
         exit(0);
-    case -1:
+    case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
         exit(1);
     default:
@@ -439,7 +434,7 @@ main(int argc, char *argv[])
 	    	MAX_ARGS);
 	    exit(1);
 	}
-        varinfo[current_name++].name = 0;
+        varinfo[current_name++].name = NULL;
     }
 
     SOCK_STARTUP;
@@ -476,7 +471,7 @@ main(int argc, char *argv[])
                 printf("\t%s", vip->descriptor);
         } else {
             vip->oidlen = 0;
-            strcpy(vip->descriptor, SumFile);
+            strlcpy(vip->descriptor, SumFile, sizeof(vip->descriptor));
         }
         vip->value = 0;
         zeroU64(&vip->c64value);
@@ -731,12 +726,12 @@ main(int argc, char *argv[])
 
         } else if (status == STAT_TIMEOUT) {
             fprintf(stderr, "Timeout: No Response from %s\n", gateway);
-            response = 0;
+            response = NULL;
             exit_code = 1;
             break;
         } else {                /* status == STAT_ERROR */
             snmp_sess_perror("snmpdelta", ss);
-            response = 0;
+            response = NULL;
             exit_code = 1;
             break;
         }

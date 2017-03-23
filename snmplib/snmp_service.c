@@ -11,7 +11,7 @@ create_word_array_helper(const char* cptr, size_t idx, char* tmp, size_t tmplen)
 {
     char* item;
     char** res;
-    cptr = copy_nword((char*)cptr, tmp, tmplen);
+    cptr = copy_nword_const(cptr, tmp, tmplen);
     item = strdup(tmp);
     if (cptr)
         res = create_word_array_helper(cptr, idx + 1, tmp, tmplen);
@@ -28,7 +28,7 @@ create_word_array(const char* cptr)
 {
     size_t tmplen = strlen(cptr);
     char* tmp = (char*)malloc(tmplen + 1);
-    char** res = create_word_array_helper(cptr, 0, tmp, tmplen);
+    char** res = create_word_array_helper(cptr, 0, tmp, tmplen + 1);
     free(tmp);
     return res;
 }
@@ -68,7 +68,7 @@ netsnmp_register_default_domain(const char* application, const char* domain)
     if (run && strcmp(run->application, application) == 0) {
       if (run->domain != NULL) {
           destroy_word_array(run->domain);
-	  run->domain=NULL;
+	  run->domain = NULL;
 	  res = 1;
       }
     } else {
@@ -119,6 +119,12 @@ netsnmp_register_user_domain(const char* token, char* cptr)
 
     {
         char* cp = copy_nword(cptr, application, len);
+        if (cp == NULL) {
+            netsnmp_config_error("No domain(s) in registration of "
+                                 "defDomain \"%s\"", application);
+            free(application);
+            return;
+        }
         domain = create_word_array(cp);
     }
 
@@ -227,12 +233,21 @@ struct netsnmp_lookup_target {
 
 static struct netsnmp_lookup_target* targets = NULL;
 
+/**
+ * Add an (application, domain, target) triplet to the targets list if target
+ * != NULL. Remove an entry if target == NULL and the userTarget pointer for
+ * the entry found is also NULL. Keep at most one target per (application,
+ * domain) pair.
+ *
+ * @return 1 if an entry for (application, domain) was already present in the
+ *   targets list or 0 if such an entry was not yet present in the targets list.
+ */
 int
 netsnmp_register_default_target(const char* application, const char* domain,
 				const char* target)
 {
     struct netsnmp_lookup_target *run = targets, *prev = NULL;
-    int i, res = 0;
+    int i = 0, res = 0;
     while (run && ((i = strcmp(run->application, application)) < 0 ||
 		   (i == 0 && strcmp(run->domain, domain) < 0))) {
 	prev = run;
@@ -271,6 +286,9 @@ netsnmp_register_default_target(const char* application, const char* domain,
     return res;
 }
 
+/**
+ * Clear the targets list.
+ */
 void
 netsnmp_clear_default_target(void)
 {
@@ -293,11 +311,22 @@ netsnmp_register_user_target(const char* token, char* cptr)
     char* application = (char*)malloc(len);
     char* domain = (char*)malloc(len);
     char* target = (char*)malloc(len);
-    int i;
+    int i = 0;
 
     {
 	char* cp = copy_nword(cptr, application, len);
+        if (cp == NULL) {
+            netsnmp_config_error("No domain and target in registration of "
+                                 "defTarget \"%s\"", application);
+            goto done;
+        }
 	cp = copy_nword(cp, domain, len);
+        if (cp == NULL) {
+            netsnmp_config_error("No target in registration of "
+                                 "defTarget \"%s\" \"%s\"",
+                                 application, domain);
+            goto done;
+        }
 	cp = copy_nword(cp, target, len);
 	if (cp)
 	    config_pwarn("Trailing junk found");
@@ -363,7 +392,7 @@ netsnmp_clear_user_target(void)
 const char*
 netsnmp_lookup_default_target(const char* application, const char* domain)
 {
-    int i;
+    int i = 0;
     struct netsnmp_lookup_target *run = targets;
     const char *res;
 

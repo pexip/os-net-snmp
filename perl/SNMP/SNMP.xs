@@ -1,4 +1,4 @@
-/* -*- C -*-
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*-
      SNMP.xs -- Perl 5 interface to the Net-SNMP toolkit
 
      written by G. S. Marzot (marz@users.sourceforge.net)
@@ -8,6 +8,10 @@
      modify it under the same terms as Perl itself.
 */
 #define WIN32SCK_IS_STDSCK
+#if defined(_WIN32) && !defined(_WIN32_WINNT)
+#define _WIN32_WINNT 0x501
+#endif
+
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
@@ -55,22 +59,15 @@
 #define G_VOID G_DISCARD
 #endif
 
-#ifdef WIN32
-#define SOCK_STARTUP winsock_startup()
-#define SOCK_CLEANUP winsock_cleanup()
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-#else
-#define SOCK_STARTUP
-#define SOCK_CLEANUP
-#endif
-
 #include "perlsnmp.h"
 
 #define SUCCESS 1
 #define FAILURE 0
 
 #define ZERO_BUT_TRUE "0 but true"
+
+#define SNMP_API_TRADITIONAL 0
+#define SNMP_API_SINGLE 1
 
 #define VARBIND_TAG_F 0
 #define VARBIND_IID_F 1
@@ -91,6 +88,9 @@ static oid snmpTrapOID[SNMP_TRAP_OID_LEN] = {1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0};
 /* Internal flag to determine snmp_main_loop() should return after callback */
 static int mainloop_finish = 0;
 
+/* Internal flag to determine which API we're using */
+static int api_mode = SNMP_API_TRADITIONAL;
+
 /* these should be part of transform_oids.h ? */
 #define USM_AUTH_PROTO_MD5_LEN 10
 #define USM_AUTH_PROTO_SHA_LEN 10
@@ -108,7 +108,6 @@ typedef struct snmp_xs_cb_data {
 
 static void __recalc_timeout _((struct timeval*,struct timeval*,
                                 struct timeval*,struct timeval*, int* ));
-static in_addr_t __parse_address _((char*));
 static int __is_numeric_oid _((char*));
 static int __is_leaf _((struct tree*));
 static int __translate_appl_type _((char*));
@@ -123,7 +122,6 @@ static int __get_label_iid _((char *, char **, char **, int));
 static int __oid_cmp _((oid *, size_t, oid *, size_t));
 static int __tp_sprint_num_objid _((char*,SnmpMibNode *));
 static SnmpMibNode * __get_next_mib_node _((SnmpMibNode *));
-static struct tree * __oid2tp _((oid*, int, struct tree *, int*));
 static struct tree * __tag2oid _((char *, char *, oid  *, size_t *, int *, int));
 static int __concat_oid_str _((oid *, size_t *, char *));
 static int __add_var_val_str _((netsnmp_pdu *, oid *, size_t, char *,
@@ -183,6 +181,9 @@ static int _bulkwalk_finish   _((walk_context *context, int okay));
 static int _bulkwalk_async_cb _((int op, SnmpSession *ss, int reqid,
 				     netsnmp_pdu *pdu, void *context_ptr));
 
+/* Prototype for error handler */
+void snmp_return_err( struct snmp_session *ss, SV *err_str, SV *err_num, SV *err_ind );
+
 /* Structure to hold valid context sessions. */
 struct valid_contexts {
    walk_context	**valid;	/* Array of valid walk_context pointers.    */
@@ -206,7 +207,6 @@ static int _debug_level = 0;
 	} while (/*CONSTCOND*/0)
 
 char	_debugx[1024];	/* Space to sprintf() into - used by sprint_objid(). */
-#define DBDCL(x) x
 
 /* wrapper around snprint_objid to snprint_objid to return the pointer 
    instead of length */
@@ -217,10 +217,19 @@ __snprint_oid(const oid *objid, size_t objidlen) {
   return _debugx;
 }
  
+#define DBDCL(x) x
 #else	/* DEBUGGING */
 #define DBDCL(x) 
 #define DBOUT
-#define	DBPRT(severity, otherargs)	/* Ignore */
+/* Do nothing but in such a way that the compiler sees "otherargs". */
+#define	DBPRT(severity, otherargs) \
+    do { if (0) printf otherargs; } while(0)
+
+static char *
+__snprint_oid(const oid *objid, size_t objidlen)
+{
+    return "(debugging is disabled)";
+}
 
 #endif	/* DEBUGGING */
 
@@ -233,8 +242,8 @@ __libraries_init(char *appname)
             return;
         have_inited = 1;
 
-        snmp_set_quick_print(1);
-        snmp_enable_stderrlog();
+        netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, 
+                               NETSNMP_DS_LIB_QUICK_PRINT, 1);
         init_snmp(appname);
     
         netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_DONT_BREAKDOWN_OIDS, 1);
@@ -283,26 +292,6 @@ int *block;
       *tvp = *ctvp; /* use the smaller non-zero timeout */
       timerclear(ctvp); /* used as a flag to let callback fire on timeout */
    }
-}
-
-static in_addr_t
-__parse_address(address)
-char *address;
-{
-    in_addr_t addr;
-    struct sockaddr_in saddr;
-    struct hostent *hp;
-
-    if ((addr = inet_addr(address)) != -1)
-	return addr;
-    hp = gethostbyname(address);
-    if (hp == NULL){
-        return (-1); /* error value */
-    } else {
-	memcpy(&saddr.sin_addr, hp->h_addr, hp->h_length);
-	return saddr.sin_addr.s_addr;
-    }
-
 }
 
 static int
@@ -470,8 +459,7 @@ int flag;
            if (flag == USE_ENUMS) {
               for(ep = tp->enums; ep; ep = ep->next) {
                  if (ep->value == *var->val.integer) {
-                    strncpy(buf, ep->label, buf_len);
-                    buf[buf_len-1] = '\0';
+                    strlcpy(buf, ep->label, buf_len);
                     len = strlen(buf);
                     break;
                  }
@@ -576,7 +564,7 @@ int len;
    int i;
    buf[0] = '\0';
    for (i=0; i < len; i++) {
-	sprintf(buf,".%lu",*objid++);
+	sprintf(buf,".%" NETSNMP_PRIo "u",*objid++);
 	buf += strlen(buf);
    }
    return SUCCESS;
@@ -609,7 +597,7 @@ size_t *len;
    cp = buf;
    while (*buf) {
       if (*buf++ == '.') {
-         sscanf(cp, "%lu", objid++);
+         sscanf(cp, "%" NETSNMP_PRIo "u", objid++);
          /* *objid++ = atoi(cp); */
          (*len)++;
          cp = buf;
@@ -619,7 +607,7 @@ size_t *len;
          }
       }
    }
-   sscanf(cp, "%lu", objid++);
+   sscanf(cp, "%" NETSNMP_PRIo "u", objid++);
    /* *objid++ = atoi(cp); */
    (*len)++;
    return SUCCESS;
@@ -770,11 +758,13 @@ int flag;
            icp = lcp;
         }
       }
-      if (!found_label && isalpha((int)*lcp)) found_label = 1;
+      if (!found_label && isalpha((unsigned char)*lcp)) found_label = 1;
       lcp--;
    }
 
-   if (!found_label || (!isdigit((int)*(icp+1)) && (flag & FAIL_ON_NULL_IID)))
+   if (!found_label
+       || ((icp + 1 >= name + len || !isdigit((unsigned char)*(icp+1)))
+           && (flag & FAIL_ON_NULL_IID)))
       return(FAILURE);
 
    if (flag & NON_LEAF_NAME) { /* dont know where to start instance id */
@@ -842,9 +832,6 @@ int    best_guess;
    struct tree *rtp = NULL;
    oid newname[MAX_OID_LEN], *op;
    size_t newname_len = 0;
-
-   char str_buf[STR_BUF_SIZE];
-   str_buf[0] = '\0';
 
    if (type) *type = TYPE_UNKNOWN;
    if (oid_arr_len) *oid_arr_len = 0;
@@ -934,40 +921,6 @@ int    best_guess;
    if (iid && *iid && oid_arr_len) __concat_oid_str(oid_arr, oid_arr_len, iid);
    return(rtp);
 }
-/* searches down the mib tree for the given oid
-   returns the last found tp and its index in lastind
- */
-static struct tree *
-__oid2tp (oidp, len, subtree, lastind)
-oid* oidp;
-int len;
-struct tree * subtree;
-int* lastind;
-{
-    struct tree    *return_tree = NULL;
-
-
-    for (; subtree; subtree = subtree->next_peer) {
-	if (*oidp == subtree->subid){
-	    goto found;
-	}
-    }
-    *lastind=0;
-    return NULL;
-
-found:
-    if (len > 1){
-       return_tree =
-          __oid2tp(oidp + 1, len - 1, subtree->child_list, lastind);
-       (*lastind)++;
-    } else {
-       *lastind=1;
-    }
-    if (return_tree)
-	return return_tree;
-    else
-	return subtree;
-}
 
 /* function: __concat_oid_str
  *
@@ -983,19 +936,22 @@ oid *doid_arr;
 size_t *doid_arr_len;
 char * soid_str;
 {
-   char soid_buf[STR_BUF_SIZE];
+   char *soid_buf;
    char *cp;
    char *st;
 
    if (!soid_str || !*soid_str) return SUCCESS;/* successfully added nothing */
    if (*soid_str == '.') soid_str++;
-   strcpy(soid_buf, soid_str);
+   soid_buf = strdup(soid_str);
+   if (!soid_buf)
+       return FAILURE;
    cp = strtok_r(soid_buf,".",&st);
    while (cp) {
-     sscanf(cp, "%lu", &(doid_arr[(*doid_arr_len)++]));
+     sscanf(cp, "%" NETSNMP_PRIo "u", &(doid_arr[(*doid_arr_len)++]));
      /* doid_arr[(*doid_arr_len)++] =  atoi(cp); */
      cp = strtok_r(NULL,".",&st);
    }
+   free(soid_buf);
    return(SUCCESS);
 }
 
@@ -1016,27 +972,26 @@ __add_var_val_str(pdu, name, name_length, val, len, type)
     int ret = SUCCESS;
 
     if (pdu->variables == NULL){
-	pdu->variables = vars =
-           (netsnmp_variable_list *)calloc(1,sizeof(netsnmp_variable_list));
+	pdu->variables = vars
+            = netsnmp_calloc(1, sizeof(netsnmp_variable_list));
     } else {
 	for(vars = pdu->variables;
             vars->next_variable;
             vars = vars->next_variable)
 	    /*EXIT*/;
-	vars->next_variable =
-           (netsnmp_variable_list *)calloc(1,sizeof(netsnmp_variable_list));
+	vars->next_variable = netsnmp_calloc(1, sizeof(netsnmp_variable_list));
 	vars = vars->next_variable;
     }
 
     vars->next_variable = NULL;
-    vars->name = (oid *)malloc(name_length * sizeof(oid));
+    vars->name = netsnmp_malloc(name_length * sizeof(oid));
     memcpy((char *)vars->name, (char *)name, name_length * sizeof(oid));
     vars->name_length = name_length;
     switch (type) {
       case TYPE_INTEGER:
       case TYPE_INTEGER32:
         vars->type = ASN_INTEGER;
-        vars->val.integer = (long *)malloc(sizeof(long));
+        vars->val.integer = netsnmp_malloc(sizeof(long));
         if (val)
             *(vars->val.integer) = strtol(val,NULL,0);
         else {
@@ -1059,7 +1014,7 @@ __add_var_val_str(pdu, name, name_length, val, len, type)
       case TYPE_UINTEGER:
         vars->type = ASN_UINTEGER;
 UINT:
-        vars->val.integer = (long *)malloc(sizeof(long));
+        vars->val.integer = netsnmp_malloc(sizeof(long));
         if (val)
             sscanf(val,"%lu",vars->val.integer);
         else {
@@ -1080,22 +1035,22 @@ UINT:
       case TYPE_OPAQUE:
         vars->type = ASN_OCTET_STR;
 OCT:
-        vars->val.string = (u_char *)malloc(len);
+        vars->val.string = netsnmp_malloc(len);
         vars->val_len = len;
         if (val && len)
             memcpy((char *)vars->val.string, val, len);
         else {
             ret = FAILURE;
-            vars->val.string = (u_char*)strdup("");
+            vars->val.string = (u_char *) netsnmp_strdup("");
             vars->val_len = 0;
         }
         break;
 
       case TYPE_IPADDR:
         vars->type = ASN_IPADDRESS;
-        vars->val.integer = (long *)malloc(sizeof(in_addr_t));
+        vars->val.integer = netsnmp_malloc(sizeof(in_addr_t));
         if (val)
-            *(vars->val.integer) = inet_addr(val);
+            *((in_addr_t *)vars->val.integer) = inet_addr(val);
         else {
             ret = FAILURE;
             *(vars->val.integer) = 0;
@@ -1113,7 +1068,7 @@ OCT:
 	    ret = FAILURE;
         } else {
             vars->val_len *= sizeof(oid);
-            vars->val.objid = (oid *)malloc(vars->val_len);
+            vars->val.objid = netsnmp_malloc(vars->val_len);
             memcpy((char *)vars->val.objid, (char *)oidbuf, vars->val_len);
         }
         break;
@@ -1145,8 +1100,12 @@ SV * err_ind_sv;
    long command = pdu->command;
    *response = NULL;
 retry:
-
-   status = snmp_synch_response(ss, pdu, response);
+	if(api_mode == SNMP_API_SINGLE)
+	{
+		status = snmp_sess_synch_response(ss, pdu, response);
+	} else {
+		status = snmp_synch_response(ss, pdu, response);
+	};
 
    if ((*response == NULL) && (status == STAT_SUCCESS)) status = STAT_ERROR;
 
@@ -1183,10 +1142,10 @@ retry:
             /* in SNMPv2c, SNMPv2u, SNMPv2*, and SNMPv3 PDUs */
             case SNMP_ERR_INCONSISTENTNAME:
             default:
-               sv_catpv(err_str_sv,
-                        (char*)snmp_errstring((*response)->errstat));
-               sv_setiv(err_num_sv, (*response)->errstat);
-	       sv_setiv(err_ind_sv, (*response)->errindex);
+				sv_catpv(err_str_sv,
+					(char*)snmp_errstring((*response)->errstat));
+				sv_setiv(err_num_sv, (*response)->errstat);
+				sv_setiv(err_ind_sv, (*response)->errindex);
                status = (*response)->errstat;
                break;
 	 }
@@ -1194,13 +1153,12 @@ retry:
 
       case STAT_TIMEOUT:
       case STAT_ERROR:
-          sv_catpv(err_str_sv, (char*)snmp_api_errstring(ss->s_snmp_errno));
-          sv_setiv(err_num_sv, ss->s_snmp_errno);
+	     snmp_return_err(ss, err_str_sv, err_num_sv, err_ind_sv);
          break;
 
       default:
+	     snmp_return_err(ss, err_str_sv, err_num_sv, err_ind_sv);
          sv_catpv(err_str_sv, "send_sync_pdu: unknown status");
-         sv_setiv(err_num_sv, ss->s_snmp_errno);
          break;
    }
 
@@ -1273,7 +1231,12 @@ void *cb_data;
         reply_pdu->command = SNMP_MSG_RESPONSE;
         reply_pdu->reqid = pdu->reqid;
         reply_pdu->errstat = reply_pdu->errindex = 0;
-        snmp_send(ss, reply_pdu);
+	if(api_mode == SNMP_API_SINGLE)
+	{
+        	snmp_sess_send(ss, reply_pdu);
+	} else {
+	        snmp_send(ss, reply_pdu);
+	}
       } else {
         warn("Couldn't clone PDU for inform response");
       }
@@ -1291,7 +1254,7 @@ void *cb_data;
 	cp = transport->f_fmtaddr(transport, pdu->transport_data,
 				  pdu->transport_data_length);
 	av_push(traplist, newSVpv(cp, strlen(cp)));
-	free(cp);
+	netsnmp_free(cp);
       } else {
 	/*  This shouldn't ever happen; every session has a transport.  */
 	av_push(traplist, newSVpv("", 0));
@@ -1631,7 +1594,7 @@ _bulkwalk_done(walk_context *context)
  	** walks still in progress.
  	*/
  	DBPRT(1, (DBOUT "Ignoring %s request oid %s\n",
- 	      bt_entry->norepeat? "nonrepeater" : "completed",
+ 	      bt_entry->norepeat ? "nonrepeater" : "completed",
  	      __snprint_oid(bt_entry->req_oid, bt_entry->req_len)));
 
  	/* Ignore this OID in any further packets. */
@@ -1660,7 +1623,6 @@ _bulkwalk_async_cb(int		op,
 {
    walk_context *context;
    int	done = 0;
-   int	npushed;
    SV **err_str_svp;
    SV **err_num_svp;
 
@@ -1744,7 +1706,7 @@ _bulkwalk_async_cb(int		op,
 	 /* Timeout means something bad has happened.  Return a not-okay
 	 ** result to the async callback.
 	 */
-	 npushed = _bulkwalk_finish(context, 0 /* NOT OKAY */);
+	 _bulkwalk_finish(context, 0 /* NOT OKAY */);
 	 return 1;
       }
 
@@ -1753,7 +1715,7 @@ _bulkwalk_async_cb(int		op,
 	 DBPRT(1,(DBOUT "unexpected callback op %d\n", op));
          sv_setpv(*err_str_svp, (char*)snmp_api_errstring(SNMPERR_GENERR));
          sv_setiv(*err_num_svp, SNMPERR_GENERR);
-	 npushed = _bulkwalk_finish(context, 0 /* NOT OKAY */);
+	 _bulkwalk_finish(context, 0 /* NOT OKAY */);
 	 return 1;
       }
    }
@@ -1778,7 +1740,7 @@ _bulkwalk_async_cb(int		op,
    }
 
    /* Call the perl callback with the return values and we're done. */
-   npushed = _bulkwalk_finish(context, 1 /* OKAY */);
+   _bulkwalk_finish(context, 1 /* OKAY */);
 
    return 1;
 }
@@ -1859,13 +1821,17 @@ _bulkwalk_send_pdu(walk_context *context)
    ** snmp_async_send() function returns the reqid on success, 0 on failure.
    */
    if (SvTRUE(context->perl_cb)) {
-      reqid = snmp_async_send(ss, pdu, _bulkwalk_async_cb, (void *)context);
+    if(api_mode == SNMP_API_SINGLE)
+    {
+     reqid = snmp_sess_async_send(ss, pdu, _bulkwalk_async_cb, (void *)context);
+    } else {
+     reqid = snmp_async_send(ss, pdu, _bulkwalk_async_cb, (void *)context);
+    }
 
       DBPRT(2,(DBOUT "bulkwalk_send_pdu(): snmp_async_send => 0x%08X\n", reqid));
 
       if (reqid == 0) {
-	 sv_setpv(*err_str_svp, (char*)snmp_api_errstring(ss->s_snmp_errno));
-	 sv_setiv(*err_num_svp, ss->s_snmp_errno);
+	 snmp_return_err(ss, *err_num_svp, *err_ind_svp, *err_str_svp);
 	 goto err;
       }
 
@@ -1938,7 +1904,7 @@ _bulkwalk_recv_pdu(walk_context *context, netsnmp_pdu *pdu)
    int		i;
    AV		*varbind;
    SV		*rv;
-   DBDCL(SV**sess_ptr_sv=hv_fetch((HV*)SvRV(context->sess_ref),"SessPtr",7,1);)
+   SV **sess_ptr_sv = hv_fetch((HV*)SvRV(context->sess_ref), "SessPtr", 7, 1);
    SV **err_str_svp = hv_fetch((HV*)SvRV(context->sess_ref), "ErrorStr", 8, 1);
    SV **err_num_svp = hv_fetch((HV*)SvRV(context->sess_ref), "ErrorNum", 8, 1);
    SV **err_ind_svp = hv_fetch((HV*)SvRV(context->sess_ref), "ErrorInd", 8, 1);
@@ -2384,6 +2350,10 @@ _bulkwalk_finish(walk_context *context, int okay)
       if (!async) {
 	 XPUSHs(&sv_undef);
 	 npushed = 1;
+      } else {
+          for (i = 0; i < context->nreq_oids; i++) {
+              sv_2mortal((SV *) (context->req_oids[i].vars));
+          }
       }
    }
 
@@ -2436,143 +2406,51 @@ __av_elem_pv(AV *av, I32 key, char *dflt)
 }
 
 static int
-not_here(s)
-char *s;
+not_here(const char *s)
 {
     warn("%s not implemented on this architecture", s);
     return -1;
 }
 
-static double
-constant(name, arg)
-char *name;
-int arg;
+#define TEST_CONSTANT(value, name, C)           \
+    if (strEQ(name, #C)) {                      \
+        *value = C;                             \
+        return 0;                               \
+    }
+#define TEST_CONSTANT2(value, name, C, V)       \
+    if (strEQ(name, #C)) {                      \
+        *value = V;                             \
+        return 0;                               \
+    }
+
+static int constant(double *value, const char * const name, const int arg)
 {
-    errno = 0;
     switch (*name) {
-    case 'R':
-	if (strEQ(name, "NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE"))
-#ifdef NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE
-	    return NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE;
-#else
-	    goto not_there;
-#endif
+    case 'N':
+	TEST_CONSTANT(value, name, NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE);
+	TEST_CONSTANT(value, name, NETSNMP_CALLBACK_OP_TIMED_OUT);
 	break;
     case 'S':
-	if (strEQ(name, "SNMPERR_BAD_ADDRESS"))
-#ifdef SNMPERR_BAD_ADDRESS
-	    return SNMPERR_BAD_ADDRESS;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMPERR_BAD_LOCPORT"))
-#ifdef SNMPERR_BAD_LOCPORT
-	    return SNMPERR_BAD_LOCPORT;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMPERR_BAD_SESSION"))
-#ifdef SNMPERR_BAD_SESSION
-	    return SNMPERR_BAD_SESSION;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMPERR_GENERR"))
-#ifdef SNMPERR_GENERR
-	    return SNMPERR_GENERR;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMPERR_TOO_LONG"))
-#ifdef SNMPERR_TOO_LONG
-	    return SNMPERR_TOO_LONG;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_ADDRESS"))
-#ifdef SNMP_DEFAULT_ADDRESS
-	    return SNMP_DEFAULT_ADDRESS;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_COMMUNITY_LEN"))
-#ifdef SNMP_DEFAULT_COMMUNITY_LEN
-	    return SNMP_DEFAULT_COMMUNITY_LEN;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_ENTERPRISE_LENGTH"))
-#ifdef SNMP_DEFAULT_ENTERPRISE_LENGTH
-	    return SNMP_DEFAULT_ENTERPRISE_LENGTH;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_ERRINDEX"))
-#ifdef SNMP_DEFAULT_ERRINDEX
-	    return SNMP_DEFAULT_ERRINDEX;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_ERRSTAT"))
-#ifdef SNMP_DEFAULT_ERRSTAT
-	    return SNMP_DEFAULT_ERRSTAT;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_PEERNAME"))
-#ifdef SNMP_DEFAULT_PEERNAME
-	    return 0;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_REMPORT"))
-#ifdef SNMP_DEFAULT_REMPORT
-	    return SNMP_DEFAULT_REMPORT;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_REQID"))
-#ifdef SNMP_DEFAULT_REQID
-	    return SNMP_DEFAULT_REQID;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_RETRIES"))
-#ifdef SNMP_DEFAULT_RETRIES
-	    return SNMP_DEFAULT_RETRIES;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_TIME"))
-#ifdef SNMP_DEFAULT_TIME
-	    return SNMP_DEFAULT_TIME;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_TIMEOUT"))
-#ifdef SNMP_DEFAULT_TIMEOUT
-	    return SNMP_DEFAULT_TIMEOUT;
-#else
-	    goto not_there;
-#endif
-	if (strEQ(name, "SNMP_DEFAULT_VERSION"))
-#ifdef NETSNMP_DEFAULT_SNMP_VERSION
-	    return NETSNMP_DEFAULT_SNMP_VERSION;
-#else
-#ifdef SNMP_DEFAULT_VERSION
-	    return SNMP_DEFAULT_VERSION;
-#else
-	    goto not_there;
-#endif
-#endif
-	break;
-    case 'T':
-	if (strEQ(name, "NETSNMP_CALLBACK_OP_TIMED_OUT"))
-#ifdef NETSNMP_CALLBACK_OP_TIMED_OUT
-	    return NETSNMP_CALLBACK_OP_TIMED_OUT;
-#else
-	    goto not_there;
-#endif
+	TEST_CONSTANT(value, name, SNMPERR_BAD_ADDRESS);
+	TEST_CONSTANT(value, name, SNMPERR_BAD_LOCPORT);
+	TEST_CONSTANT(value, name, SNMPERR_BAD_SESSION);
+	TEST_CONSTANT(value, name, SNMPERR_GENERR);
+	TEST_CONSTANT(value, name, SNMPERR_TOO_LONG);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_ADDRESS);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_COMMUNITY_LEN);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_ENTERPRISE_LENGTH);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_ERRINDEX);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_ERRSTAT);
+	TEST_CONSTANT2(value, name, SNMP_DEFAULT_PEERNAME, 0);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_REMPORT);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_REQID);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_RETRIES);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_TIME);
+	TEST_CONSTANT(value, name, SNMP_DEFAULT_TIMEOUT);
+	TEST_CONSTANT2(value, name, SNMP_DEFAULT_VERSION,
+                       NETSNMP_DEFAULT_SNMP_VERSION);
+	TEST_CONSTANT(value, name, SNMP_API_SINGLE);
+	TEST_CONSTANT(value, name, SNMP_API_TRADITIONAL);
 	break;
     case 'X':
             goto not_there;
@@ -2580,22 +2458,71 @@ int arg;
     default:
 	break;
     }
-    errno = EINVAL;
-    return 0;
+    return EINVAL;
 
 not_there:
     not_here(name);
-    errno = ENOENT;
-    return 0;
+    return ENOENT;
+}
+
+/* 
+  Since s_snmp_errno can't be trusted with Single Session, this calls either
+  snmp_error or snmp_sess_error to populate ErrorStr,ErrorNum, and ErrorInd
+  in SNMP::Session objects
+*/
+void snmp_return_err( struct snmp_session *ss, SV *err_str, SV *err_num, SV *err_ind )
+{
+	int err;
+	int liberr;
+	char *errstr;
+	if(ss == NULL)
+		return;
+	if(api_mode == SNMP_API_SINGLE)
+	{
+		snmp_sess_error(ss, &err, &liberr, &errstr);
+	} else {
+		snmp_error(ss, &err, &liberr, &errstr);
+	}
+	sv_catpv(err_str, errstr);
+	sv_setiv(err_num, liberr);
+	sv_setiv(err_ind, err);
+	netsnmp_free(errstr);
 }
 
 
+/* 
+  int snmp_api_mode( int mode ) 
+  Returns or sets static int api_mode for reference by functions to determine
+  whether to use Traditional (non-threadsafe) or Single-Session (threadsafe)
+  SNMP API calls.
+ 
+  Call with (int)NULL to return the current mode, or with SNMP_API_TRADITIONAL
+  or SNMP_API_SINGLE to set the current mode.  (defined above)
+ 
+  pm side call defaults to (int)NULL
+*/
+int snmp_api_mode( int mode )
+{
+	if (mode == 0)
+		return api_mode;
+	api_mode = mode;
+	return api_mode;
+}
+
 MODULE = SNMP		PACKAGE = SNMP		PREFIX = snmp
 
-double
+void
 constant(name,arg)
 	char *		name
 	int		arg
+    INIT:
+        int status;
+        double value;
+    PPCODE:
+        value = 0;
+        status = constant(&value, name, arg);
+        XPUSHs(sv_2mortal(newSVuv(status)));
+        XPUSHs(sv_2mortal(newSVnv(value)));
 
 long
 snmp_sys_uptime()
@@ -2610,6 +2537,13 @@ init_snmp(appname)
     CODE:
         __libraries_init(appname);
 
+#---------------------------------------------------------------------- 
+# Perl call defaults to (int)NULL when given no args, so it will return
+# the current api_mode values
+#----------------------------------------------------------------------
+int 
+snmp_api_mode(mode=0)
+	int mode
 
 SnmpSession *
 snmp_new_session(version, community, peer, lport, retries, timeout)
@@ -2655,7 +2589,12 @@ snmp_new_session(version, community, peer, lport, retries, timeout)
            session.timeout = timeout; /* 1000000L */
            session.authenticator = NULL;
 
-           ss = snmp_open(&session);
+	   if(api_mode == SNMP_API_SINGLE)
+	   {
+	           ss = snmp_sess_open(&session);
+	   } else {
+		   ss = snmp_open(&session);
+	   }
 
            if (ss == NULL) {
 	      if (verbose) warn("error:snmp_new_session: Couldn't open SNMP session");
@@ -2707,7 +2646,7 @@ snmp_new_v3_session(version, peer, retries, timeout, sec_name, sec_level, sec_en
                 goto end;
 	   }
 
-	   session.peername = strdup(peer);
+	   session.peername = peer;
            session.retries = retries; /* 5 */
            session.timeout = timeout; /* 1000000L */
            session.authenticator = NULL;
@@ -2824,18 +2763,118 @@ snmp_new_v3_session(version, peer, retries, timeout, sec_name, sec_level, sec_en
                }
             }
 
-           ss = snmp_open(&session);
+	   if(api_mode == SNMP_API_SINGLE)
+	   {
+	           ss = snmp_sess_open(&session);
+	   } else {
+		   ss = snmp_open(&session);
+	   }
 
            if (ss == NULL) {
 	      if (verbose) warn("error:snmp_new_v3_session:Couldn't open SNMP session");
            }
         end:
            RETVAL = ss;
-	   free (session.contextEngineID);
+	   netsnmp_free(session.securityPrivLocalKey);
+	   netsnmp_free(session.securityPrivProto);
+	   netsnmp_free(session.securityAuthLocalKey);
+	   netsnmp_free(session.securityAuthProto);
+	   netsnmp_free(session.contextEngineID);
+	   netsnmp_free(session.securityEngineID);
 	}
         OUTPUT:
         RETVAL
 
+SnmpSession *
+snmp_new_tunneled_session(version, peer, retries, timeout, sec_name, sec_level, context_eng_id, context, our_identity, their_identity, their_hostname, trust_cert)
+        int	version
+        char *	peer
+        int	retries
+        int	timeout
+        char *  sec_name
+        int     sec_level
+        char *  context_eng_id
+        char *  context
+        char *  our_identity
+        char *  their_identity
+        char *  their_hostname
+        char *  trust_cert
+	CODE:
+	{
+	   SnmpSession session = {0};
+	   SnmpSession *ss = NULL;
+           int verbose = SvIV(perl_get_sv("SNMP::verbose", 0x01 | 0x04));
+
+           __libraries_init("perl");
+
+           session.version = version;
+
+	   session.peername = peer;
+           session.retries = retries; /* 5 */
+           session.timeout = timeout; /* 1000000L */
+           session.contextNameLen = strlen(context);
+           session.contextName = context;
+           session.securityNameLen = strlen(sec_name);
+           session.securityName = sec_name;
+           session.securityLevel = sec_level;
+           session.securityModel = NETSNMP_TSM_SECURITY_MODEL;
+           session.contextEngineIDLen =
+              hex_to_binary2((u_char*)context_eng_id, strlen(context_eng_id),
+                             (char **) &session.contextEngineID);
+
+           /* create the transport configuration store */
+           if (!session.transport_configuration) {
+               netsnmp_container_init_list();
+               session.transport_configuration =
+                   netsnmp_container_find("transport_configuration:fifo");
+               if (!session.transport_configuration) {
+                   fprintf(stderr, "failed to initialize the transport configuration container\n");
+                   RETVAL = NULL;
+                   return;
+               }
+
+               session.transport_configuration->compare =
+                   (netsnmp_container_compare*)
+                   netsnmp_transport_config_compare;
+           }
+
+           if (our_identity && our_identity[0] != '\0')
+               CONTAINER_INSERT(session.transport_configuration,
+                                netsnmp_transport_create_config("our_identity",
+                                                                our_identity));
+
+           if (their_identity && their_identity[0] != '\0')
+               CONTAINER_INSERT(session.transport_configuration,
+                                netsnmp_transport_create_config("their_identity",
+                                                                their_identity));
+
+           if (their_hostname && their_hostname[0] != '\0')
+               CONTAINER_INSERT(session.transport_configuration,
+                                netsnmp_transport_create_config("their_hostname",
+                                                                their_hostname));
+
+           if (trust_cert && trust_cert[0] != '\0')
+               CONTAINER_INSERT(session.transport_configuration,
+                                netsnmp_transport_create_config("trust_cert",
+                                                                trust_cert));
+           
+
+           ss = snmp_open(&session);
+
+           if (ss == NULL) {
+	      if (verbose) warn("error:snmp_new_v3_session:Couldn't open SNMP session");
+           }
+
+           RETVAL = ss;
+	   netsnmp_free(session.securityPrivLocalKey);
+	   netsnmp_free(session.securityPrivProto);
+	   netsnmp_free(session.securityAuthLocalKey);
+	   netsnmp_free(session.securityAuthProto);
+	   netsnmp_free(session.contextEngineID);
+	   netsnmp_free(session.securityEngineID);
+	}
+        OUTPUT:
+        RETVAL
 
 SnmpSession *
 snmp_update_session(sess_ref, version, community, peer, lport, retries, timeout)
@@ -2878,8 +2917,8 @@ snmp_update_session(sess_ref, version, community, peer, lport, retries, timeout)
 	   }
            /* WARNING LEAKAGE but I cant free lib memory under win32 */
            ss->community_len = strlen((char *)community);
-           ss->community = (u_char *)strdup(community);
-	   ss->peername = strdup(peer);
+           ss->community = (u_char *)netsnmp_strdup(community);
+	   ss->peername = netsnmp_strdup(peer);
 	   ss->local_port = lport;
            ss->retries = retries; /* 5 */
            ss->timeout = timeout; /* 1000000L */
@@ -2899,6 +2938,8 @@ snmp_add_mib_dir(mib_dir,force=0)
         {
 	int result = 0;      /* Avoid use of uninitialized variable below. */
         int verbose = SvIV(perl_get_sv("SNMP::verbose", 0x01 | 0x04));
+
+        DBPRT(999, (DBOUT "force=%d\n", force));
 
         if (mib_dir && *mib_dir) {
 	   result = add_mibdir(mib_dir);
@@ -2923,6 +2964,24 @@ snmp_init_mib_internals()
         }
 
 
+char *
+snmp_getenv(name)
+     char *name;
+CODE:
+     RETVAL = netsnmp_getenv(name);
+OUTPUT:
+     RETVAL
+
+int
+snmp_setenv(envname, envval, overwrite)
+     char *envname;
+     char *envval;
+     int overwrite;
+CODE:
+     RETVAL = netsnmp_setenv(envname, envval, overwrite);
+OUTPUT:
+     RETVAL
+
 int
 snmp_read_mib(mib_file, force=0)
 	char *		mib_file
@@ -2930,6 +2989,8 @@ snmp_read_mib(mib_file, force=0)
 	CODE:
         {
         int verbose = SvIV(perl_get_sv("SNMP::verbose", 0x01 | 0x04));
+
+        DBPRT(999, (DBOUT "force=%d\n", force));
 
         if ((mib_file == NULL) || (*mib_file == '\0')) {
            if (get_tree_head() == NULL) {
@@ -3013,6 +3074,7 @@ snmp_set(sess_ref, varlist_ref, perl_callback)
            int use_enums;
            struct enum_list *ep;
            int best_guess;	   
+#ifndef NETSNMP_NO_WRITE_SUPPORT
 
            New (0, oid_arr, MAX_OID_LEN, oid);
 
@@ -3099,15 +3161,19 @@ snmp_set(sess_ref, varlist_ref, perl_callback)
                  xs_cb_data->perl_cb = newSVsv(perl_callback);
                  xs_cb_data->sess_ref = newRV_inc(SvRV(sess_ref));
 
+		if(api_mode == SNMP_API_SINGLE)
+		{
+                 status = snmp_sess_async_send(ss, pdu, __snmp_xs_cb,
+                                          (void*)xs_cb_data);
+		} else {
                  status = snmp_async_send(ss, pdu, __snmp_xs_cb,
                                           (void*)xs_cb_data);
+		}
                  if (status != 0) {
                     XPUSHs(sv_2mortal(newSViv(status))); /* push the reqid?? */
                  } else {
                     snmp_free_pdu(pdu);
-                    sv_catpv(*err_str_svp,
-                             (char*)snmp_api_errstring(ss->s_snmp_errno));
-                    sv_setiv(*err_num_svp, ss->s_snmp_errno);
+					snmp_return_err(ss, *err_str_svp, *err_num_svp, *err_ind_svp);
                     XPUSHs(&sv_undef);
                  }
 		 goto done;
@@ -3130,6 +3196,9 @@ snmp_set(sess_ref, varlist_ref, perl_callback)
               /* BUG!!! need to return an error value */
               XPUSHs(&sv_undef); /* no mem or bad args */
            }
+#else  /* NETSNMP_NO_WRITE_SUPPORT */
+           warn("error: Net-SNMP was compiled using --enable-read-only, set() can not be used.");
+#endif /* NETSNMP_NO_WRITE_SUPPORT */
 done:
            Safefree(oid_arr);
         }
@@ -3282,15 +3351,19 @@ snmp_get(sess_ref, retry_nosuch, varlist_ref, perl_callback)
                  xs_cb_data->perl_cb = newSVsv(perl_callback);
                  xs_cb_data->sess_ref = newSVsv(sess_ref);
 
+		if(api_mode == SNMP_API_SINGLE)
+		{
+		 status = snmp_sess_async_send(ss, pdu, __snmp_xs_cb,
+					  (void*)xs_cb_data);
+		} else {
                  status = snmp_async_send(ss, pdu, __snmp_xs_cb,
                                           (void*)xs_cb_data);
+		}
                  if (status != 0) {
                     XPUSHs(sv_2mortal(newSViv(status))); /* push the reqid?? */
                  } else {
                     snmp_free_pdu(pdu);
-                    sv_catpv(*err_str_svp,
-                             (char*)snmp_api_errstring(ss->s_snmp_errno));
-                    sv_setiv(*err_num_svp, ss->s_snmp_errno);
+	  	    snmp_return_err(ss, *err_num_svp, *err_ind_svp, *err_str_svp);  
                     XPUSHs(&sv_undef);
                  }
 		 goto done;
@@ -3481,11 +3554,11 @@ snmp_getnext(sess_ref, varlist_ref, perl_callback)
                     varbind = (AV*) SvRV(*varbind_ref);
 
                     /* If the varbind includes the module prefix, capture it for use later */
-                    strncpy(tmp_buf_prefix, __av_elem_pv(varbind, VARBIND_TAG_F, ".0"), STR_BUF_SIZE);
+                    strlcpy(tmp_buf_prefix, __av_elem_pv(varbind, VARBIND_TAG_F, ".0"), STR_BUF_SIZE);
                     tmp_prefix_ptr = strstr(tmp_buf_prefix,"::");
                     if (tmp_prefix_ptr) {
                       tmp_prefix_ptr = strtok_r(tmp_buf_prefix, "::", &st);
-                      strncpy(str_buf_prefix, tmp_prefix_ptr, STR_BUF_SIZE);
+                      strlcpy(str_buf_prefix, tmp_prefix_ptr, STR_BUF_SIZE);
                     }
                     else {
                       *str_buf_prefix = '\0';
@@ -3519,15 +3592,19 @@ snmp_getnext(sess_ref, varlist_ref, perl_callback)
                  xs_cb_data->perl_cb = newSVsv(perl_callback);
                  xs_cb_data->sess_ref = newSVsv(sess_ref);
 
+		if(api_mode == SNMP_API_SINGLE)
+		{
+                 status = snmp_sess_async_send(ss, pdu, __snmp_xs_cb,
+                                          (void*)xs_cb_data);
+		} else {
                  status = snmp_async_send(ss, pdu, __snmp_xs_cb,
                                           (void*)xs_cb_data);
+		}
                  if (status != 0) {
                     XPUSHs(sv_2mortal(newSViv(status))); /* push the reqid?? */
                  } else {
                     snmp_free_pdu(pdu);
-                    sv_catpv(*err_str_svp,
-                             (char*)snmp_api_errstring(ss->s_snmp_errno));
-                    sv_setiv(*err_num_svp, ss->s_snmp_errno);
+					snmp_return_err(ss, *err_num_svp, *err_ind_svp, *err_str_svp);
                     XPUSHs(&sv_undef);
                  }
 		 goto done;
@@ -3593,9 +3670,9 @@ snmp_getnext(sess_ref, varlist_ref, perl_callback)
 
                     /* Prepend the module prefix to the next OID if needed */
                     if (*str_buf_prefix) {
-                      strncat(str_buf_prefix, "::", STR_BUF_SIZE - strlen(str_buf_prefix) - 2);
-                      strncat(str_buf_prefix, str_buf, STR_BUF_SIZE - strlen(str_buf_prefix));
-                      strncpy(str_buf, str_buf_prefix, STR_BUF_SIZE);
+                      strlcat(str_buf_prefix, "::", STR_BUF_SIZE);
+                      strlcat(str_buf_prefix, str_buf, STR_BUF_SIZE);
+                      strlcpy(str_buf, str_buf_prefix, STR_BUF_SIZE);
                     }
                     
                     if (__is_leaf(tp)) {
@@ -3757,15 +3834,19 @@ snmp_getbulk(sess_ref, nonrepeaters, maxrepetitions, varlist_ref, perl_callback)
                  xs_cb_data->perl_cb = newSVsv(perl_callback);
                  xs_cb_data->sess_ref = newSVsv(sess_ref);
 
+		if(api_mode == SNMP_API_SINGLE)
+		{
+                 status = snmp_sess_async_send(ss, pdu, __snmp_xs_cb,
+                                          (void*)xs_cb_data);
+		} else {
                  status = snmp_async_send(ss, pdu, __snmp_xs_cb,
                                           (void*)xs_cb_data);
+		}
                  if (status != 0) {
                     XPUSHs(sv_2mortal(newSViv(status))); /* push the reqid?? */
                  } else {
                     snmp_free_pdu(pdu);
-                    sv_catpv(*err_str_svp,
-                             (char*)snmp_api_errstring(ss->s_snmp_errno));
-                    sv_setiv(*err_num_svp, ss->s_snmp_errno);
+					snmp_return_err(ss, *err_num_svp, *err_ind_svp, *err_str_svp);
                     XPUSHs(&sv_undef);
                  }
 		 goto done;
@@ -3987,7 +4068,7 @@ snmp_bulkwalk(sess_ref, nonrepeaters, maxrepetitions, varlist_ref,perl_callback)
 	   if (context->req_oids == NULL) {
 	      sprintf(str_buf, "Newz(req_oids) failed (%s)", strerror(errno));
 	      if (verbose)
-	         warn(str_buf);
+	         warn("%s", str_buf);
 	      sv_setpv(*err_str_svp, str_buf);
 	      sv_setiv(*err_num_svp, SNMPERR_MALLOC);
 	      goto err;
@@ -4116,7 +4197,7 @@ snmp_bulkwalk(sess_ref, nonrepeaters, maxrepetitions, varlist_ref,perl_callback)
 	      }
 
 	      /* Sent okay...  Return the request ID in 'pdu' as an SvIV. */
-	      DBPRT(1,(DBOUT "Okay, request id is %d\n", (intptr_t) pdu));
+	      DBPRT(1,(DBOUT "Okay, request id is %ld\n", (long)(intptr_t)pdu));
 /*	      XSRETURN_IV((intptr_t)pdu); */
 	      XPUSHs(sv_2mortal(newSViv((IV)pdu)));
 	      XSRETURN(1);
@@ -4174,15 +4255,16 @@ snmp_bulkwalk(sess_ref, nonrepeaters, maxrepetitions, varlist_ref,perl_callback)
 
 	/* Handle error cases and clean up after ourselves. */
         err:
-	   if (context->req_oids && context->nreq_oids) {
-	      bt_entry = context->req_oids;
-	      for (i = 0; i < context->nreq_oids; i++, bt_entry++)
-		 av_clear(bt_entry->vars);
-	   }
-	   if (context->req_oids)
-	      Safefree(context->req_oids);
-	   if (context)
+	   if (context) {
+	      if (context->req_oids && context->nreq_oids) {
+	         bt_entry = context->req_oids;
+	         for (i = 0; i < context->nreq_oids; i++, bt_entry++)
+		    av_clear(bt_entry->vars);
+	      }
+	      if (context->req_oids)
+	         Safefree(context->req_oids);
 	      Safefree(context);
+	   }
 	   if (pdu)
 	      snmp_free_pdu(pdu);
 
@@ -4295,7 +4377,7 @@ snmp_trapV1(sess_ref,enterprise,agent,generic,specific,uptime,varlist_ref)
               } /* for all the vars */
               }
 
-	      pdu->enterprise = (oid *)malloc( MAX_OID_LEN * sizeof(oid));
+	      pdu->enterprise = (oid *)netsnmp_malloc(MAX_OID_LEN * sizeof(oid));
               tp = __tag2oid(enterprise,NULL, pdu->enterprise,
                              &pdu->enterprise_length, NULL, best_guess);
   	      if (pdu->enterprise_length == 0) {
@@ -4306,12 +4388,12 @@ snmp_trapV1(sess_ref,enterprise,agent,generic,specific,uptime,varlist_ref)
 		  agent-address field to that.  Otherwise set it to
 		  our address.  */
               if (agent && strlen(agent)) {
-                 if (__parse_address(agent) == -1 && verbose) {
-		   warn("error:trap:invalid agent address: %s", agent);
-		   goto err;
-                 } else {
-		   *((in_addr_t *)pdu->agent_addr) = __parse_address(agent);
-		 }
+                 if (0 > netsnmp_gethostbyname_v4(agent, 
+                                                 (in_addr_t *)pdu->agent_addr)){
+                     if (verbose)
+                         warn("error:trap:invalid agent address: %s", agent);
+                     goto err;
+                 } 
               } else {
                  *((in_addr_t *)pdu->agent_addr) = get_myaddr();
               }
@@ -4319,9 +4401,14 @@ snmp_trapV1(sess_ref,enterprise,agent,generic,specific,uptime,varlist_ref)
               pdu->specific_type = specific;
               pdu->time = uptime;
 
-              if (snmp_send(ss, pdu) == 0) {
+	     if(api_mode == SNMP_API_SINGLE)
+	     {
+		if(snmp_sess_send(ss,pdu) == 0)
+			snmp_free_pdu(pdu);
+	     } else {
+              if (snmp_send(ss, pdu) == 0) 
 	         snmp_free_pdu(pdu);
-              }
+             }
               XPUSHs(sv_2mortal(newSVpv(ZERO_BUT_TRUE,0)));
            } else {
 err:
@@ -4364,7 +4451,7 @@ snmp_trapV2(sess_ref,uptime,trap_oid,varlist_ref)
 	   
            New (0, oid_arr, MAX_OID_LEN, oid);
 
-           if (oid_arr && SvROK(sess_ref) && SvROK(varlist_ref)) {
+           if (oid_arr && SvROK(sess_ref)) {
 
               sess_ptr_sv = hv_fetch((HV*)SvRV(sess_ref), "SessPtr", 7, 1);
 	      ss = (SnmpSession *)SvIV((SV*)SvRV(*sess_ptr_sv));
@@ -4378,8 +4465,13 @@ snmp_trapV2(sess_ref,uptime,trap_oid,varlist_ref)
 	      
               pdu = snmp_pdu_create(SNMP_MSG_TRAP2);
 
-              varlist = (AV*) SvRV(varlist_ref);
-              varlist_len = av_len(varlist);
+              if (SvROK(varlist_ref)) {
+                  varlist = (AV*) SvRV(varlist_ref);
+                  varlist_len = av_len(varlist);
+              } else {
+                  varlist = NULL;
+                  varlist_len = -1;
+              }
 	      /************************************************/
               res = __add_var_val_str(pdu, sysUpTime, SYS_UPTIME_OID_LEN,
 				uptime, strlen(uptime), TYPE_TIMETICKS);
@@ -4452,9 +4544,14 @@ snmp_trapV2(sess_ref,uptime,trap_oid,varlist_ref)
                  } /* if var_ref is ok */
               } /* for all the vars */
 
-              if (snmp_send(ss, pdu) == 0) {
+	     if(api_mode == SNMP_API_SINGLE)
+	     {
+              if (snmp_sess_send(ss, pdu) == 0)
 	         snmp_free_pdu(pdu);
-              }
+	     } else {
+              if (snmp_send(ss, pdu) == 0) 
+	         snmp_free_pdu(pdu);
+             }
 
               XPUSHs(sv_2mortal(newSVpv(ZERO_BUT_TRUE,0)));
            } else {
@@ -4598,15 +4695,19 @@ snmp_inform(sess_ref,uptime,trap_oid,varlist_ref,perl_callback)
                  xs_cb_data->perl_cb = newSVsv(perl_callback);
                  xs_cb_data->sess_ref = newRV_inc(SvRV(sess_ref));
 
+		if(api_mode == SNMP_API_SINGLE)
+		{
+                 status = snmp_sess_async_send(ss, pdu, __snmp_xs_cb,
+                                          (void*)xs_cb_data);
+		} else {
                  status = snmp_async_send(ss, pdu, __snmp_xs_cb,
                                           (void*)xs_cb_data);
+		}
                  if (status != 0) {
                     XPUSHs(sv_2mortal(newSViv(status))); /* push the reqid?? */
                  } else {
                     snmp_free_pdu(pdu);
-                    sv_catpv(*err_str_svp,
-                             (char*)snmp_api_errstring(ss->s_snmp_errno));
-                    sv_setiv(*err_num_svp, ss->s_snmp_errno);
+					snmp_return_err(ss, *err_num_svp, *err_ind_svp, *err_str_svp);
                     XPUSHs(&sv_undef);
                  }
 		 goto done;
@@ -4658,7 +4759,8 @@ snmp_dump_packet(flag)
 	int		flag
 	CODE:
 	{
-	   snmp_set_dump_packet(flag);
+            netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, 
+                                   NETSNMP_DS_LIB_DUMP_PACKET, flag);
 	}
 
 
@@ -4755,10 +4857,10 @@ snmp_translate_obj(var,mode,use_long,auto_init,best_guess,include_module_name)
 		  if (((status=__get_label_iid(str_buf_temp,
 		       &label, &iid, NO_FLAGS)) == SUCCESS)
 		      && label) {
-		     strcpy(str_buf_temp, label);
+		     strlcpy(str_buf_temp, label, sizeof(str_buf_temp));
 		     if (iid && *iid) {
-		       strcat(str_buf_temp, ".");
-		       strcat(str_buf_temp, iid);
+		       strlcat(str_buf_temp, ".", sizeof(str_buf_temp));
+		       strlcat(str_buf_temp, iid, sizeof(str_buf_temp));
 		     }
  	          }
 	        }
@@ -4780,7 +4882,7 @@ snmp_translate_obj(var,mode,use_long,auto_init,best_guess,include_module_name)
 
 		break;
              default:
-	       if (verbose) warn("snmp_translate_obj:unknown translation mode: %s\n", mode);
+	       if (verbose) warn("snmp_translate_obj:unknown translation mode: %d\n", mode);
            }
            if (*str_buf) {
               RETVAL = (char*)str_buf;
@@ -4806,7 +4908,8 @@ snmp_set_save_descriptions(val)
 	int	val
 	CODE:
 	{
-	   snmp_set_save_descriptions(val);
+            netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, 
+                                   NETSNMP_DS_LIB_SAVE_MIB_DESCRS, val);
 	}
 
 void
@@ -4815,6 +4918,15 @@ snmp_set_debugging(val)
 	CODE:
 	{
 	   snmp_set_do_debugging(val);
+	}
+
+void
+snmp_register_debug_tokens(tokens)
+	char *tokens
+	CODE:
+	{
+            debug_register_tokens(tokens);
+            snmp_set_do_debugging(1);
 	}
 
 void
@@ -4853,11 +4965,18 @@ snmp_mainloop_finish()
 	}
 
 
+#-----------------------------------------------------------------------------
+# Note: ss=(SnmpSession*)NULL is so &SNMP::MainLoop() can still be called 
+# without a sess handler argument, this way I'm not breaking anyone's old code
+#
+# see MainLoop() in SNMP.pm for more details
+#-----------------------------------------------------------------------------
 void
-snmp_main_loop(timeout_sec,timeout_usec,perl_callback)
+snmp_main_loop(timeout_sec,timeout_usec,perl_callback,ss=(SnmpSession*)NULL)
 	int 	timeout_sec
 	int 	timeout_usec
 	SV *	perl_callback
+	SnmpSession *ss
 	CODE:
 	{
         int numfds, fd_count;
@@ -4868,7 +4987,6 @@ snmp_main_loop(timeout_sec,timeout_usec,perl_callback)
         struct timeval interval, *itvp;
         int block;
 	SV *cb;
-
 
  	mainloop_finish = 0;
 
@@ -4887,7 +5005,12 @@ snmp_main_loop(timeout_sec,timeout_usec,perl_callback)
            block = 1;
            tvp = &time_val;
            timerclear(tvp);
+	  if(api_mode == SNMP_API_SINGLE)
+	  {
+           snmp_sess_select_info(ss,&numfds, &fdset, tvp, &block);
+	  } else {
            snmp_select_info(&numfds, &fdset, tvp, &block);
+	  }
            __recalc_timeout(tvp,ctvp,ltvp,itvp,&block);
            # printf("pre-select: numfds = %ld, block = %ld\n", numfds, block);
            if (block == 1) tvp = NULL; /* block without timeout */
@@ -4896,7 +5019,12 @@ snmp_main_loop(timeout_sec,timeout_usec,perl_callback)
            if (fd_count > 0) {
                        ENTER;
                        SAVETMPS;
-              snmp_read(&fdset);
+		if(api_mode == SNMP_API_SINGLE)
+		{
+		  snmp_sess_read(ss, &fdset);
+		} else {
+              	  snmp_read(&fdset);
+		}
                        FREETMPS;
                        LEAVE;
 
@@ -4905,7 +5033,12 @@ snmp_main_loop(timeout_sec,timeout_usec,perl_callback)
 		 SPAGAIN;
 		 ENTER;
 		 SAVETMPS;
+		if(api_mode == SNMP_API_SINGLE)
+		{
+		snmp_sess_timeout( ss );
+		} else { 
                  snmp_timeout();
+		}
                  if (!timerisset(ctvp)) {
                     if (SvTRUE(perl_callback)) {
                        /* sv_2mortal(perl_callback); */
@@ -5123,9 +5256,7 @@ snmp_mib_node_FETCH(tp_ref, key)
 	          /* we must be looking at description */
                  sv_setpv(ret,tp->description);
                  break;
-              case 'i': /* indexes */
-                 if (strncmp("indexes", key, strlen(key))) break;
-                 index_av = newAV();
+              case 'i': /* indexes, implied */
                  if (tp->augments) {
  	             clear_tree_flags(get_tree_head()); 
                      tptmp = find_best_tree_node(tp->augments, get_tree_head(), NULL);
@@ -5135,6 +5266,19 @@ snmp_mib_node_FETCH(tp_ref, key)
                  } else {
                      tptmp = tp;
                  }
+                 if (strcmp("implied", key) == 0) {
+                     /* only the last index can be implied */
+                     int isimplied = 0;
+                     if (tptmp && tptmp->indexes) {
+                         for(ip=tptmp->indexes; ip->next; ip = ip->next) {
+                         }
+                         isimplied = ip->isimplied;
+                     }
+                     sv_setiv(ret, isimplied);
+                     break;
+                 }
+                 if (strncmp("indexes", key, strlen(key))) break;
+                 index_av = newAV();
                  if (tptmp)
                      for(ip=tptmp->indexes; ip != NULL; ip = ip->next) {
                          av_push(index_av,newSVpv((ip->ilabel),strlen(ip->ilabel)));
@@ -5229,8 +5373,8 @@ snmp_mib_node_FETCH(tp_ref, key)
                  ranges_av = newAV();
                  for(rp=tp->ranges; rp ; rp = rp->next) {
 		   range_hv = newHV();
-                   hv_store(range_hv, "low", strlen("low"), newSViv(rp->low), 0);
-                   hv_store(range_hv, "high", strlen("high"), newSViv(rp->high), 0);
+                   (void)hv_store(range_hv, "low", strlen("low"), newSViv(rp->low), 0);
+                   (void)hv_store(range_hv, "high", strlen("high"), newSViv(rp->high), 0);
 		   av_push(ranges_av, newRV((SV*)range_hv));
                  }
                  sv_setsv(ret, newRV((SV*)ranges_av));
@@ -5296,7 +5440,7 @@ snmp_mib_node_FETCH(tp_ref, key)
                  if (strncmp("enums", key, strlen(key))) break;
                  enum_hv = newHV();
                  for(ep=tp->enums; ep != NULL; ep = ep->next) {
-                   hv_store(enum_hv, ep->label, strlen(ep->label),
+		    (void)hv_store(enum_hv, ep->label, strlen(ep->label),
                                 newSViv(ep->value), 0);
                  }
                  sv_setsv(ret, newRV((SV*)enum_hv));
@@ -5316,6 +5460,14 @@ snmp_session_DESTROY(sess_ptr)
 	SnmpSession *sess_ptr
 	CODE:
 	{
+	if(sess_ptr != NULL)
+	{
+ 	 if(api_mode == SNMP_API_SINGLE)
+	 {
+           snmp_sess_close( sess_ptr );
+	 } else { 
            snmp_close( sess_ptr );
+	 }
+	}
 	}
 

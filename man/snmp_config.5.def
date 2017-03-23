@@ -1,5 +1,4 @@
-.TH SNMP_CONFIG 5 "5 May 2005" VVERSIONINFO "Net-SNMP"
-.UC 4
+.TH SNMP_CONFIG 5 "08 Mar 2010" VVERSIONINFO "Net-SNMP"
 .SH NAME
 snmp_config - handling of Net-SNMP configuration files
 .SH DESCRIPTION
@@ -31,21 +30,21 @@ in the following order of preference:
 file in 
 .B SNMP_PERSISTENT_FILE
 environment variable
-.PP
+.br
 directories in 
 .B SNMPCONFPATH
 environment variable
-.PP
+.br
 directory defined by 
 .B
 persistentDir 
 snmp.conf variable
-.PP
+.br
 directory in 
 .B
 SNMP_PERSISTENT_DIR 
 environment variable
-.PP
+.br
 default 
 .B
 PERSISTENT_DIRECTORY 
@@ -59,17 +58,17 @@ in the following order of preference:
 file in 
 .B SNMP_PERSISTENT_FILE
 environment variable
-.PP
+.br
 directory defined by 
 .B
 persistentDir 
 snmp.conf variable
-.PP
+.br
 directory in 
 .B
 SNMP_PERSISTENT_DIR 
 environment variable
-.PP
+.br
 default 
 .B
 PERSISTENT_DIRECTORY 
@@ -138,20 +137,64 @@ logTimestamp true
 # return to our original snmpd.conf tokens:
 [snmpd]
 rocommunity mypublic
+.fi
 .RE
+.PP
+The same approach can be used to set configuration directives for a
+particular client application (or group of applications).  For example,
+any program that uses the 'snmp_parse_args()' call to handle command-line
+arguments (including the standard command-line tools shipped as part of the
+Net-SNMP distributions) will automatically read the config file 'snmpapp.conf'.
+To set library-level settings for these applications (but not other
+more-specific tools), use configuration such as the following:
+.PP
+.RS
+[snmp] defCommunity myCommunity
+.RE
+.PP
+for a single directive, or
+.PP
+.RS
+.nf
+# make this file handle snmp.conf tokens:
+[snmp]
+defCommunity myCommunity
+defVersion   2c
+# return to our original snmpapp.conf tokens:
+[snmpapp]
+.fi
+.RE
+.PP
+for multiple settings.
+Similarly for any other application token (as passed to init_snmp()).
 .SH COMMENTS
 .PP
 Any lines beginning with the character '#' in the configuration files
 are treated as a comment and are not parsed.
+.SH "INCLUDING OTHER CONFIGURATION FILES"
+It is possible to include other configuration files for processing
+during normal configuration file processing.:
+.PP
+.RS
+.nf
+# include site specific config
+include site.conf
+.RE
+.PP
+This will search every directory in the configuration path for files
+named site.conf, and will process those files before returning to the
+processing of the original file. Note that if '.conf' is omitted,
+it will be appended. That is, all configuration files must end
+in '.conf'.
 .SH "API INTERFACE"
 .PP
 Information about writing C code that makes use of this system in
 either the agent's MIB modules or in applications can be found in the
-.I read_config(3)
+.I netsnmp_config_api(3)
 manual page.
 .SH "SEE ALSO"
 snmpconf(1),
-read_config(3),
+netsnmp_config_api(3),
 snmp.conf(5),
 snmpd.conf(5)
 .\" Local Variables:

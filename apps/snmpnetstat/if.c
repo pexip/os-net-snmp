@@ -49,8 +49,12 @@ static char *rcsid = "$OpenBSD: if.c,v 1.42 2005/03/13 16:05:50 mpf Exp $";
 #if HAVE_NET_IF_H
 #include <net/if.h>
 #endif
-#define __USE_XOPEN
-#define __USE_XOPEN_EXTENDED
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 1
+#endif
+#ifndef _XOPEN_SOURCE_EXTENDED
+#define _XOPEN_SOURCE_EXTENDED 1
+#endif
 #include <signal.h>
 
 #include "main.h"
@@ -68,7 +72,7 @@ static void timerPause(void);
         char            ip[128], route[128];
         int             mtu;
         int             drops;
-        int             ifindex;
+        unsigned int    ifindex;
                         /*
                          * Save "expandable" fields as string values
                          *  rather than integer statistics
@@ -127,14 +131,15 @@ _set_address( struct _if_info *cur_if )
      */
     for (vp=addr_if_var, vp2=addr_mask_var;  vp;
          vp=vp->next_variable, vp2=vp2->next_variable) {
-        if ( vp->val.integer && *vp->val.integer == cur_if->ifindex )
+        if ( vp->val.integer && *vp->val.integer == (int)cur_if->ifindex )
             break;
     }
     if (vp2) {
         /*
          * Always want a numeric interface IP address
          */
-        snprintf( cur_if->ip, 128, "%lu.%lu.%lu.%lu",
+        snprintf( cur_if->ip, 128, "%" NETSNMP_PRIo "u.%" NETSNMP_PRIo "u."
+                  "%" NETSNMP_PRIo "u.%" NETSNMP_PRIo "u",
                   vp2->name[10],
                   vp2->name[11],
                   vp2->name[12],
@@ -273,7 +278,6 @@ intpr(int interval)
                  * XXX - Try to recover ?
                  */
                 SNMP_FREE( cur_if );
-                cur_if = NULL;
                 break;    /* not for now, no */
             }
             switch ( vp->name[ var->name_length-2 ] ) {
@@ -370,7 +374,6 @@ intpr(int interval)
          */
         if ( intrface && strcmp( cur_if->name, intrface ) != 0) {
             SNMP_FREE( cur_if );
-            cur_if = NULL;
         }
 
         /*
@@ -514,7 +517,7 @@ sidewaysintpr(unsigned int interval)
     struct iftot *sum = NULL, *total  = NULL;    /* overall summary    */
     int    line;
     int    first;
-    int    i;
+    size_t i;
 
     var = NULL;
     if ( intrface ) {

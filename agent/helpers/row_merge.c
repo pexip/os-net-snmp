@@ -1,4 +1,10 @@
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
+
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
+
+#include <net-snmp/agent/row_merge.h>
 
 #if HAVE_STRING_H
 #include <string.h>
@@ -6,11 +12,12 @@
 #include <strings.h>
 #endif
 
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
+netsnmp_feature_provide(row_merge)
+netsnmp_feature_child_of(row_merge, row_merge_all)
+netsnmp_feature_child_of(row_merge_all, mib_helpers)
 
-#include <net-snmp/agent/row_merge.h>
 
+#ifndef NETSNMP_FEATURE_REMOVE_ROW_MERGE
 /** @defgroup row_merge row_merge
  *  Calls sub handlers with request for one row at a time.
  *  @ingroup utilities
@@ -38,6 +45,8 @@ netsnmp_get_row_merge_handler(int prefix_len)
 
 /** functionally the same as calling netsnmp_register_handler() but also
  * injects a row_merge handler at the same time for you. */
+netsnmp_feature_child_of(register_row_merge, row_merge_all)
+#ifndef NETSNMP_FEATURE_REMOVE_REGISTER_ROW_MERGE
 int
 netsnmp_register_row_merge(netsnmp_handler_registration *reginfo)
 {
@@ -45,6 +54,7 @@ netsnmp_register_row_merge(netsnmp_handler_registration *reginfo)
 		    netsnmp_get_row_merge_handler(reginfo->rootoid_len+1));
     return netsnmp_register_handler(reginfo);
 }
+#endif /* NETSNMP_FEATURE_REMOVE_REGISTER_ROW_MERGE */
 
 static void
 _rm_status_free(void *mem)
@@ -76,14 +86,14 @@ netsnmp_row_merge_status_get(netsnmp_handler_registration *reginfo,
      * see if we've already been here
      */
     rc = snprintf(buf, sizeof(buf), "row_merge:%p", reginfo);
-    if ((-1 == rc) || (rc >= sizeof(buf))) {
+    if ((-1 == rc) || ((size_t)rc >= sizeof(buf))) {
         snmp_log(LOG_ERR,"error creating key\n");
         return NULL;
     }
     
-    rm_status = netsnmp_agent_get_list_data(reqinfo, buf);
+    rm_status = (netsnmp_row_merge_status*)netsnmp_agent_get_list_data(reqinfo, buf);
     if ((NULL == rm_status) && create_missing) {
-        void *data_list;
+        netsnmp_data_list *data_list;
         
         rm_status = SNMP_MALLOC_TYPEDEF(netsnmp_row_merge_status);
         if (NULL == rm_status) {
@@ -362,5 +372,10 @@ netsnmp_init_row_merge(void)
     netsnmp_register_handler_by_name("row_merge",
                                      netsnmp_get_row_merge_handler(-1));
 }
+#else /* NETSNMP_FEATURE_REMOVE_ROW_MERGE */
+netsnmp_feature_unused(row_merge);
+#endif /* NETSNMP_FEATURE_REMOVE_ROW_MERGE */
+
+
 /**  @} */
 

@@ -2,6 +2,7 @@ import client_intf
 import string
 import re
 import types
+from sys import stderr
 
 # control verbosity of error output
 verbose = 1
@@ -29,13 +30,17 @@ def _parse_session_args(kargs):
         'Engineboots':0,
         'Enginetime':0,
         'UseNumeric':0,
+        'OurIdentity':'',
+        'TheirIdentity':'',
+        'TheirHostname':'',
+        'TrustCert':''
         }
     keys = kargs.keys()
     for key in keys:
         if sessArgs.has_key(key):
             sessArgs[key] = kargs[key]
         else:
-            print stderr, "ERROR: unknown key", key
+            print >>stderr, "ERROR: unknown key", key
     return sessArgs
 
 def STR(obj):
@@ -52,7 +57,7 @@ class Varbind(object):
         self.type = STR(type)
         # parse iid out of tag if needed
         if iid == None and tag != None:
-            regex = re.compile(r'^((?:\.\d+)+|(?:\w+(?:\-*\w+)+))\.?(.*)$')
+            regex = re.compile(r'^((?:\.\d+)+|(?:\w+(?:[-:]*\w+)+))\.?(.*)$')
             match = regex.match(tag)
             if match:
                 (self.tag, self.iid) = match.group(1,2)
@@ -125,7 +130,28 @@ class Session(object):
         for k,v in sess_args.items():
             self.__dict__[k] = v
 
-        if sess_args['Version'] == 3:
+            
+        # check for transports that may be tunneled
+        transportCheck = re.compile('^(tls|dtls|ssh)');
+        match = transportCheck.match(sess_args['DestHost'])
+
+        if match:
+            self.sess_ptr = client_intf.session_tunneled(
+                sess_args['Version'],
+                sess_args['DestHost'],
+                sess_args['LocalPort'],
+                sess_args['Retries'],
+                sess_args['Timeout'],
+                sess_args['SecName'],
+                secLevelMap[sess_args['SecLevel']],
+                sess_args['ContextEngineId'],
+                sess_args['Context'],
+                sess_args['OurIdentity'],
+                sess_args['TheirIdentity'],
+                sess_args['TheirHostname'],
+                sess_args['TrustCert'],
+                );
+        elif sess_args['Version'] == 3:
             self.sess_ptr = client_intf.session_v3(
                 sess_args['Version'],
                 sess_args['DestHost'],

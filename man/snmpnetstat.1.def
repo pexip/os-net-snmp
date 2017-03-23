@@ -58,22 +58,21 @@
 .\" Use is subject to license terms specified in the COPYING file
 .\" distributed with the Net-SNMP package.
 .\" ******************************************************************/
-.TH SNMPNETSTAT 1 "16 Nov 2006" VVERSIONINFO "Net-SNMP"
-.UC 5
+.TH SNMPNETSTAT 1 "20 Jan 2010" VVERSIONINFO "Net-SNMP"
 .SH NAME
 snmpnetstat \- display networking status and configuration information from a network entity via SNMP
 .SH SYNOPSIS
 .B snmpnetstat
-[common options] [-Ca] [-Cn] AGENT
+[COMMON OPTIONS] [\-Ca] [\-Cn] AGENT
 .br
 .B snmpnetstat
-[common options] [-Ci] [-Co] [-Cr] [-Cn] [-Cs] AGENT
+[COMMON OPTIONS] [\-Ci] [\-Co] [\-Cr] [\-Cn] [\-Cs] AGENT
 .br
 .B snmpnetstat
-[common options] [-Ci] [-Cn] [-CI interface] AGENT [interval]
+[COMMON OPTIONS] [\-Ci] [\-Cn] [\-CI interface] AGENT [interval]
 .br
 .B snmpnetstat
-[common options] [-Ca] [-Cn] [-Cs] [-Cp protocol] AGENT
+[COMMON OPTIONS] [\-Ca] [\-Cn] [\-Cs] [\-Cp protocol] AGENT
 .SH DESCRIPTION
 The
 .B snmpnetstat 
@@ -92,6 +91,12 @@ will continuously display the information regarding packet
 traffic on the configured network interfaces.
 The fourth form displays statistics about the named protocol.
 .PP
+.B snmpnetstat
+will issue GETBULK requests to query for information
+if at least protocol version
+.I v2
+is used.
+.PP
 AGENT identifies a target SNMP agent, which is
 instrumented to monitor the given objects.
 At its simplest, the AGENT specification will
@@ -104,7 +109,7 @@ the possible formats for AGENT.
 .SH OPTIONS
 The options have the following meaning:
 .PP
-.B common options
+.B COMMON OPTIONS
  Please see
 .I snmpcmd(1)
 for a list of possible values for common options
@@ -163,6 +168,11 @@ When
 .B \-Cs
 is also present, show per-protocol routing statistics instead of 
 the routing tables.
+.PP
+.BI \-CR " repeaters"
+For GETBULK requests,
+.I repeaters
+specifies the max-repeaters value to use.
 .PP
 When  snmpnetstat is invoked with an interval argument, it
 displays a running count of statistics related to  network
@@ -244,7 +254,7 @@ display is limited to the given protocol.
 .SH EXAMPLES
 Example of using snmpnetstat to display active sockets (default):
 .PP
-% snmpnetstat -v 2c -c public -Ca testhost
+% snmpnetstat \-v 2c \-c public \-Ca testhost
 .PP
 .nf
 Active Internet (tcp) Connections (including servers)
@@ -268,7 +278,7 @@ udp    *.time
 \&...
 .fi
 .PP
-% snmpnetstat -v 2c -c public -Ci testhost
+% snmpnetstat \-v 2c \-c public \-Ci testhost
 .PP
 .nf
 Name     Mtu Network    Address          Ipkts   Ierrs    Opkts Oerrs Queue
@@ -279,7 +289,7 @@ lo0     8232 127        localhost      7530982       0  7530982     0    0
 Example of using snmpnetstat to show statistics about a specific protocol:
 .PP
 .nf
-% snmpnetstat -v 2c -c public -Cp tcp testhost
+% snmpnetstat \-v 2c \-c public \-Cp tcp testhost
 
 Active Internet (tcp) Connections
 Proto Local Address                Foreign Address                 (state)

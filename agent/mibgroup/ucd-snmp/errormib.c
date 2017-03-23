@@ -11,11 +11,7 @@
 #endif
 #include <signal.h>
 #if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
+# include <sys/time.h>
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -53,8 +49,10 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+#if !defined(dragonfly)
 #ifdef HAVE_SYS_VNODE_H
 #include <sys/vnode.h>
+#endif
 #endif
 #ifdef HAVE_UFS_UFS_QUOTA_H
 #include <ufs/ufs/quota.h>
@@ -110,9 +108,6 @@
 #if HAVE_STRING_H
 #include <string.h>
 #endif
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
 
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
@@ -120,7 +115,7 @@
 
 #include "struct.h"
 #include "errormib.h"
-#include "util_funcs.h"
+#include "util_funcs/header_generic.h"
 
 static time_t   errorstatustime = 0;
 static int      errorstatusprior = 0;
@@ -142,8 +137,7 @@ seterrorstatus(const char *to, int prior)
 {
     if (errorstatusprior <= prior ||
         (NETSNMP_ERRORTIMELENGTH < (time(NULL) - errorstatustime))) {
-        strncpy(errorstring, to, sizeof(errorstring));
-        errorstring[ sizeof(errorstring)-1 ] = 0;
+        strlcpy(errorstring, to, sizeof(errorstring));
         errorstatusprior = prior;
         errorstatustime = time(NULL);
     }
@@ -158,14 +152,14 @@ init_errormib(void)
      * information at 
      */
     struct variable2 extensible_error_variables[] = {
-        {MIBINDEX, ASN_INTEGER, RONLY, var_extensible_errors, 1,
-         {MIBINDEX}},
-        {ERRORNAME, ASN_OCTET_STR, RONLY, var_extensible_errors, 1,
-         {ERRORNAME}},
-        {ERRORFLAG, ASN_INTEGER, RONLY, var_extensible_errors, 1,
-         {ERRORFLAG}},
-        {ERRORMSG, ASN_OCTET_STR, RONLY, var_extensible_errors, 1,
-         {ERRORMSG}}
+        {MIBINDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_errors, 1, {MIBINDEX}},
+        {ERRORNAME, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+         var_extensible_errors, 1, {ERRORNAME}},
+        {ERRORFLAG, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_errors, 1, {ERRORFLAG}},
+        {ERRORMSG, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+         var_extensible_errors, 1, {ERRORMSG}}
     };
 
     /*
@@ -224,8 +218,7 @@ var_extensible_errors(struct variable *vp,
         return ((u_char *) (&long_ret));
     case ERRORMSG:
         if ((NETSNMP_ERRORTIMELENGTH >= time(NULL) - errorstatustime) ? 1 : 0) {
-            strncpy(errmsg, errorstring, sizeof(errmsg));
-            errmsg[ sizeof(errmsg)-1 ] = 0;
+            strlcpy(errmsg, errorstring, sizeof(errmsg));
         } else
             errmsg[0] = 0;
         *var_len = strlen(errmsg);

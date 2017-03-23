@@ -40,15 +40,24 @@ oid             traceRouteHopsTable_variables_oid[] =
     { 1, 3, 6, 1, 2, 1, 81, 1, 5 };
 
 struct variable2 traceRouteHopsTable_variables[] = {
-    {COLUMN_TRACEROUTEHOPSIPTGTADDRESSTYPE, ASN_INTEGER, RONLY, var_traceRouteHopsTable, 2, {1, 2}},
-    {COLUMN_TRACEROUTEHOPSIPTGTADDRESS,   ASN_OCTET_STR, RONLY, var_traceRouteHopsTable, 2, {1, 3}},
-    {COLUMN_TRACEROUTEHOPSMINRTT,          ASN_UNSIGNED, RONLY, var_traceRouteHopsTable, 2, {1, 4}},
-    {COLUMN_TRACEROUTEHOPSMAXRTT,          ASN_UNSIGNED, RONLY, var_traceRouteHopsTable, 2, {1, 5}},
-    {COLUMN_TRACEROUTEHOPSAVERAGERTT,      ASN_UNSIGNED, RONLY, var_traceRouteHopsTable, 2, {1, 6}},
-    {COLUMN_TRACEROUTEHOPSRTTSUMOFSQUARES, ASN_UNSIGNED, RONLY, var_traceRouteHopsTable, 2, {1, 7}},
-    {COLUMN_TRACEROUTEHOPSSENTPROBES,      ASN_UNSIGNED, RONLY, var_traceRouteHopsTable, 2, {1, 8}},
-    {COLUMN_TRACEROUTEHOPSPROBERESPONSES,  ASN_UNSIGNED, RONLY, var_traceRouteHopsTable, 2, {1, 9}},
-    {COLUMN_TRACEROUTEHOPSLASTGOODPROBE,  ASN_OCTET_STR, RONLY, var_traceRouteHopsTable, 2, {1, 10}}
+    {COLUMN_TRACEROUTEHOPSIPTGTADDRESSTYPE, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 2}},
+    {COLUMN_TRACEROUTEHOPSIPTGTADDRESS,   ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 3}},
+    {COLUMN_TRACEROUTEHOPSMINRTT,          ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 4}},
+    {COLUMN_TRACEROUTEHOPSMAXRTT,          ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 5}},
+    {COLUMN_TRACEROUTEHOPSAVERAGERTT,      ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 6}},
+    {COLUMN_TRACEROUTEHOPSRTTSUMOFSQUARES, ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 7}},
+    {COLUMN_TRACEROUTEHOPSSENTPROBES,      ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 8}},
+    {COLUMN_TRACEROUTEHOPSPROBERESPONSES,  ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 9}},
+    {COLUMN_TRACEROUTEHOPSLASTGOODPROBE,  ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+     var_traceRouteHopsTable, 2, {1, 10}}
 };
 
 
@@ -60,6 +69,8 @@ struct variable2 traceRouteHopsTable_variables[] = {
 
 extern struct header_complex_index *traceRouteCtlTableStorage;
 extern struct header_complex_index *traceRouteHopsTableStorage;
+void
+traceRouteHopsTable_inadd(struct traceRouteHopsTable_data *thedata);
 
 void
 traceRouteHopsTable_cleaner(struct header_complex_index *thestuff)
@@ -309,7 +320,7 @@ store_traceRouteHopsTable(int majorID, int minorID, void *serverarg,
 }
 
 
-int
+void
 traceRouteHopsTable_inadd(struct traceRouteHopsTable_data *thedata)
 {
     netsnmp_variable_list *vars_list = NULL;

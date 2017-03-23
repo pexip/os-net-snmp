@@ -40,9 +40,7 @@ SOFTWARE.
 #if HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#else
+#if HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #if HAVE_SYS_SOCKIO_H
@@ -106,7 +104,7 @@ SOFTWARE.
 typedef struct {
     char            cmd;        /* the format command itself */
     size_t          width;      /* the field's minimum width */
-    size_t          precision;  /* the field's precision */
+    int             precision;  /* the field's precision */
     int             left_justify;       /* if true, left justify this field */
     int             alt_format; /* if true, display in alternate format */
     int             leading_zeroes;     /* if true, display with leading zeroes */
@@ -370,7 +368,7 @@ realloc_output_temp_bfr(u_char ** buf, size_t * buf_len, size_t * out_len,
     temp_to_write = temp_len;
 
     if (options->precision != UNDEF_PRECISION &&
-        temp_to_write > options->precision) {
+        temp_to_write > (size_t)options->precision) {
         temp_to_write = options->precision;
     }
 
@@ -462,8 +460,6 @@ realloc_handle_time_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
     struct tm      *parsed_time;        /* parsed version of current time */
     char           *safe_bfr = NULL;
     char            fmt_cmd = options->cmd;     /* the format command to use */
-    int             offset = 0; /* offset into string to display */
-    size_t          year_len;   /* length of year string */
 
     if ((safe_bfr = (char *) calloc(30, 1)) == NULL) {
         return 0;
@@ -538,11 +534,6 @@ realloc_handle_time_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
         case CHR_CUR_YEAR:
         case CHR_UP_YEAR:
             sprintf(safe_bfr, "%d", parsed_time->tm_year + 1900);
-            if (options->precision != UNDEF_PRECISION) {
-                year_len = (size_t) strlen(safe_bfr);
-                if (year_len > options->precision)
-                    offset = year_len - options->precision;
-            }
             break;
 
             /*
@@ -626,8 +617,10 @@ realloc_handle_ip_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
     char            fmt_cmd = options->cmd;     /* what we're formatting */
     u_char         *temp_buf = NULL;
     size_t          temp_buf_len = 64, temp_out_len = 0;
+    char           *tstr;
+    unsigned int    oflags;
 
-    if ((temp_buf = calloc(temp_buf_len, 1)) == NULL) {
+    if ((temp_buf = (u_char*)calloc(temp_buf_len, 1)) == NULL) {
         return 0;
     }
 
@@ -655,11 +648,11 @@ realloc_handle_ip_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
          */
         if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, 
                                     NETSNMP_DS_APP_NUMERIC_IP)) {
-            host = gethostbyaddr((char *) pdu->agent_addr, 4, AF_INET);
+            host = netsnmp_gethostbyaddr((char *) pdu->agent_addr, 4, AF_INET);
         }
         if (host != NULL) {
             if (!snmp_strcat(&temp_buf, &temp_buf_len, &temp_out_len, 1,
-                             (u_char *)host->h_name)) {
+                             (const u_char *)host->h_name)) {
                 if (temp_buf != NULL) {
                     free(temp_buf);
                 }
@@ -681,130 +674,59 @@ realloc_handle_ip_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
          * Write the numerical transport information.  
          */
         if (transport != NULL && transport->f_fmtaddr != NULL) {
-            char           *tstr =
-                transport->f_fmtaddr(transport, pdu->transport_data,
-                                     pdu->transport_data_length);
-            if (!snmp_strcat
-                (&temp_buf, &temp_buf_len, &temp_out_len, 1, (u_char *)tstr)) {
-                if (tstr != NULL) {
-                    free(tstr);
-                }
-                if (temp_buf != NULL) {
-                    free(temp_buf);
-                }
+            oflags = transport->flags;
+            transport->flags &= ~NETSNMP_TRANSPORT_FLAG_HOSTNAME;
+            tstr = transport->f_fmtaddr(transport, pdu->transport_data,
+                                        pdu->transport_data_length);
+            transport->flags = oflags;
+          
+            if (!tstr) goto noip;
+            if (!snmp_strcat(&temp_buf, &temp_buf_len, &temp_out_len,
+                             1, (u_char *)tstr)) {
+                SNMP_FREE(temp_buf);
+                SNMP_FREE(tstr);
                 return 0;
             }
-            if (tstr != NULL) {
-                free(tstr);
-            }
+            SNMP_FREE(tstr);
         } else {
-            if (!snmp_strcat
-                (&temp_buf, &temp_buf_len, &temp_out_len, 1,
-                 (const u_char*)"<UNKNOWN>")) {
-                if (temp_buf != NULL) {
-                    free(temp_buf);
-                }
+noip:
+            if (!snmp_strcat(&temp_buf, &temp_buf_len, &temp_out_len, 1,
+                             (const u_char*)"<UNKNOWN>")) {
+                SNMP_FREE(temp_buf);
                 return 0;
             }
         }
         break;
 
-        /*
-         * Write a host name.  
-         */
     case CHR_PDU_NAME:
         /*
-         * Right, apparently a name lookup is wanted.  This is only reasonable
-         * for the UDP and TCP transport domains (we don't want to try to be
-         * too clever here).  
+         * Try to convert the numerical transport information
+         *  into a hostname.  Or rather, have the transport-specific
+         *  address formatting routine do this.
+         * Otherwise falls back to the numeric address format.
          */
-#ifdef NETSNMP_TRANSPORT_TCP_DOMAIN
-        if (transport != NULL && (transport->domain == netsnmpUDPDomain ||
-                                  transport->domain ==
-                                  netsnmp_snmpTCPDomain)) {
-#else
-        if (transport != NULL && transport->domain == netsnmpUDPDomain) {
-#endif
-            /*
-             * This is kind of bletcherous -- it breaks the opacity of
-             * transport_data but never mind -- the alternative is a lot of
-             * munging strings from f_fmtaddr.  
-             */
-typedef struct netsnmp_udp_addr_pair_s {   /* From snmpUDPDomain.c */
-    struct sockaddr_in remote_addr;
-    struct in_addr local_addr;
-} netsnmp_udp_addr_pair;
-
-            netsnmp_udp_addr_pair *addr =
-                (netsnmp_udp_addr_pair *) pdu->transport_data;
-            if (addr != NULL
-                && pdu->transport_data_length ==
-                sizeof(netsnmp_udp_addr_pair)) {
-                if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, 
-                                            NETSNMP_DS_APP_NUMERIC_IP)) {
-                    host =
-                        gethostbyaddr((char *) &(addr->remote_addr.sin_addr),
-                                      sizeof(struct in_addr), AF_INET);
-                }
-                if (host != NULL) {
-                    if (!snmp_strcat
-                        (&temp_buf, &temp_buf_len, &temp_out_len, 1,
-                         (u_char *)host->h_name)) {
-                        if (temp_buf != NULL) {
-                            free(temp_buf);
-                        }
-                        return 0;
-                    }
-                } else {
-                    if (!snmp_strcat
-                        (&temp_buf, &temp_buf_len, &temp_out_len, 1,
-                         (u_char *)inet_ntoa(addr->remote_addr.sin_addr))) {
-                        if (temp_buf != NULL) {
-                            free(temp_buf);
-                        }
-                        return 0;
-                    }
-                }
-            } else {
-                if (!snmp_strcat
-                    (&temp_buf, &temp_buf_len, &temp_out_len, 1,
-                     (const u_char*)"<UNKNOWN>")) {
-                    if (temp_buf != NULL) {
-                        free(temp_buf);
-                    }
-                    return 0;
-                }
-            }
-        } else if (transport != NULL && transport->f_fmtaddr != NULL) {
-            /*
-             * Some other domain for which we do not know how to do a name
-             * lookup.  Fall back to the formatted transport address.  
-             */
-            char           *tstr =
-                transport->f_fmtaddr(transport, pdu->transport_data,
-                                     pdu->transport_data_length);
-            if (!snmp_strcat
-                (&temp_buf, &temp_buf_len, &temp_out_len, 1, (u_char *)tstr)) {
-                if (tstr != NULL) {
-                    free(tstr);
-                }
-                if (temp_buf != NULL) {
-                    free(temp_buf);
-                }
+        if (transport != NULL && transport->f_fmtaddr != NULL) {
+            oflags = transport->flags;
+            if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, 
+                                        NETSNMP_DS_APP_NUMERIC_IP))
+                transport->flags |= NETSNMP_TRANSPORT_FLAG_HOSTNAME;
+            tstr = transport->f_fmtaddr(transport, pdu->transport_data,
+                                        pdu->transport_data_length);
+            transport->flags = oflags;
+          
+            if (!tstr) goto nohost;
+            if (!snmp_strcat(&temp_buf, &temp_buf_len, &temp_out_len,
+                             1, (u_char *)tstr)) {
+                SNMP_FREE(temp_buf);
+                SNMP_FREE(tstr);
                 return 0;
             }
-            if (tstr != NULL) {
-                free(tstr);
-            }
+            SNMP_FREE(tstr);
         } else {
-            /*
-             * We are kind of stuck!  
-             */
+nohost:
             if (!snmp_strcat(&temp_buf, &temp_buf_len, &temp_out_len, 1,
                              (const u_char*)"<UNKNOWN>")) {
-                if (temp_buf != NULL) {
-                    free(temp_buf);
-                }
+                SNMP_FREE(temp_buf);
                 return 0;
             }
         }
@@ -871,7 +793,7 @@ realloc_handle_ent_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
         /*
          * Write the context oid.  
          */
-        if (!sprint_realloc_objid
+        if (!sprint_realloc_hexstring
             (&temp_buf, &temp_buf_len, &temp_out_len, 1, pdu->contextEngineID,
              pdu->contextEngineIDLen)) {
             free(temp_buf);
@@ -1070,21 +992,21 @@ realloc_handle_auth_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
 {
     char            fmt_cmd = options->cmd;     /* what we're outputting */
     u_char         *temp_buf = NULL;
-    size_t          tbuf_len = 64, tout_len = 0;
-    int             i;
+    size_t          tbuf_len = 64;
+    unsigned int    i;
 
-    if ((temp_buf = calloc(tbuf_len, 1)) == NULL) {
+    if ((temp_buf = (u_char*)calloc(tbuf_len, 1)) == NULL) {
         return 0;
     }
 
     switch (fmt_cmd) {
 
     case CHR_SNMP_VERSION:
-        tout_len = snprintf((char*)temp_buf, tbuf_len, "%ld", pdu->version);
+        snprintf((char*)temp_buf, tbuf_len, "%ld", pdu->version);
         break;
 
     case CHR_SNMP_SECMOD:
-        tout_len = snprintf((char*)temp_buf, tbuf_len, "%d", pdu->securityModel);
+        snprintf((char*)temp_buf, tbuf_len, "%d", pdu->securityModel);
         break;
 
     case CHR_SNMP_USER:
@@ -1098,6 +1020,8 @@ realloc_handle_auth_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
 #if !defined(NETSNMP_DISABLE_SNMPV1) || !defined(NETSNMP_DISABLE_SNMPV2C)
             while ((*out_len + pdu->community_len + 1) >= *buf_len) {
                 if (!(allow_realloc && snmp_realloc(buf, buf_len))) {
+                    if (temp_buf)
+                        free(temp_buf);
                     return 0;
                 }
             }
@@ -1114,7 +1038,7 @@ realloc_handle_auth_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
             break;
 #endif
         default:
-            tout_len = snprintf((char*)temp_buf, tbuf_len, "%s", pdu->securityName);
+            snprintf((char*)temp_buf, tbuf_len, "%s", pdu->securityName);
         }
         break;
 
@@ -1235,7 +1159,7 @@ realloc_handle_wrap_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
         }
 
         for (i = 0; i < pdu->securityNameLen; i++) {
-            if (isprint(pdu->securityName[i])) {
+            if (isprint((unsigned char)(pdu->securityName[i]))) {
                 *(*buf + *out_len) = pdu->securityName[i];
             } else {
                 *(*buf + *out_len) = '.';
@@ -1257,7 +1181,7 @@ realloc_handle_wrap_fmt(u_char ** buf, size_t * buf_len, size_t * out_len,
         }
 
         for (i = 0; i < pdu->contextNameLen; i++) {
-            if (isprint(pdu->contextName[i])) {
+            if (isprint((unsigned char)(pdu->contextName[i]))) {
                 *(*buf + *out_len) = pdu->contextName[i];
             } else {
                 *(*buf + *out_len) = '.';
@@ -1444,7 +1368,7 @@ realloc_format_plain_trap(u_char ** buf, size_t * buf_len,
      */
     if (!netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID, 
                                 NETSNMP_DS_APP_NUMERIC_IP)) {
-        host = gethostbyaddr((char *) pdu->agent_addr, 4, AF_INET);
+        host = netsnmp_gethostbyaddr((char *) pdu->agent_addr, 4, AF_INET);
     }
     if (host != (struct hostent *) NULL) {
         if (!snmp_strcat
@@ -1793,7 +1717,7 @@ realloc_format_trap(u_char ** buf, size_t * buf_len, size_t * out_len,
              * Parsing a width field.  
              */
             reset_options = TRUE;
-            if (isdigit(next_chr)) {
+            if (isdigit((unsigned char)(next_chr))) {
                 options.width *= 10;
                 options.width +=
                     (unsigned long) next_chr - (unsigned long) '0';
@@ -1824,7 +1748,7 @@ realloc_format_trap(u_char ** buf, size_t * buf_len, size_t * out_len,
              * Parsing a precision field.  
              */
             reset_options = TRUE;
-            if (isdigit(next_chr)) {
+            if (isdigit((unsigned char)(next_chr))) {
                 if (options.precision == UNDEF_PRECISION) {
                     options.precision =
                         (unsigned long) next_chr - (unsigned long) '0';
@@ -1835,8 +1759,9 @@ realloc_format_trap(u_char ** buf, size_t * buf_len, size_t * out_len,
                 }
             } else if (is_fmt_cmd(next_chr)) {
                 options.cmd = next_chr;
-                if (options.width < options.precision) {
-                    options.width = options.precision;
+                if ((options.precision != UNDEF_PRECISION) &&
+                    (options.width < (size_t)options.precision)) {
+                    options.width = (size_t)options.precision;
                 }
                 if (!realloc_dispatch_format_cmd
                     (buf, buf_len, out_len, allow_realloc, &options, pdu,

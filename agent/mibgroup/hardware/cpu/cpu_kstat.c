@@ -23,7 +23,7 @@ int _cpu_status(char *state);
      *   (including descriptions)
      */
 void init_cpu_kstat( void ) {
-    int               i, n=0, clock, state_begin;
+    int               i = 0, n = 0, clock, state_begin;
     char              ctype[15], ftype[15], state[10];
     kstat_t          *ksp;
     kstat_named_t    *ks_data;
@@ -48,16 +48,13 @@ void init_cpu_kstat( void ) {
             memset(state, 0, sizeof(state));
             for (i=0, ks_data = ksp->ks_data; i < ksp->ks_ndata; i++, ks_data++) {
                 if ( strcmp( ks_data->name, "state" ) == 0 ) {
-                    strncpy( state, ks_data->value.c, sizeof(state));
-                    state[sizeof(state)-1] = '\0';
+                    strlcpy(state, ks_data->value.c, sizeof(state));
                 } else if ( strcmp( ks_data->name, "state_begin" ) == 0 ) {
                     state_begin = ks_data->value.i32;
                 } else if ( strcmp( ks_data->name, "cpu_type" ) == 0 ) {
-                    strncpy( ctype, ks_data->value.c, sizeof(ctype));
-                    ctype[sizeof(ctype)-1] = '\0';
+                    strlcpy(ctype, ks_data->value.c, sizeof(ctype));
                 } else if ( strcmp( ks_data->name, "fpu_type" ) == 0 ) {
-                    strncpy( ftype, ks_data->value.c, sizeof(ftype));
-                    ftype[sizeof(ftype)-1] = '\0';
+                    strlcpy(ftype, ks_data->value.c, sizeof(ftype));
                 } else if ( strcmp( ks_data->name, "clock_MHz" ) == 0 ) {
                     clock = ks_data->value.i32;
                 }
@@ -104,7 +101,7 @@ int netsnmp_cpu_arch_load( netsnmp_cache *cache, void *magic ) {
             i    = ksp->ks_instance;
             cpu2 = netsnmp_cpu_get_byIdx( i, 0 );
             if ( !cpu2 )  
-                break;   /* or continue ? */    /* Skip new CPUs */
+                break;   /* or continue ? */  /* Skip new CPUs */
             if ((ksp->ks_type != KSTAT_TYPE_RAW) ||
                 (ksp->ks_data_size != sizeof(cs))||
                 (kstat_read(kstat_fd, ksp, &cs) == -1)) {
@@ -112,30 +109,30 @@ int netsnmp_cpu_arch_load( netsnmp_cache *cache, void *magic ) {
                 break;   /* or continue ? */
             }
 
-            cpu2->user_ticks = (unsigned long)cs.cpu_sysinfo.cpu[CPU_USER];
-            cpu2->idle_ticks = (unsigned long)cs.cpu_sysinfo.cpu[CPU_IDLE];
-            cpu2->kern_ticks = (unsigned long)cs.cpu_sysinfo.cpu[CPU_KERNEL];
-            cpu2->wait_ticks = (unsigned long)cs.cpu_sysinfo.cpu[CPU_WAIT];
+            cpu2->user_ticks = (unsigned long long)cs.cpu_sysinfo.cpu[CPU_USER];
+            cpu2->idle_ticks = (unsigned long long)cs.cpu_sysinfo.cpu[CPU_IDLE];
+            cpu2->kern_ticks = (unsigned long long)cs.cpu_sysinfo.cpu[CPU_KERNEL];
+            cpu2->wait_ticks = (unsigned long long)cs.cpu_sysinfo.cpu[CPU_WAIT];
               /* or cs.cpu_sysinfo.wait[W_IO]+cs.cpu_sysinfo.wait[W_PIO] */
-            cpu2->sys2_ticks = (unsigned long)cpu2->kern_ticks+cpu2->wait_ticks;
+            cpu2->sys2_ticks = (unsigned long long)cpu2->kern_ticks+cpu2->wait_ticks;
                 /* nice_ticks, intrpt_ticks, sirq_ticks unused */
 
                 /* sum these for the overall stats */
-            cpu->user_ticks += (unsigned long)cs.cpu_sysinfo.cpu[CPU_USER];
-            cpu->idle_ticks += (unsigned long)cs.cpu_sysinfo.cpu[CPU_IDLE];
-            cpu->kern_ticks += (unsigned long)cs.cpu_sysinfo.cpu[CPU_KERNEL];
-            cpu->wait_ticks += (unsigned long)cs.cpu_sysinfo.cpu[CPU_WAIT];
+            cpu->user_ticks += (unsigned long long)cs.cpu_sysinfo.cpu[CPU_USER];
+            cpu->idle_ticks += (unsigned long long)cs.cpu_sysinfo.cpu[CPU_IDLE];
+            cpu->kern_ticks += (unsigned long long)cs.cpu_sysinfo.cpu[CPU_KERNEL];
+            cpu->wait_ticks += (unsigned long long)cs.cpu_sysinfo.cpu[CPU_WAIT];
               /* or cs.cpu_sysinfo.wait[W_IO]+cs.cpu_sysinfo.wait[W_PIO] */
-            cpu->sys2_ticks += (unsigned long)cpu2->kern_ticks+cpu2->wait_ticks;
+            cpu->sys2_ticks += (unsigned long long)cpu2->kern_ticks+cpu2->wait_ticks;
 
                 /*
                  * Interrupt/Context Switch statistics
                  *   XXX - Do these really belong here ?
                  */
-            cpu->swapIn       += (unsigned long)cs.cpu_vminfo.swapin;
-            cpu->swapOut      += (unsigned long)cs.cpu_vminfo.swapout;
-            cpu->nInterrupts  += (unsigned long)cs.cpu_sysinfo.intr;
-            cpu->nCtxSwitches += (unsigned long)cs.cpu_sysinfo.pswitch;
+            cpu->swapIn       += (unsigned long long)cs.cpu_vminfo.swapin;
+            cpu->swapOut      += (unsigned long long)cs.cpu_vminfo.swapout;
+            cpu->nInterrupts  += (unsigned long long)cs.cpu_sysinfo.intr;
+            cpu->nCtxSwitches += (unsigned long long)cs.cpu_sysinfo.pswitch;
         }
     }
     return 0;

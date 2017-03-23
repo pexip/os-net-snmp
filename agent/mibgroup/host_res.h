@@ -17,16 +17,16 @@
 #include <net-snmp/agent/snmp_vars.h>
 #include <net-snmp/agent/var_struct.h>
 
-#if defined(IFNET_NEEDS_KERNEL) && !defined(_KERNEL)
+#if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL)
 #define _KERNEL 1
 #define _I_DEFINED_KERNEL
 #endif
-#if defined (WIN32) && !defined (cygwin)
-#include <winsock.h>
-#else /* WIN32 */
+#if HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+#if HAVE_NET_IF_H
 #include <net/if.h>
-#endif /* WIN32 */
+#endif
 #ifdef _I_DEFINED_KERNEL
 #undef _KERNEL
 #endif
@@ -67,8 +67,8 @@
 #define	HRDEV_NVMEM	21
 
 #define	HRDEV_TYPE_MAX	22      /* one greater than largest device type */
-#define	HRDEV_TYPE_SHIFT  8
-#define	HRDEV_TYPE_MASK 0xff
+#define	HRDEV_TYPE_SHIFT  16
+#define	HRDEV_TYPE_MASK 0xffff
 
 typedef void    (*PFV) (void);
 typedef int     (*PFI) (int);

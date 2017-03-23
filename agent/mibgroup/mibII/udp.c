@@ -16,35 +16,15 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/auto_nlist.h>
+#include <net-snmp/agent/sysORTable.h>
 
-#include "util_funcs.h"
-
-#ifdef solaris2
-#include "kernel_sunos5.h"
-#else
-#include "kernel.h"
-#endif
-
-#ifdef linux
-#include "kernel_linux.h"
-#endif
-
-#ifdef cygwin
-#define WIN32
-#include <windows.h>
-#endif
-
-#ifdef hpux
-#include <sys/mib.h>
-#include <netinet/mib_kern.h>
-#endif                          /* hpux */
+#include "util_funcs/MIB_STATS_CACHE_TIMEOUT.h"
 
 #ifdef linux
 #include "tcp.h"
 #endif
 #include "udp.h"
 #include "udpTable.h"
-#include "sysORTable.h"
 
 #ifdef NETSNMP_CAN_USE_SYSCTL
 #include <sys/sysctl.h>
@@ -57,7 +37,10 @@
 #define UDP_STATS_CACHE_TIMEOUT	MIB_STATS_CACHE_TIMEOUT
 #endif
 
-#if defined(HAVE_LIBPERFSTAT_H) && (defined(aix4) || defined(aix5) || defined(aix6)) && !defined(FIRST_PROTOCOL)
+#if defined(HAVE_LIBPERFSTAT_H) && (defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)) && !defined(FIRST_PROTOCOL)
+#ifdef HAVE_SYS_PROTOSW_H
+#include <sys/protosw.h>
+#endif
 #include <libperfstat.h>
 #ifdef FIRST_PROTOCOL
 perfstat_protocol_t ps_proto;
@@ -91,6 +74,7 @@ void
 init_udp(void)
 {
     netsnmp_handler_registration *reginfo;
+    int rc;
 
     /*
      * register ourselves with the agent as a group of scalars...
@@ -98,7 +82,9 @@ init_udp(void)
     DEBUGMSGTL(("mibII/udpScalar", "Initialising UDP scalar group\n"));
     reginfo = netsnmp_create_handler_registration("udp", udp_handler,
 		    udp_oid, OID_LENGTH(udp_oid), HANDLER_CAN_RONLY);
-    netsnmp_register_scalar_group(reginfo, UDPINDATAGRAMS, UDPOUTDATAGRAMS);
+    rc = netsnmp_register_scalar_group(reginfo, UDPINDATAGRAMS, UDPOUTDATAGRAMS);
+    if (rc != SNMPERR_SUCCESS)
+        return;
 
     /*
      * .... with a local cache
@@ -149,7 +135,13 @@ init_udp(void)
 #define USES_SNMP_DESIGNED_UDPSTAT
 #endif
 
-#ifdef WIN32
+#ifdef NETBSD_STATS_VIA_SYSCTL
+#define UDP_STAT_STRUCTURE      struct udp_mib
+#define USES_SNMP_DESIGNED_UDPSTAT
+#undef UDP_NSTATS
+#endif
+
+#ifdef HAVE_IPHLPAPI_H
 #include <iphlpapi.h>
 #define UDP_STAT_STRUCTURE MIB_UDPSTATS
 #endif
@@ -195,11 +187,6 @@ udp_handler(netsnmp_mib_handler          *handler,
      */
 #if defined(_USE_PERFSTAT_PROTOCOL)
     udp_load(NULL, NULL);
-#elif !defined(hpux11)
-    if (!netsnmp_cache_is_valid(reqinfo, reginfo->handlerName)) {
-        netsnmp_assert(!"cache == valid"); /* always false */
-        udp_load( NULL, NULL );	/* XXX - check for failure */
-    }
 #endif
 
 
@@ -251,7 +238,7 @@ udp_handler(netsnmp_mib_handler          *handler,
 #define udpstat          udpstat.udpstat
 #endif
     case UDPINDATAGRAMS:
-#if STRUCT_UDPSTAT_HAS_UDPS_IPACKETS
+#if HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS
         ret_value = udpstat.udps_ipackets;
         break;
 #else
@@ -260,7 +247,7 @@ udp_handler(netsnmp_mib_handler          *handler,
 #endif
 
     case UDPNOPORTS:
-#if STRUCT_UDPSTAT_HAS_UDPS_NOPORT
+#if HAVE_STRUCT_UDPSTAT_UDPS_NOPORT
         ret_value = udpstat.udps_noport;
         break;
 #else
@@ -269,7 +256,7 @@ udp_handler(netsnmp_mib_handler          *handler,
 #endif
 
     case UDPOUTDATAGRAMS:
-#if STRUCT_UDPSTAT_HAS_UDPS_OPACKETS
+#if HAVE_STRUCT_UDPSTAT_UDPS_OPACKETS
         ret_value = udpstat.udps_opackets;
         break;
 #else
@@ -279,10 +266,10 @@ udp_handler(netsnmp_mib_handler          *handler,
 
     case UDPINERRORS:
         ret_value = udpstat.udps_hdrops + udpstat.udps_badsum +
-#ifdef STRUCT_UDPSTAT_HAS_UDPS_DISCARD
+#ifdef HAVE_STRUCT_UDPSTAT_UDPS_DISCARD
             udpstat.udps_discard +
 #endif
-#ifdef STRUCT_UDPSTAT_HAS_UDPS_FULLSOCK
+#ifdef HAVE_STRUCT_UDPSTAT_UDPS_FULLSOCK
             udpstat.udps_fullsock +
 #endif
             udpstat.udps_badlen;
@@ -342,6 +329,7 @@ udp_handler(netsnmp_mib_handler          *handler,
 
     case MODE_GETNEXT:
     case MODE_GETBULK:
+#ifndef NETSNMP_NO_WRITE_SUPPORT
     case MODE_SET_RESERVE1:
     case MODE_SET_RESERVE2:
     case MODE_SET_ACTION:
@@ -351,6 +339,7 @@ udp_handler(netsnmp_mib_handler          *handler,
         snmp_log(LOG_WARNING, "mibII/udp: Unsupported mode (%d)\n",
                                reqinfo->mode);
         break;
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */
     default:
         snmp_log(LOG_WARNING, "mibII/udp: Unrecognised mode (%d)\n",
                                reqinfo->mode);
@@ -460,6 +449,21 @@ udp_load(netsnmp_cache *cache, void *vmagic)
         DEBUGMSGTL(("mibII/udpScalar", "Failed to load UDP scalar Group (solaris)\n"));
     } else {
         DEBUGMSGTL(("mibII/udpScalar", "Loaded UDP scalar Group (solaris)\n"));
+    }
+    return ret_value;
+}
+#elif defined(NETBSD_STATS_VIA_SYSCTL)
+int
+udp_load(netsnmp_cache *cache, void *vmagic)
+{
+    long ret_value = -1;
+
+    ret_value = netbsd_read_udp_stat(&udpstat);
+
+    if ( ret_value < 0 ) {
+        DEBUGMSGTL(("mibII/udpScalar", "Failed to load UDP scalar Group (netbsd)\n"));
+    } else {
+        DEBUGMSGTL(("mibII/udpScalar", "Loaded UDP scalar Group (netbsd)\n"));
     }
     return ret_value;
 }

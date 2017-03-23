@@ -18,6 +18,7 @@ init_sctpScalars(void)
 {
     netsnmp_handler_registration *reginfo_stats;
     netsnmp_handler_registration *reginfo_params;
+    int rc;
 
     DEBUGMSGTL(("sctp:scalars:init", "Initializing\n"));
 
@@ -27,8 +28,14 @@ init_sctpScalars(void)
                                             sctp_stats_oid,
                                             OID_LENGTH(sctp_stats_oid),
                                             HANDLER_CAN_RONLY);
-    netsnmp_register_scalar_group(reginfo_stats, SCTP_CURRESTAB,
+    if (!reginfo_stats)
+        return;
+
+    rc = netsnmp_register_scalar_group(reginfo_stats, SCTP_CURRESTAB,
                                   SCTP_DISCONTINUITYTIME);
+    if (rc != SNMPERR_SUCCESS)
+        return;
+
     netsnmp_inject_handler(reginfo_stats,
                            netsnmp_get_cache_handler
                            (SCTP_STATS_CACHE_TIMEOUT,
@@ -43,8 +50,13 @@ init_sctpScalars(void)
                                             sctp_params_oid,
                                             OID_LENGTH(sctp_params_oid),
                                             HANDLER_CAN_RONLY);
-    netsnmp_register_scalar_group(reginfo_params, SCTP_RTOALGORITHM,
+    if (!reginfo_params)
+        return;
+
+    rc = netsnmp_register_scalar_group(reginfo_params, SCTP_RTOALGORITHM,
                                   SCTP_MAXINITRETR);
+    if (!rc)
+        return;
     netsnmp_inject_handler(reginfo_params,
                            netsnmp_get_cache_handler
                            (SCTP_PARAMS_CACHE_TIMEOUT,
@@ -65,7 +77,6 @@ sctp_stats_handler(netsnmp_mib_handler *handler,
 {
     netsnmp_variable_list *requestvb;
     int             subid;
-    int             ret;
 
     DEBUGMSGTL(("sctp:scalars:stats", "Handler - mode %s\n",
                 se_find_label_in_slist("agent_mode", reqinfo->mode)));
@@ -81,21 +92,6 @@ sctp_stats_handler(netsnmp_mib_handler *handler,
     DEBUGMSGOID(("sctp:scalars:stats", requestvb->name,
                  requestvb->name_length));
     DEBUGMSG(("sctp:scalars:stats", "\n"));
-
-
-    /*
-     * Load the cache if it was not loaded before 
-     */
-    if (!netsnmp_cache_is_valid(reqinfo, reginfo->handlerName)) {
-        DEBUGMSGTL(("sctp:scalars:stats", "cache is not valid!\n"));
-        ret = netsnmp_access_sctp_stats_load(NULL, NULL);
-        if (ret < 0) {
-            DEBUGMSGTL(("sctp:scalars:stats",
-                        "could not load sctp stats!\n"));
-            netsnmp_set_request_error(reqinfo, request, SNMP_NOSUCHOBJECT);
-            return SNMP_ERR_NOERROR;
-        }
-    }
 
     switch (subid) {
 
@@ -230,7 +226,6 @@ sctp_params_handler(netsnmp_mib_handler *handler,
 {
     netsnmp_variable_list *requestvb;
     int             subid;
-    int             ret;
 
     DEBUGMSGTL(("sctp:scalars:params", "Handler - mode %s\n",
                 se_find_label_in_slist("agent_mode", reqinfo->mode)));
@@ -246,20 +241,6 @@ sctp_params_handler(netsnmp_mib_handler *handler,
     DEBUGMSGOID(("sctp:scalars:params", requestvb->name,
                  requestvb->name_length));
     DEBUGMSG(("sctp:scalars:params", "\n"));
-
-    /*
-     * Load the cache if it was not loaded before 
-     */
-    if (!netsnmp_cache_is_valid(reqinfo, reginfo->handlerName)) {
-        DEBUGMSGTL(("sctp:scalars:params", "cache is not valid!\n"));
-        ret = netsnmp_access_sctp_params_load(NULL, NULL);
-        if (ret < 0) {
-            DEBUGMSGTL(("sctp:scalars:params",
-                        "could not load sctp stats!\n"));
-            netsnmp_set_request_error(reqinfo, request, SNMP_NOSUCHOBJECT);
-            return SNMP_ERR_NOERROR;
-        }
-    }
 
     switch (subid) {
 

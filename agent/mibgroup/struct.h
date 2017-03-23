@@ -16,10 +16,13 @@ struct extensible {
     int             result;
     char            output[STRMAX];
     struct extensible *next;
-    unsigned long   miboid[MIBMAX];
+    oid             miboid[MIBMAX];
     size_t          miblen;
-    int             pid;
-    int             tid;                /* WIN32 thread */
+    int             mibpriority;
+    netsnmp_pid_t   pid;
+#if defined(WIN32)
+    HANDLE          tid;                /* WIN32 thread */
+#endif
 };
 
 struct myproc {

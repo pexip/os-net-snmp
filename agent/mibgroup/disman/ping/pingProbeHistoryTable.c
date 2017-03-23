@@ -50,10 +50,14 @@ oid             pingProbeHistoryTable_variables_oid[] =
     { 1, 3, 6, 1, 2, 1, 80, 1, 4 };
 
 struct variable2 pingProbeHistoryTable_variables[] = {
-    {COLUMN_PINGPROBEHISTORYRESPONSE, ASN_UNSIGNED, RONLY, var_pingProbeHistoryTable, 2, {1, 2}},
-    {COLUMN_PINGPROBEHISTORYSTATUS,    ASN_INTEGER, RONLY, var_pingProbeHistoryTable, 2, {1, 3}},
-    {COLUMN_PINGPROBEHISTORYLASTRC,    ASN_INTEGER, RONLY, var_pingProbeHistoryTable, 2, {1, 4}},
-    {COLUMN_PINGPROBEHISTORYTIME,    ASN_OCTET_STR, RONLY, var_pingProbeHistoryTable, 2, {1, 5}}
+    {COLUMN_PINGPROBEHISTORYRESPONSE, ASN_UNSIGNED, NETSNMP_OLDAPI_RONLY,
+     var_pingProbeHistoryTable, 2, {1, 2}},
+    {COLUMN_PINGPROBEHISTORYSTATUS,    ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_pingProbeHistoryTable, 2, {1, 3}},
+    {COLUMN_PINGPROBEHISTORYLASTRC,    ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_pingProbeHistoryTable, 2, {1, 4}},
+    {COLUMN_PINGPROBEHISTORYTIME,    ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+     var_pingProbeHistoryTable, 2, {1, 5}}
 };
 
 
@@ -63,17 +67,17 @@ struct variable2 pingProbeHistoryTable_variables[] = {
 
 extern struct header_complex_index *pingCtlTableStorage;
 extern struct header_complex_index *pingProbeHistoryTableStorage;
+int
+pingProbeHistoryTable_inadd(struct pingProbeHistoryTable_data *thedata);
 
 void
 pingProbeHistoryTable_cleaner(struct header_complex_index *thestuff)
 {
     struct header_complex_index *hciptr = NULL;
-    struct pingProbeHistoryTable_data *StorageDel = NULL;
+
     DEBUGMSGTL(("pingProbeHistoryTable", "cleanerout  "));
     for (hciptr = thestuff; hciptr != NULL; hciptr = hciptr->next) {
-        StorageDel =
-            header_complex_extract_entry(&pingProbeHistoryTableStorage,
-                                         hciptr);
+        header_complex_extract_entry(&pingProbeHistoryTableStorage, hciptr);
         DEBUGMSGTL(("pingProbeHistoryTable", "cleaner  "));
     }
 

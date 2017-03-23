@@ -1,5 +1,4 @@
-.TH SNMPTRAPD.CONF 5 "29 Jun 2005" VVERSIONINFO "Net-SNMP"
-.UC 4
+.TH SNMPTRAPD.CONF 5 "19 Feb 2009" VVERSIONINFO "Net-SNMP"
 .SH NAME
 snmptrapd.conf - configuration file for the Net-SNMP notification receiver
 .SH DESCRIPTION
@@ -40,7 +39,7 @@ addresses.
 The default behaviour is to
 listen on UDP port 162 on all IPv4 interfaces.
 .IP "doNotRetainNotificationLogs yes"
-disables support for the NOTIFICATION-LOG-MIB.
+disables support for the NOTIFICATION\-LOG\-MIB.
 Normally the snmptrapd program keeps a record of the traps
 received, which can be retrieved by querying
 the \fCnlmLogTable\fR and \fCnlmLogvariableTable\fR tables.  
@@ -48,7 +47,7 @@ This directive can be used to suppress this behaviour.
 .IP
 See the 
 .I snmptrapd(8) 
-manual page and the NOTIFICATION-LOG-MIB for details.
+manual page and the NOTIFICATION\-LOG\-MIB for details.
 .IP "doNotLogTraps yes"
 disables the logging of notifications altogether.
 This is useful if the \fBsnmptrapd\fR application should
@@ -82,14 +81,14 @@ typically be \fIlog,execute,net\fR to cover any style of processing
 for a particular category of notification. But it is perfectly
 possible (even desirable) to limit certain notification sources to
 selected processing only.
-.IP "authCommunity   TYPES COMMUNITY  [SOURCE [OID | -v VIEW ]]"
+.IP "authCommunity   TYPES COMMUNITY  [SOURCE [OID | \-v VIEW ]]"
 authorises traps (and SNMPv2c INFORM requests) with the specified
 community to trigger the types of processing listed.
 By default, this will allow any notification using this community
 to be processed.  The SOURCE field can be used to specify that the
 configuration should only apply to notifications received from
 particular sources - see \fIsnmpd.conf(5)\fR for more details.
-.IP "authUser   TYPES [-s MODEL] USER  [LEVEL [OID | -v VIEW ]]"
+.IP "authUser   TYPES [\-s MODEL] USER  [LEVEL [OID | \-v VIEW ]]"
 authorises SNMPv3 notifications with the specified
 user to trigger the types of processing listed.
 By default, this will accept authenticated requests.
@@ -97,7 +96,7 @@ By default, this will accept authenticated requests.
 be used to allow unauthenticated notifications (\fInoauth\fR),
 or to require encryption (\fIpriv\fR), just as for the SNMP agent.
 .IP
-With both of these directives, the OID (or \fI-v VIEW\fR) field
+With both of these directives, the OID (or \fI\-v VIEW\fR) field
 can be used to retrict this configuration to the processing of
 particular notifications.
 .RS
@@ -107,14 +106,14 @@ Unlike the VACM processing described in RFC 3415, this view is
 incoming notification.  It is not applied to the payload varbinds
 held within that notification.
 .RE
-.IP "authGroup  TYPES [-s MODEL] GROUP  [LEVEL [OID | -v VIEW ]]"
-.IP "authAccess TYPES [-s MODEL] GROUP VIEW  [LEVEL [CONTEXT]]"
+.IP "authGroup  TYPES [\-s MODEL] GROUP  [LEVEL [OID | \-v VIEW ]]"
+.IP "authAccess TYPES [\-s MODEL] GROUP VIEW  [LEVEL [CONTEXT]]"
 .IP "setAccess GROUP CONTEXT MODEL LEVEL PREFIX VIEW TYPES"
 authorise notifications in the specified GROUP
 (configured using the \fIgroup\fR directive)
 to trigger the types of processing listed.
 See \fIsnmpd.conf(5)\fR for more details.
-.IP "createUser username (MD5|SHA) authpassphrase [DES|AES]"
+.IP "createUser [-e  ENGINEID] username (MD5|SHA) authpassphrase [DES|AES]"
 See the 
 .I snmpd.conf(5)
 manual page for a description of how to create SNMPv3 users.  This
@@ -156,13 +155,18 @@ specifies various characteristics of how OIDs and other values
 should be displayed.
 See the section OUTPUT OPTIONS in the
 \fIsnmpcmd(1)\fR manual page for details.
-.IP "printEventNumbers yes"
-enables specialised logging of event-related notifications from
-the (long obsolete) M2M-MIB.
-.\"
-.\" XXX - CHECK EXACTLY WHICH TRAPS
-.\" XXX - THIS FEELS OBSOLETE TO ME!
-.\"
+.SH MySQL Logging
+There are two configuration variables that work together to control
+when queued traps are logged to the MySQL database. A non-zero
+value must be specified for sqlSaveInterval to enable MySQL logging.
+.RE
+.IP "sqlMaxQueue max"
+specifies the maximum number of traps to queue before a forced flush
+to the MySQL database.
+.RE
+.IP "sqlSaveInterval seconds"
+specified the number of seconds between periodic queue flushes.
+A value of 0 for will disable MySQL logging.
 .SH NOTIFICATION PROCESSING
 As well as logging incoming notifications, they can also
 be forwarded on to another notification receiver, or passed
@@ -179,7 +183,7 @@ Typically, the OID token will be the name (or numeric OID) of a
 NOTIFICATION-TYPE object, and the specified program will be invoked for
 notifications that match this OID exactly.  However this token also
 supports a simple form of wildcard suffixing.  By appending the character
-'*' to the OID token, the corresponding program will be invoked for any
+\'*' to the OID token, the corresponding program will be invoked for any
 notification based within subtree rooted at the specified OID.
 For example, an OID token of \fC.1.3.6.1.4.1*\fP would match any enterprise
 specific notification (including the specified OID itself).
@@ -215,10 +219,10 @@ OID of the varind, and the remainder of the line is its value.
 The format of both of these are controlled by the \fIoutputOption\fR
 directive (or similar configuration).
 .IP
-The first OID should always be \fCSNMPv2-MIB::sysUpTime.0\fR,
-and the second should be \fCSNMPv2-MIB::snmpTrapOID.0\fR.
+The first OID should always be \fCSNMPv2\-MIB::sysUpTime.0\fR,
+and the second should be \fCSNMPv2\-MIB::snmpTrapOID.0\fR.
 The remaining lines will contain the payload varbind list.
-For SNMPv1 traps, the final OID will be \fCSNMPv2-MIB::snmpTrapEnterprise.0\fR.
+For SNMPv1 traps, the final OID will be \fCSNMPv2\-MIB::snmpTrapEnterprise.0\fR.
 .br
 .IP Example:
 A \fBtraptoemail\fR script has been included in the Net-SNMP package that
@@ -226,7 +230,7 @@ can be used within a \fItraphandle\fR directive:
 .br
 .RS
 .P
-traphandle default /usr/bin/perl BINDIR/traptoemail -s mysmtp.somewhere.com -f admin@somewhere.com me@somewhere.com
+traphandle default /usr/bin/perl BINDIR/traptoemail \-s mysmtp.somewhere.com \-f admin@somewhere.com me@somewhere.com
 .RE
 .RE
 .IP "forward OID|default DESTINATION"
@@ -258,5 +262,5 @@ directives are typically only used to enable the appropriate behaviour.
 .SH FILES
 SYSCONFDIR/snmp/snmptrapd.conf
 .SH "SEE ALSO"
-snmp_config(5), snmptrapd(8), syslog(8), variables(5), snmpd.conf(5), read_config(3).
+snmp_config(5), snmptrapd(8), syslog(8), variables(5), snmpd.conf(5), netsnmp_config_api(3).
 
