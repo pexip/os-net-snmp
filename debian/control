@@ -2,22 +2,29 @@ Source: net-snmp
 Section: net
 Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
-XSBC-Pexip-Original-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Pexip-Original-Uploaders: Jochen Friedrich <jochen@scram.de>, Thomas Anders <tanders@users.sourceforge.net>, Noah Meyerhans <noahm@debian.org>
-XSBC-Original-Maintainer: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
-Build-Depends: debhelper (>= 7.0.50~), libtool, libwrap0-dev, libssl-dev (>> 0.9.8), perl (>=5.8), libperl-dev, python-all-dev, python (>=2.3.5-7), python-setuptools (>=0.6b3), autoconf, automake1.9, autotools-dev, debianutils (>=1.13.1), bash (>=2.05), findutils (>=4.1.20), procps, quilt, libbsd-dev [kfreebsd-i386 kfreebsd-amd64], libkvm-dev [kfreebsd-i386 kfreebsd-amd64], libsensors4-dev [!hurd-i386 !kfreebsd-i386 !kfreebsd-amd64], dh-apport
-Standards-Version: 3.8.4
-Vcs-Svn: svn://svn.debian.org/pkg-net-snmp/
-Vcs-Browser: http://svn.debian.org/wsvn/pkg-net-snmp/
-XS-Python-Version: all
+XSBC-Pexip-Original-Maintainer: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+XSBC-Pexip-Original-Uploaders: Jochen Friedrich <jochen@scram.de>, Thomas Anders <tanders@users.sourceforge.net>, Noah Meyerhans <noahm@debian.org>,
+ Hideki Yamane <henrich@debian.org>
+Build-Depends: debhelper (>= 9), libtool, libwrap0-dev, libssl-dev (>> 0.9.8), perl (>=5.8), libperl-dev,
+ python-all (>= 2.6.6-3~), python-setuptools (>=0.6b3), python2.7-dev,
+ autoconf, automake, autotools-dev, debianutils (>=1.13.1), dh-autoreconf,
+ bash (>=2.05), findutils (>=4.1.20), procps, 
+ libbsd-dev [kfreebsd-i386 kfreebsd-amd64], 
+ libkvm-dev [kfreebsd-i386 kfreebsd-amd64], 
+ libsensors4-dev [!hurd-i386 !kfreebsd-i386 !kfreebsd-amd64],
+ libmysqld-dev, libpci-dev
+Build-Conflicts: libsnmp-dev
+Standards-Version: 3.9.5
+Vcs-Git: git://anonscm.debian.org/pkg-net-snmp/pkg-net-snmp.git
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-net-snmp/pkg-net-snmp.git
+XS-Python-Version: 2.7
 Homepage: http://net-snmp.sourceforge.net/
 XS-Pexip-Upstream: http://ftp.debian.org/debian/ jessie
 
 Package: snmpd
-Section: net
-Priority: optional
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, debconf, lsb-base (>= 3.2-13)
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, debconf, lsb-base (>= 3.2-13), libsnmp-base
+Suggests: snmptrapd
 Description: SNMP (Simple Network Management Protocol) agents
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -26,12 +33,26 @@ Description: SNMP (Simple Network Management Protocol) agents
  The Net-SNMP agent is a daemon which listens for incoming SNMP
  requests from clients and provides responses.
 
-Package: snmp
-Section: net
-Priority: optional
+Package: snmptrapd
 Architecture: any
 Recommends: perl-modules
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, snmpd
+Conflicts: snmpd (<< 5.7.2.1~dfsg-1), snmp (<< 5.7.2.1~dfsg-1)
+Breaks: snmpd (<< 5.7.2.1~dfsg-1)
+Replaces: snmp (<< 5.7.2.1~dfsg-1)
+Description: Net-SNMP notification receiver
+ The Simple Network Management Protocol (SNMP) provides a framework
+ for the exchange of management information between agents (servers)
+ and clients.
+ .
+ snmptrapd is an SNMP application (daemon) that receives and logs SNMP TRAP
+ and INFORM messages.
+
+Package: snmp
+Architecture: any
+Recommends: perl-modules
+Depends: ${shlibs:Depends}, ${misc:Depends}, libsnmp-base
+Breaks: libsnmp15 (<< 5.7.2~dfsg-0.1)
 Description: SNMP (Simple Network Management Protocol) applications
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -42,28 +63,35 @@ Description: SNMP (Simple Network Management Protocol) applications
 
 Package: libsnmp-base
 Section: libs
-Priority: optional
 Architecture: all
-Replaces: libsnmp-dev (<< 5.4~dfsg), libsnmp9-dev (<< 5.4~dfsg)
-Conflicts: libsnmp-dev (<< 5.4~dfsg), libsnmp9-dev (<< 5.4~dfsg)
+Replaces: libsnmp-dev (<< 5.4~dfsg), libsnmp9-dev (<< 5.4~dfsg), libsnmp15 (<< 5.7.2~dfsg-5)
+Conflicts: libsnmp-dev (<< 5.4~dfsg), libsnmp9-dev (<< 5.4~dfsg), libsnmp30 (<< 5.7.2~dfsg-5)
+Breaks: libsnmp15 (<< 5.7.2~dfsg-5)
 Depends: ${misc:Depends}
 Suggests: snmp-mibs-downloader
-Description: SNMP (Simple Network Management Protocol) MIBs and documentation
+Multi-Arch: foreign
+Description: SNMP configuration script, MIBs and documentation
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
  and clients.
  .
- This package includes documentation and MIBs (Management Information
- Bases) for the SNMP libraries, agents and applications. MIBs contain
- a formal description of the data that can be managed using SNMP.
- and applications.
+ This package includes net-snmp-config scripts, documentation and MIBs
+ (Management Information Bases) for the SNMP libraries, agents and
+ applications. MIBs contain a formal description of the data that can be
+ managed using SNMP and applications.
+ .
+ NOTE: If you want the OIDs (Object Identifiers) to resolve to their text
+ description, you need to activate the non-free repository and install the
+ "snmp-mibs-downloader" package.
 
-Package: libsnmp15
+Package: libsnmp30
 Section: libs
-Priority: optional
 Architecture: any
-Replaces: libsnmp-base (<< 5.4.2.1~dfsg-4), snmp (<< 5.4.3~dfsg-1)
-Depends: libsnmp-base (>=${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Replaces: libsnmp-base (<< 5.4.2.1~dfsg-4), snmp (<< 5.4.3~dfsg-1), libsnmp15
+Breaks: libsnmp15
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libsnmp-base
 Description: SNMP (Simple Network Management Protocol) library
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -73,11 +101,11 @@ Description: SNMP (Simple Network Management Protocol) library
  sending, receiving, decoding, and manipulation of the SNMP requests
  and responses.
 
-Package: libsnmp15-dbg
+Package: libsnmp30-dbg
 Section: debug
 Priority: extra
 Architecture: any
-Depends: libsnmp15 (=${binary:Version}), ${misc:Depends}
+Depends: libsnmp30 (=${binary:Version}), ${misc:Depends}
 Description: SNMP (Simple Network Management Protocol) library debug
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -87,12 +115,14 @@ Description: SNMP (Simple Network Management Protocol) library debug
 
 Package: libsnmp-dev
 Section: libdevel
-Priority: optional
 Architecture: any
-Replaces: libsnmp9-dev, libsnmp15-dev, snmp (<< 5.4~dfsg)
+Replaces: libsnmp9-dev, libsnmp15-dev, snmp (<< 5.4~dfsg), libsnmp-base (<< 5.7.2~dfsg-8.1~)
 Provides: libsnmp9-dev
-Conflicts: libsnmp-dev, libsnmp9-dev, libsnmp15-dev, snmp (<< 5.4~dfsg)
-Depends: libc6-dev, libsnmp15 (=${binary:Version}), libsnmp-perl (=${binary:Version}), libwrap0-dev, libssl-dev, procps, libkvm-dev [kfreebsd-any], libsensors4-dev [linux-any], ${misc:Depends}, libperl-dev
+Conflicts: libsnmp9-dev, libsnmp15-dev, snmp (<< 5.4~dfsg)
+Breaks: libsnmp-base (<< 5.7.2~dfsg-8.1~)
+Depends: libc6-dev, libsnmp30 (=${binary:Version}), libwrap0-dev, libssl-dev, procps, 
+         libkvm-dev [kfreebsd-any], libsensors4-dev [linux-any], ${misc:Depends},
+         libpci-dev
 Description: SNMP (Simple Network Management Protocol) development files
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -104,9 +134,8 @@ Description: SNMP (Simple Network Management Protocol) development files
 
 Package: libsnmp-perl
 Section: perl
-Priority: optional
 Architecture: any
-Depends: ${perl:Depends}, libsnmp15 (=${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
 Description: SNMP (Simple Network Management Protocol) Perl5 support
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -115,13 +144,14 @@ Description: SNMP (Simple Network Management Protocol) Perl5 support
  The Net-SNMP Perl5 support files provide the Perl functions for
  integration of SNMP into applications written in Perl.
 
-Package: libsnmp-python
+Package: python-netsnmp
 Section: python
-Priority: optional
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Breaks: libsnmp-python
+Replaces: libsnmp-python
+Provides: libsnmp-python, ${python:Provides}
 XB-Python-Version: ${python:Versions}
-Provides: ${python:Provides}
 Description: SNMP (Simple Network Management Protocol) Python support
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -131,8 +161,6 @@ Description: SNMP (Simple Network Management Protocol) Python support
  integration of SNMP into applications written in Python.
 
 Package: tkmib
-Section: net
-Priority: optional
 Architecture: all
 Depends: libsnmp-perl (>=${source:Version}), perl-tk, ${misc:Depends}
 Description: SNMP (Simple Network Management Protocol) MIB browser

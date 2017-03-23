@@ -10,8 +10,12 @@
  */
 #include <sys/param.h>
 #include <sys/time.h>
+#ifdef dragonfly
+#include <sys/user.h>
+#else
 #include <sys/proc.h>
 #include <sys/dkstat.h>
+#endif
 #ifdef freebsd5
 #include <sys/bio.h>
 #endif
@@ -83,38 +87,40 @@ init_memory_freebsd2(void)
 {
 
     struct variable2 extensible_mem_variables[] = {
-        {MIBINDEX, ASN_INTEGER, RONLY, var_extensible_mem, 1, {MIBINDEX}},
-        {ERRORNAME, ASN_OCTET_STR, RONLY, var_extensible_mem, 1,
-         {ERRORNAME}},
-        {MEMTOTALSWAP, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMTOTALSWAP}},
-        {MEMAVAILSWAP, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMAVAILSWAP}},
-        {MEMTOTALREAL, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMTOTALREAL}},
-        {MEMAVAILREAL, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMAVAILREAL}},
-        {MEMTOTALSWAPTXT, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMTOTALSWAPTXT}},
-        {MEMUSEDSWAPTXT, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMUSEDSWAPTXT}},
-        {MEMTOTALREALTXT, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMTOTALREALTXT}},
-        {MEMUSEDREALTXT, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMUSEDREALTXT}},
-        {MEMTOTALFREE, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMTOTALFREE}},
-        {MEMSWAPMINIMUM, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMSWAPMINIMUM}},
-        {MEMSHARED, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMSHARED}},
-        {MEMBUFFER, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMBUFFER}},
-        {MEMCACHED, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {MEMCACHED}},
-        {ERRORFLAG, ASN_INTEGER, RONLY, var_extensible_mem, 1,
-         {ERRORFLAG}},
-        {ERRORMSG, ASN_OCTET_STR, RONLY, var_extensible_mem, 1, {ERRORMSG}}
+        {MIBINDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MIBINDEX}},
+        {ERRORNAME, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {ERRORNAME}},
+        {MEMTOTALSWAP, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMTOTALSWAP}},
+        {MEMAVAILSWAP, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMAVAILSWAP}},
+        {MEMTOTALREAL, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMTOTALREAL}},
+        {MEMAVAILREAL, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMAVAILREAL}},
+        {MEMTOTALSWAPTXT, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMTOTALSWAPTXT}},
+        {MEMUSEDSWAPTXT, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMUSEDSWAPTXT}},
+        {MEMTOTALREALTXT, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMTOTALREALTXT}},
+        {MEMUSEDREALTXT, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMUSEDREALTXT}},
+        {MEMTOTALFREE, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMTOTALFREE}},
+        {MEMSWAPMINIMUM, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMSWAPMINIMUM}},
+        {MEMSHARED, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMSHARED}},
+        {MEMBUFFER, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMBUFFER}},
+        {MEMCACHED, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {MEMCACHED}},
+        {ERRORFLAG, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {ERRORFLAG}},
+        {ERRORMSG, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+         var_extensible_mem, 1, {ERRORMSG}}
     };
 
     /*
@@ -249,8 +255,14 @@ var_extensible_mem(struct variable *vp,
     static long     long_ret;
     static char     errmsg[1024];
 
+#ifdef dragonfly
+    static struct vmstats mem;
+    size_t        vmstats_size = sizeof(mem);
+#endif
     static struct vmmeter mem;
+#endif
     static struct vmtotal total;
+
     size_t          total_size = sizeof(total);
     int             total_mib[] = { CTL_VM, VM_METER };
 
@@ -268,7 +280,11 @@ var_extensible_mem(struct variable *vp,
     /*
      * Memory info 
      */
+#ifdef dragonfly
+    sysctlbyname("vm.vmstats", &vmstats, &vmstats_size, NULL, 0);
+#else
     auto_nlist(SUM_SYMBOL, (char *) &mem, sizeof(mem));
+#endif
     sysctl(total_mib, 2, &total, &total_size, NULL, 0);
 
     /*
@@ -351,6 +367,8 @@ var_extensible_mem(struct variable *vp,
     case MEMCACHED:
 #ifdef darwin
         long_ret = ptok(mem.v_lookups);
+#elif  defined(dragonfly)
+        long_ret = ptok(mem.v_cache_count);
 #else
         long_ret = ptok(mem.v_cache_count) + ptok(mem.v_inactive_count);
 #endif

@@ -15,8 +15,6 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-#include "util_funcs.h"
-
 typedef struct override_data_s {
     int             type;
     void           *value;
@@ -34,7 +32,7 @@ override_handler(netsnmp_mib_handler *handler,
                  netsnmp_request_info *requests)
 {
 
-    override_data  *data = handler->myvoid;
+    override_data  *data = (override_data*)handler->myvoid;
     void *tmpptr;
 
     if (!data) {
@@ -52,6 +50,7 @@ override_handler(netsnmp_mib_handler *handler,
                                  (u_char *) data->value, data->value_len);
         break;
 
+#ifndef NETSNMP_NO_WRITE_SUPPORT
     case MODE_SET_RESERVE1:
         if (requests->requestvb->type != data->type)
             netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGTYPE);
@@ -89,6 +88,7 @@ override_handler(netsnmp_mib_handler *handler,
     case MODE_SET_COMMIT:
         SNMP_FREE(data->set_space);
         break;
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */
 
     default:
         snmp_log(LOG_ERR, "unsupported mode in override handler\n");
@@ -114,7 +114,7 @@ netsnmp_parse_override(const char *token, char *line)
     char            buf[SNMP_MAXBUF], namebuf[SNMP_MAXBUF];
     int             readwrite = 0;
     oid             oidbuf[MAX_OID_LEN];
-    size_t          oidbuf_len = sizeof(oidbuf);
+    size_t          oidbuf_len = MAX_OID_LEN;
     int             type;
     override_data  *thedata;
     netsnmp_handler_registration *the_reg;
@@ -183,7 +183,6 @@ netsnmp_parse_override(const char *token, char *line)
         config_perror("memory allocation failure");
         return;
     }
-
     thedata->type = type;
 
     switch (type) {
@@ -206,7 +205,7 @@ netsnmp_parse_override(const char *token, char *line)
              * hex 
              */
             thedata->value_len =
-                hex_to_binary2(buf + 2, strlen(buf) - 2,
+                hex_to_binary2((u_char *)(buf + 2), strlen(buf) - 2,
                                (char **) &thedata->value);
         } else {
             thedata->value = strdup(buf);
@@ -217,6 +216,8 @@ netsnmp_parse_override(const char *token, char *line)
     case ASN_OBJECT_ID:
         read_config_read_objid(buf, (oid **) & thedata->value,
                                &thedata->value_len);
+        /* We need the size of the value in bytes, not in oids */
+        thedata->value_len *= sizeof(oid);
         break;
 
     case ASN_NULL:
@@ -247,8 +248,7 @@ netsnmp_parse_override(const char *token, char *line)
     the_reg->modes = (readwrite) ? HANDLER_CAN_RWRITE : HANDLER_CAN_RONLY;
     the_reg->handler =
         netsnmp_create_handler("override", override_handler);
-    memdup((u_char **) & the_reg->rootoid, (const u_char *) oidbuf,
-           oidbuf_len * sizeof(oid));
+    the_reg->rootoid = snmp_duplicate_objid(oidbuf, oidbuf_len);
     the_reg->rootoid_len = oidbuf_len;
     if (!the_reg->rootoid || !the_reg->handler || !the_reg->handlerName) {
         if (the_reg->handler)

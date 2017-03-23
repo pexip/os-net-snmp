@@ -1,23 +1,17 @@
-Index: net-snmp-5.4.2.1/configure.in
+Patch to add option "--base-lib-cflags" to net-snmp-config. This flag returns options needed to link
+against libnetsnmp. In particular, no perl specific options are provided.
+
+It was reported in
+"libsnmp-base: forcing perl headers in net-snmp-config --cflags breaks perl builds"
+http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=502806
+
+
+
+Index: net-snmp-5.7.2~dfsg/net-snmp-config.in
 ===================================================================
---- net-snmp-5.4.2.1.orig/configure.in	2009-12-01 17:30:39.000000000 +0100
-+++ net-snmp-5.4.2.1/configure.in	2009-12-01 17:30:40.000000000 +0100
-@@ -3050,6 +3050,10 @@
-   fi
- fi
- 
-+# Save CFLAGS for net-snmp-config
-+LIBCFLAGS="$CFLAGS"
-+AC_SUBST(LIBCFLAGS)
-+
- ####################
- # on to embedding...
- 
-Index: net-snmp-5.4.2.1/net-snmp-config.in
-===================================================================
---- net-snmp-5.4.2.1.orig/net-snmp-config.in	2009-12-01 17:30:12.000000000 +0100
-+++ net-snmp-5.4.2.1/net-snmp-config.in	2009-12-01 17:31:16.000000000 +0100
-@@ -107,6 +107,9 @@
+--- net-snmp-5.7.2~dfsg.orig/net-snmp-config.in	2013-01-14 04:28:45.350028570 +0000
++++ net-snmp-5.7.2~dfsg/net-snmp-config.in	2013-01-14 04:28:45.350028570 +0000
+@@ -140,6 +140,9 @@
      --base-cflags)
        echo @CFLAGS@ @CPPFLAGS@ -I${NSC_INCLUDEDIR}
        ;;
@@ -27,7 +21,7 @@ Index: net-snmp-5.4.2.1/net-snmp-config.in
      --cflags|--cf*)
        echo @CFLAGS@ @DEVFLAGS@ @CPPFLAGS@ -I. -I${NSC_INCLUDEDIR}
        ;;
-@@ -684,6 +687,8 @@
+@@ -643,6 +646,8 @@
    echo "  These options produce the various compilation flags needed when"
    echo "  building external SNMP applications:"
    echo ""

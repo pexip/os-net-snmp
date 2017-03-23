@@ -4,12 +4,16 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include "mteTriggerTable.h"
 #include "mteEventTable.h"
 #include "mteEventNotificationTable.h"
 #include "mteObjectsTable.h"
+
+netsnmp_feature_require(table_dataset)
+netsnmp_feature_require(table_set_multi_add_default_row)
 
 static netsnmp_table_data_set *table_set = NULL;
 
@@ -129,7 +133,7 @@ parse_notificationEvent(const char *token, char *line) {
     char            name_buf[64];
     char            oid_name_buf[SPRINT_MAX_LEN];
     oid             oid_buf[MAX_OID_LEN];
-    size_t          oid_buf_len = sizeof(oid_buf);
+    size_t          oid_buf_len = MAX_OID_LEN;
     int             wild = 1;
     netsnmp_table_row *row;
     long tlong;
@@ -224,6 +228,7 @@ parse_notificationEvent(const char *token, char *line) {
             wild = 0;
             continue;
         }
+        oid_buf_len = MAX_OID_LEN;
         if (!snmp_parse_oid(oid_name_buf, oid_buf, &oid_buf_len)) {
             config_perror("unable to parse an object oid");
             return;

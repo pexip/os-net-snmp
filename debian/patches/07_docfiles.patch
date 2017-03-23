@@ -1,3 +1,5 @@
+Patch documentation files to change paths to Debian specific locations.
+
 Index: net-snmp-5.4.3/FAQ
 ===================================================================
 --- net-snmp-5.4.3.orig/FAQ	2010-05-23 22:39:44.000000000 +0200

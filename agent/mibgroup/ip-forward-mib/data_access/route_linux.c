@@ -1,7 +1,7 @@
 /*
  *  Interface MIB architecture support
  *
- * $Id: route_linux.c 17099 2008-07-02 12:39:23Z jsafranek $
+ * $Id$
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -53,7 +53,7 @@ _load_ipv4(netsnmp_container* container, u_long *index )
      * fetch routes from the proc file-system:
      */
     if (!(in = fopen("/proc/net/route", "r"))) {
-        snmp_log(LOG_ERR, "cannot open /proc/net/route\n");
+        NETSNMP_LOGONCE((LOG_ERR, "cannot open /proc/net/route\n"));
         return -2;
     }
 
@@ -71,9 +71,9 @@ _load_ipv4(netsnmp_container* container, u_long *index )
 
     while (fgets(line, sizeof(line), in)) {
         char            rtent_name[32];
-        int             refcnt, flags, rc;
-        uint32_t        dest, nexthop, mask, tmp_mask;
-        unsigned        use;
+        int             refcnt, rc;
+        uint32_t        dest, nexthop, mask;
+        unsigned        flags, use;
 
         entry = netsnmp_access_route_entry_create();
 
@@ -83,13 +83,13 @@ _load_ipv4(netsnmp_container* container, u_long *index )
          * BE eth0  00000000 C0A80101 0003  0      0   0   FFFFFFFF 1500 0   0 
          * LE eth0  00000000 0101A8C0 0003  0      0   0   00FFFFFF    0 0   0  
          */
-        rc = sscanf(line, "%s %x %x %x %u %d %d %x %*d %*d %*d\n",
+        rc = sscanf(line, "%s %x %x %x %d %u %d %x %*d %*d %*d\n",
                     rtent_name, &dest, &nexthop,
                     /*
                      * XXX: fix type of the args 
                      */
                     &flags, &refcnt, &use, &entry->rt_metric1,
-                    &tmp_mask);
+                    &mask);
         DEBUGMSGTL(("9:access:route:container", "line |%s|\n", line));
         if (8 != rc) {
             snmp_log(LOG_ERR,
@@ -103,8 +103,7 @@ _load_ipv4(netsnmp_container* container, u_long *index )
         /*
          * temporary null terminated name
          */
-        strncpy(name, rtent_name, sizeof(name));
-        name[ sizeof(name)-1 ] = 0;
+        strlcpy(name, rtent_name, sizeof(name));
 
         /*
          * don't bother to try and get the ifindex for routes with
@@ -122,10 +121,8 @@ _load_ipv4(netsnmp_container* container, u_long *index )
          */
         entry->ns_rt_index = ++(*index);
 
-        mask = htonl(tmp_mask);
-
 #ifdef USING_IP_FORWARD_MIB_IPCIDRROUTETABLE_IPCIDRROUTETABLE_MODULE
-        entry->rt_mask = mask;
+        memcpy(&entry->rt_mask, &mask, 4);
         /** entry->rt_tos = XXX; */
         /** rt info ?? */
 #endif
@@ -143,6 +140,7 @@ _load_ipv4(netsnmp_container* container, u_long *index )
         /*
          * count bits in mask
          */
+        mask = htonl(mask);
         entry->rt_pfx_len = netsnmp_ipaddress_ipv4_prefix_len(mask);
 
 #ifdef USING_IP_FORWARD_MIB_INETCIDRROUTETABLE_INETCIDRROUTETABLE_MODULE
@@ -164,12 +162,12 @@ _load_ipv4(netsnmp_container* container, u_long *index )
          * as the policy, to distinguise between them. Hopefully this is
          * unique.
          * xxx-rks: It should really only be for the duplicate case, but that
-         *     would be more complicated thanI want to get into now. Fix later.
+         *     would be more complicated than I want to get into now. Fix later.
          */
         if (0 == nexthop) {
-            entry->rt_policy = &entry->if_index;
-            entry->rt_policy_len = 1;
-            entry->flags |= NETSNMP_ACCESS_ROUTE_POLICY_STATIC;
+            entry->rt_policy = calloc(3, sizeof(oid));
+            entry->rt_policy[2] = entry->if_index;
+            entry->rt_policy_len = sizeof(oid)*3;
         }
 #endif
 
@@ -204,8 +202,6 @@ _load_ipv6(netsnmp_container* container, u_long *index )
     FILE           *in;
     char            line[256];
     netsnmp_route_entry *entry = NULL;
-    char            name[16];
-    static int      log_open_err = 1;
 
     DEBUGMSGTL(("access:route:container",
                 "route_container_arch_load ipv6\n"));
@@ -216,18 +212,10 @@ _load_ipv6(netsnmp_container* container, u_long *index )
      * fetch routes from the proc file-system:
      */
     if (!(in = fopen("/proc/net/ipv6_route", "r"))) {
-        if (1 == log_open_err) {
-            snmp_log(LOG_ERR, "cannot open /proc/net/ipv6_route\n");
-            log_open_err = 0;
-        }
+        DEBUGMSGTL(("9:access:route:container", "cannot open /proc/net/ipv6_route\n"));
         return -2;
     }
-    /*
-     * if we turned off logging of open errors, turn it back on now that
-     * we have been able to open the file.
-     */
-    if (0 == log_open_err)
-        log_open_err = 1;
+    
     fgets(line,sizeof(line),in); /* skip header */
     while (fgets(line, sizeof(line), in)) {
         char            c_name[IFNAMSIZ+1];
@@ -273,7 +261,7 @@ _load_ipv6(netsnmp_container* container, u_long *index )
         entry->if_index = se_find_value_in_slist("interfaces", c_name);
         if(SE_DNE == entry->if_index) {
             snmp_log(LOG_ERR,"unknown interface in /proc/net/ipv6_route "
-                     "('%s')\n", name);
+                     "('%s')\n", c_name);
             netsnmp_access_route_entry_free(entry);
             continue;
         }
@@ -324,11 +312,11 @@ _load_ipv6(netsnmp_container* container, u_long *index )
         /*
          * on linux, default routes all look alike, and would have the same
          * indexed based on dest and next hop. So we use our arbitrary index
-         * as the policy, to distinguise between them.
+         * as the policy, to distinguish between them.
          */
-        entry->rt_policy = &entry->ns_rt_index;
-        entry->rt_policy_len = 1;
-        entry->flags |= NETSNMP_ACCESS_ROUTE_POLICY_STATIC;
+        entry->rt_policy = calloc(3, sizeof(oid));
+        entry->rt_policy[2] = entry->ns_rt_index;
+        entry->rt_policy_len = sizeof(oid)*3;
 #endif
 
         /*

@@ -1,20 +1,29 @@
-#! /bin/sh
+#!/bin/sh
 
 set -e
 
-action="$1"
+case "$1" in
 
-killall -u snmp  2>/dev/null || true
-
-if [ "$action" = upgrade ]
-then
+install|upgrade)
   if [ -L /usr/share/doc/snmp ]; then
     rm -f /usr/share/doc/snmp
   fi
   if [ -d /usr/doc/snmp ]; then
     rm -rf /usr/doc/snmp
   fi
-fi
+
+  killall -u snmp 2>/dev/null || true
+
+  ;;
+abort-upgrade)
+  ;;
+
+*)
+  echo "preinst called with unknown argument \`$1'" >&2
+  exit 1
+  ;;
+
+esac
 
 #DEBHELPER#
 

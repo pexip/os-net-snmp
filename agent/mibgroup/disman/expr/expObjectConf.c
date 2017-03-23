@@ -4,11 +4,14 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include "utilities/iquery.h"
 #include "disman/expr/expObject.h"
 #include "disman/expr/expObjectConf.h"
+
+netsnmp_feature_require(iquery)
 
 /* Initializes the expObjectConf module */
 void
@@ -96,7 +99,7 @@ parse_expOTable(const char *token, char *line)
     line  = read_config_read_data(ASN_UNSIGNED,  line, &idx, NULL);
     entry = expObject_createEntry( owner, oname, idx, 0 );
 
-    DEBUGMSG(("disman:expr:conf", "(%s, %s, %d) ", owner, oname, idx));
+    DEBUGMSG(("disman:expr:conf", "(%s, %s, %ld) ", owner, oname, idx));
     
     /*
      * Read in the accessible column values.
@@ -115,7 +118,7 @@ int
 store_expOTable(int majorID, int minorID, void *serverarg, void *clientarg)
 {
     char                  line[SNMP_MAXBUF];
-    char                 *cptr;
+    char                 *cptr, *cp;
     void                 *vp;
     size_t                tint;
     netsnmp_tdata_row    *row;
@@ -135,7 +138,7 @@ store_expOTable(int majorID, int minorID, void *serverarg, void *clientarg)
         if ( entry->flags & EXP_OBJ_FLAG_FIXED )
             continue;
 
-        DEBUGMSGTL(("disman:expr:conf", "  Storing (%s %s %d)\n",
+        DEBUGMSGTL(("disman:expr:conf", "  Storing (%s %s %lu)\n",
                     entry->expOwner, entry->expName, entry->expObjectIndex));
 
         /*
@@ -145,10 +148,10 @@ store_expOTable(int majorID, int minorID, void *serverarg, void *clientarg)
         strcat(line, "_expOTable ");
         cptr = line + strlen(line);
 
-        vp   = entry->expOwner;          tint = strlen( vp );
-        cptr = read_config_store_data(   ASN_OCTET_STR, cptr, &vp,  &tint );
-        vp   = entry->expName;           tint = strlen( vp );
-        cptr = read_config_store_data(   ASN_OCTET_STR, cptr, &vp,  &tint );
+        cp   = entry->expOwner;          tint = strlen( cp );
+        cptr = read_config_store_data(   ASN_OCTET_STR, cptr, &cp,  &tint );
+        cp   = entry->expName;           tint = strlen( cp );
+        cptr = read_config_store_data(   ASN_OCTET_STR, cptr, &cp,  &tint );
         tint = entry->expObjectIndex;
         cptr = read_config_store_data(   ASN_UNSIGNED,  cptr, &tint, NULL );
 

@@ -1,6 +1,6 @@
-#! /bin/sh -e
+#! /bin/sh
 ### BEGIN INIT INFO
-# Provides:           snmpd snmptrapd
+# Provides:           snmpd
 # Required-Start:     $network $remote_fs $syslog
 # Required-Stop:      $network $remote_fs $syslog
 # Default-Start:      2 3 4 5
@@ -18,14 +18,15 @@ set -e
 export PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
 test -x /usr/sbin/snmpd || exit 0
-test -x /usr/sbin/snmptrapd || exit 0
 
 # Defaults
-export MIBDIRS=/usr/share/mibs/site:/usr/share/snmp/mibs:/usr/share/mibs/iana:/usr/share/mibs/ietf:/usr/share/mibs/netsnmp
-SNMPDRUN=yes
-SNMPDOPTS='-Lsd -Lf /dev/null -p /var/run/snmpd.pid'
-TRAPDRUN=no
-TRAPDOPTS='-Lsd -p /var/run/snmptrapd.pid'
+OLD_MIBS_DIR="/usr/share/mibs/site:/usr/share/snmp/mibs:/usr/share/mibs/iana:/usr/share/mibs/ietf:/usr/share/mibs/netsnmp"
+MIBS_DIR="/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf"
+export MIBDIRS="$MIBS_DIR:$OLD_MIBS_DIR"
+
+SNMP_PID="/run/snmpd.pid"
+SNMPDRUN="yes"
+SNMPDOPTS="-Lsd -Lf /dev/null -p $SNMP_PID"
 
 # Reads config file (will override defaults above)
 [ -r /etc/default/snmpd ] && . /etc/default/snmpd
@@ -33,54 +34,40 @@ TRAPDOPTS='-Lsd -p /var/run/snmptrapd.pid'
 # Cd to / before starting any daemons.
 cd /
 
-# Create compatibility link to old AgentX socket location
-if [ "$SNMPDCOMPAT" = "yes" ] && [ "$1" != status ]; then
-  ln -sf /var/agentx/master /var/run/agentx
-fi
-
 case "$1" in
   start)
-    log_daemon_msg "Starting network management services:"
+    log_daemon_msg "Starting SNMP services:"
+    # remove old symlink with previous version
+    if [ -L /var/run/agentx ]; then
+	    rm -f /var/run/agentx
+    fi
+    if [ ! -d /var/run/agentx ]; then
+	    mkdir -p /var/run/agentx
+    fi
     if [ "$SNMPDRUN" = "yes" -a -f /etc/snmp/snmpd.conf ]; then
 	start-stop-daemon --quiet --start --oknodo --exec /usr/sbin/snmpd \
 	    -- $SNMPDOPTS
 	log_progress_msg " snmpd"
     fi
-    if [ "$TRAPDRUN" = "yes" -a -f /etc/snmp/snmptrapd.conf ]; then
-	start-stop-daemon --quiet --start --oknodo --exec /usr/sbin/snmptrapd \
-	    -- $TRAPDOPTS
-	log_progress_msg " snmptrapd"
-    fi
     ;;
   stop)
-    log_daemon_msg "Stopping network management services:"
-    start-stop-daemon --quiet --stop --oknodo --exec /usr/sbin/snmpd
+    log_daemon_msg "Stopping SNMP services:"
+    start-stop-daemon --quiet --stop --oknodo --retry 3 --exec /usr/sbin/snmpd && [ ! -f $SNMP_PID ] || rm $SNMP_PID
     log_progress_msg " snmpd"
-    start-stop-daemon --quiet --stop --oknodo --exec /usr/sbin/snmptrapd
-    log_progress_msg " snmptrapd"
     ;;
   restart)
-    log_daemon_msg "Restarting network management services:"
-    start-stop-daemon --quiet --stop --oknodo --exec /usr/sbin/snmpd
-    start-stop-daemon --quiet --stop --oknodo --exec /usr/sbin/snmptrapd
-    # Allow the daemons time to exit completely.
-    sleep 2
+    log_daemon_msg "Restarting SNMP services:"
+    start-stop-daemon --quiet --stop --oknodo --retry 3 --exec /usr/sbin/snmpd  && [ ! -f $SNMP_PID ] || rm $SNMP_PID
     if [ "$SNMPDRUN" = "yes" -a -f /etc/snmp/snmpd.conf ]; then
 	start-stop-daemon --quiet --start --exec /usr/sbin/snmpd -- $SNMPDOPTS
 	log_progress_msg " snmpd"
     fi
-    if [ "$TRAPDRUN" = "yes" -a -f /etc/snmp/snmptrapd.conf ]; then
-	# Allow snmpd time to start up.
-	sleep 1
-	start-stop-daemon --quiet --start --exec /usr/sbin/snmptrapd -- $TRAPDOPTS
-	log_progress_msg " snmptrapd"
-    fi
     ;;
   reload|force-reload)
-    log_daemon_msg "Reloading network management services:"
+    log_daemon_msg "Reloading SNMP services:"
     if [ "$SNMPDRUN" = "yes" -a -f /etc/snmp/snmpd.conf ]; then
         start-stop-daemon --quiet --stop --signal 1 \
-	    --pidfile /var/run/snmpd.pid --exec /usr/sbin/snmpd
+	    --pidfile "$SNMP_PID" --exec /usr/sbin/snmpd
 	log_progress_msg " snmpd"
     fi
     ;;
@@ -88,9 +75,6 @@ case "$1" in
     status=0
     if [ "$SNMPDRUN" = "yes" -a -f /etc/snmp/snmpd.conf ]; then
     	status_of_proc /usr/sbin/snmpd snmpd || status=$?
-    fi
-    if [ "$TRAPDRUN" = "yes" -a -f /etc/snmp/snmptrapd.conf ]; then
-    	status_of_proc /usr/sbin/snmptrapd snmptrapd || status=$?
     fi
     exit $status
     ;;

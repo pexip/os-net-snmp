@@ -57,6 +57,10 @@ static char *rcsid = "$OpenBSD: main.c,v 1.52 2005/02/10 14:25:08 itojun Exp $";
 #include "main.h"
 #include "netstat.h"
 
+#if HAVE_WINSOCK_H
+#include "winstub.h"
+#endif
+
 int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
 int	bflag;		/* show bytes instead of packets */
@@ -75,9 +79,11 @@ int	sflag;		/* show protocol statistics */
 int	tflag;		/* show i/f watchdog timers */
 int	vflag;		/* be verbose */
 
+
 int	interval;	/* repeat interval for i/f stats */
 char	*intrface;	/* desired i/f for stats, or NULL for all i/fs */
 int	af;		/* address family */
+int     max_getbulk = 32;  /* specifies the max-repeaters value to use with GETBULK requests */
 
 char    *progname = NULL;
 
@@ -85,30 +91,32 @@ char    *progname = NULL;
      * struct nlist nl[] - Omitted
      */
 
+typedef void (stringfun)(const char*);
+
 struct protox {
         /* pr_index/pr_sindex - Omitted */ 
-	int	pr_wanted;			/* 1 if wanted, 0 otherwise */
-	void	(*pr_cblocks)(const char *);	/* control blocks printing routine */
-	void	(*pr_stats)(const char *);	/* statistics printing routine */
-  const char	*pr_name;			/* well-known name */
+	int		pr_wanted;	/* 1 if wanted, 0 otherwise */
+	stringfun	*pr_cblocks;	/* control blocks printing routine */
+	stringfun	*pr_stats;	/* statistics printing routine */
+	const char	*pr_name;	/* well-known name */
 } protox[] = {
 	{ 1,	tcpprotopr,	tcp_stats,	"tcp" },	
 	{ 1,	udpprotopr,	udp_stats,	"udp" },	
 
-	{ 1,	0,	ip_stats,	"ip" },		/* protopr Omitted */
-	{ 1,	0,	icmp_stats,	"icmp" },	
+	{ 1,	(stringfun*)0,	ip_stats,	"ip" },	/* protopr Omitted */
+	{ 1,	(stringfun*)0,	icmp_stats,	"icmp" },
 	/* igmp/ah/esp/ipencap/etherip/ipcomp/carp/pfsync/pim - Omitted */
-	{ 0,	0,	0,		0 }
+	{ 0,	(stringfun*)0,	(stringfun*)0,	NULL }
 };
 
 struct protox ip6protox[] = {
-	{ 1,	tcp6protopr,	0,	"tcp6" },
-	{ 1,	udp6protopr,	0,	"udp6" },	
+	{ 1,	tcp6protopr,	(stringfun*)0,	"tcp6" },
+	{ 1,	udp6protopr,	(stringfun*)0,	"udp6" },
 
-	{ 1,	0,	ip6_stats,	"ip6" },	/* ip6protopr Omitted */
-	{ 1,	0,	icmp6_stats,	"icmp6" },	
+	{ 1,	(stringfun*)0,	ip6_stats,	"ip6" },/* ip6protopr Omitted */
+	{ 1,	(stringfun*)0,	icmp6_stats,	"icmp6" },
 	/* pim6/rip6 - Omitted */
-	{ 0,	0,	0,		0 }
+	{ 0,	(stringfun*)0,	(stringfun*)0,	NULL }
 };
 
 	/* {ipx,ns,atalk}protox Omitted */
@@ -231,6 +239,24 @@ optProc( int argc, char *const *argv, int opt )
 		case 'r':
 			rflag = 1;
 			break;
+		case 'R':
+                        if (optind < argc) {
+                            if (argv[optind]) {
+                                max_getbulk = atoi(argv[optind]);
+                                if (max_getbulk == 0) {
+                                    usage();
+                                    fprintf(stderr, "Bad -CR option: %s\n", 
+                                            argv[optind]);
+                                    exit(1);
+                                }
+                            }
+                        } else {
+                            usage();
+                            fprintf(stderr, "Bad -CR option: no argument given\n");
+                            exit(1);
+                        }
+                        optind++;
+                        break;
 		case 'S':	     /* FreeBSD:
 					NetBSD:  Semi-numeric display
 					OpenBSD: Show route source selector */
@@ -294,11 +320,13 @@ main(int argc, char *argv[])
             progname = argv[0];
 
 	switch (snmp_parse_args( argc, argv, &session, "C:iRs", optProc)) {
-	case -2:
+	case NETSNMP_PARSE_ARGS_ERROR:
+	    exit(1);
+	case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
 	    exit(0);
-	case -1:
+	case NETSNMP_PARSE_ARGS_ERROR_USAGE:
 	    usage();
-	    exit(0);
+	    exit(1);
 	default:
 	    break;
 	}
@@ -396,7 +424,7 @@ main(int argc, char *argv[])
 			for (tp = protox; tp->pr_name; tp++)
 				if (strcmp(tp->pr_name, p->p_name) == 0)
 					break;
-			if (tp->pr_name == 0 || tp->pr_wanted == 0)
+			if (tp->pr_name == NULL || tp->pr_wanted == 0)
 				continue;
 			printproto(tp, p->p_name);
 		}
@@ -449,12 +477,6 @@ plural(int n)
 	return (n != 1 ? "s" : "");
 }
 
-const char *
-plurales(int n)
-{
-	return (n != 1 ? "es" : "");
-}
-
 /*
  * Find the protox for the given "well-known" name.
  */
@@ -489,7 +511,7 @@ name2protox(const char *name)
 
 	setprotoent(1);			/* make protocol lookup cheaper */
 	while ((p = getprotoent())) {
-		/* assert: name not same as p->name */
+		/* netsnmp_assert: name not same as p->name */
 		for (alias = p->p_aliases; *alias; alias++)
 			if (strcmp(name, *alias) == 0) {
 				endprotoent();

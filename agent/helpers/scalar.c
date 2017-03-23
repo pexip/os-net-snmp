@@ -10,6 +10,11 @@
  */
 #include <net-snmp/net-snmp-config.h>
 
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
+
+#include <net-snmp/agent/scalar.h>
+
 #include <stdlib.h>
 #if HAVE_STRING_H
 #include <string.h>
@@ -17,10 +22,6 @@
 #include <strings.h>
 #endif
 
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
-
-#include <net-snmp/agent/scalar.h>
 #include <net-snmp/agent/instance.h>
 #include <net-snmp/agent/serialize.h>
 #include <net-snmp/agent/read_only.h>
@@ -77,8 +78,8 @@ netsnmp_register_scalar(netsnmp_handler_registration *reginfo)
      * Extend the registered OID with space for the instance subid
      * (but don't extend the length just yet!)
      */
-    reginfo->rootoid = realloc(reginfo->rootoid,
-                              (reginfo->rootoid_len+1) * sizeof(oid) );
+    reginfo->rootoid = (oid*)realloc(reginfo->rootoid,
+                                    (reginfo->rootoid_len+1) * sizeof(oid) );
     reginfo->rootoid[ reginfo->rootoid_len ] = 0;
 
     netsnmp_inject_handler(reginfo, netsnmp_get_instance_handler());
@@ -112,8 +113,8 @@ netsnmp_register_read_only_scalar(netsnmp_handler_registration *reginfo)
      * Extend the registered OID with space for the instance subid
      * (but don't extend the length just yet!)
      */
-    reginfo->rootoid = realloc(reginfo->rootoid,
-                              (reginfo->rootoid_len+1) * sizeof(oid) );
+    reginfo->rootoid = (oid*)realloc(reginfo->rootoid,
+                                    (reginfo->rootoid_len+1) * sizeof(oid) );
     reginfo->rootoid[ reginfo->rootoid_len ] = 0;
 
     netsnmp_inject_handler(reginfo, netsnmp_get_instance_handler());
@@ -161,6 +162,7 @@ netsnmp_scalar_helper_handler(netsnmp_mib_handler *handler,
         }
         break;
 
+#ifndef NETSNMP_NO_WRITE_SUPPORT
     case MODE_SET_RESERVE1:
     case MODE_SET_RESERVE2:
     case MODE_SET_ACTION:
@@ -179,6 +181,7 @@ netsnmp_scalar_helper_handler(netsnmp_mib_handler *handler,
             return ret;
         }
         break;
+#endif /* NETSNMP_NO_WRITE_SUPPORT */
 
     case MODE_GETNEXT:
         reginfo->rootoid[reginfo->rootoid_len++] = 0;

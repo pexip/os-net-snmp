@@ -21,6 +21,7 @@
  * This should always be included first before anything else 
  */
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -45,6 +46,10 @@
 #include "expObjectTable.h"
 #include "expValueTable.h"
 
+netsnmp_feature_require(tdomain_support)
+#ifndef NETSNMP_NO_WRITE_SUPPORT
+netsnmp_feature_require(header_complex_find_entry)
+#endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*
  * expExpressionTable_variables_oid:
@@ -65,19 +70,26 @@ struct variable2 expExpressionTable_variables[] = {
      * magic number        , variable type , ro/rw , callback fn  , L, oidsuffix 
      */
 #define	EXPEXPRESSION  3
-    {EXPEXPRESSION,          ASN_OCTET_STR, RWRITE, var_expExpressionTable, 2, {1, 3}},
+    {EXPEXPRESSION,          ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_expExpressionTable, 2, {1, 3}},
 #define	EXPEXPRESSIONVALUETYPE 4
-    {EXPEXPRESSIONVALUETYPE, ASN_INTEGER,   RWRITE, var_expExpressionTable, 2, {1, 4}},
+    {EXPEXPRESSIONVALUETYPE, ASN_INTEGER,   NETSNMP_OLDAPI_RWRITE,
+     var_expExpressionTable, 2, {1, 4}},
 #define	EXPEXPRESSIONCOMMENT 5
-    {EXPEXPRESSIONCOMMENT,   ASN_OCTET_STR, RWRITE, var_expExpressionTable, 2, {1, 5}},
+    {EXPEXPRESSIONCOMMENT,   ASN_OCTET_STR, NETSNMP_OLDAPI_RWRITE,
+     var_expExpressionTable, 2, {1, 5}},
 #define	EXPEXPRESSIONDELTALNTERVAL 6
-    {EXPEXPRESSIONDELTALNTERVAL, ASN_INTEGER, RWRITE, var_expExpressionTable, 2, {1, 6}},
+    {EXPEXPRESSIONDELTALNTERVAL, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_expExpressionTable, 2, {1, 6}},
 #define	EXPEXPRESSIONPREFIX 7
-    {EXPEXPRESSIONPREFIX,    ASN_OBJECT_ID, RONLY,  var_expExpressionTable, 2, {1, 7}},
+    {EXPEXPRESSIONPREFIX,    ASN_OBJECT_ID, NETSNMP_OLDAPI_RONLY,
+     var_expExpressionTable, 2, {1, 7}},
 #define	EXPEXPRESSIONERRORS 8
-    {EXPEXPRESSIONERRORS,    ASN_UNSIGNED,  RONLY,  var_expExpressionTable, 2, {1, 8}},
+    {EXPEXPRESSIONERRORS,    ASN_UNSIGNED,  NETSNMP_OLDAPI_RONLY,
+     var_expExpressionTable, 2, {1, 8}},
 #define	EXPEXPRESSIONENTRYSTATUS  9
-    {EXPEXPRESSIONENTRYSTATUS, ASN_INTEGER, RWRITE, var_expExpressionTable, 2, {1, 9}}
+    {EXPEXPRESSIONENTRYSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_expExpressionTable, 2, {1, 9}}
 };
 
 /*
@@ -311,9 +323,7 @@ store_expExpressionTable(int majorID, int minorID, void *serverarg,
     char           *cptr;
     size_t          tmpint;
     struct expExpressionTable_data *StorageTmp;
-    struct expObjectTable_data *ObjectStorageTmp;
-    struct expValueTable_data *ValueStorageTmp;
-    struct header_complex_index *hcindex, *hc_object, *hc_value;
+    struct header_complex_index *hcindex;
 
     DEBUGMSGTL(("expExpressionTable", "storing data...  "));
 
@@ -575,6 +585,7 @@ write_expExpression(int action,
          * permanently.  Make sure that anything done here can't fail! 
          */
         SNMP_FREE(tmpvar);
+        snmp_store_needed(NULL);
         break;
     }
     return SNMP_ERR_NOERROR;
@@ -659,6 +670,7 @@ write_expExpressionValueType(int action,
          * Things are working well, so it's now safe to make the change
          * permanently.  Make sure that anything done here can't fail! 
          */
+        snmp_store_needed(NULL);
         break;
     }
     return SNMP_ERR_NOERROR;
@@ -748,6 +760,7 @@ write_expExpressionComment(int action,
          * permanently.  Make sure that anything done here can't fail! 
          */
         SNMP_FREE(tmpvar);
+        snmp_store_needed(NULL);
         break;
     }
     return SNMP_ERR_NOERROR;
@@ -832,6 +845,7 @@ write_expExpressionDeltaInterval(int action,
          * Things are working well, so it's now safe to make the change
          * permanently.  Make sure that anything done here can't fail! 
          */
+        snmp_store_needed(NULL);
         break;
     }
     return SNMP_ERR_NOERROR;
@@ -1156,6 +1170,7 @@ write_expExpressionEntryStatus(int action,
                 StorageTmp->have_copied_auth_info = 1;
             }
         }
+        snmp_store_needed(NULL);
         break;
     }
     return SNMP_ERR_NOERROR;

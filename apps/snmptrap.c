@@ -41,11 +41,7 @@ SOFTWARE.
 # include <netinet/in.h>
 #endif
 #if TIME_WITH_SYS_TIME
-# ifdef WIN32
-#  include <sys/timeb.h>
-# else
-#  include <sys/time.h>
-# endif
+# include <sys/time.h>
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -58,9 +54,6 @@ SOFTWARE.
 #include <sys/select.h>
 #endif
 #include <stdio.h>
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
 #if HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -102,26 +95,6 @@ snmp_input(int operation,
            int reqid, netsnmp_pdu *pdu, void *magic)
 {
     return 1;
-}
-
-in_addr_t
-parse_address(char *address)
-{
-    in_addr_t       addr;
-    struct sockaddr_in saddr;
-    struct hostent *hp;
-
-    if ((addr = inet_addr(address)) != -1)
-        return addr;
-    hp = gethostbyname(address);
-    if (hp == NULL) {
-        fprintf(stderr, "unknown host: %s\n", address);
-        exit(1);
-    } else {
-        memcpy(&saddr.sin_addr, hp->h_addr, hp->h_length);
-        return saddr.sin_addr.s_addr;
-    }
-
 }
 
 static void
@@ -172,9 +145,11 @@ main(int argc, char *argv[])
     if (strcmp(prognam, "snmpinform") == 0)
         inform = 1;
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
-    case -2:
+    case NETSNMP_PARSE_ARGS_ERROR:
+        exit(1);
+    case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
         exit(0);
-    case -1:
+    case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
         exit(1);
     default:
@@ -185,6 +160,20 @@ main(int argc, char *argv[])
 
     session.callback = snmp_input;
     session.callback_magic = NULL;
+
+    /*
+     * setup the local engineID which may be for either or both of the
+     * contextEngineID and/or the securityEngineID.
+     */
+    setup_engineID(NULL, NULL);
+
+    /* if we don't have a contextEngineID set via command line
+       arguments, use our internal engineID as the context. */
+    if (session.contextEngineIDLen == 0 ||
+        session.contextEngineID == NULL) {
+        session.contextEngineID =
+            snmpv3_generate_engineID(&session.contextEngineIDLen);
+    }
 
     if (session.version == SNMP_VERSION_3 && !inform) {
         /*
@@ -205,24 +194,12 @@ main(int argc, char *argv[])
          */
 
         /*
-         * setup the engineID based on IP addr.  Need a different
-         * algorthim here.  This will cause problems with agents on the
-         * same machine sending traps. 
-         */
-        setup_engineID(NULL, NULL);
-
-        /*
          * pick our own engineID 
          */
         if (session.securityEngineIDLen == 0 ||
             session.securityEngineID == NULL) {
             session.securityEngineID =
                 snmpv3_generate_engineID(&session.securityEngineIDLen);
-        }
-        if (session.contextEngineIDLen == 0 ||
-            session.contextEngineID == NULL) {
-            session.contextEngineID =
-                snmpv3_generate_engineID(&session.contextEngineIDLen);
         }
 
         /*
@@ -296,7 +273,11 @@ main(int argc, char *argv[])
         }
         agent = argv[arg];
         if (agent != NULL && strlen(agent) != 0) {
-            *pdu_in_addr_t = parse_address(agent);
+            int ret = netsnmp_gethostbyname_v4(agent, pdu_in_addr_t);
+            if (ret < 0) {
+                fprintf(stderr, "unknown host: %s\n", agent);
+                exit(1);
+            }
         } else {
             *pdu_in_addr_t = get_myaddr();
         }

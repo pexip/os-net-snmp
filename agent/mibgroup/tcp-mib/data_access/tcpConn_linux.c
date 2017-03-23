@@ -1,7 +1,7 @@
 /*
  *  tcpConnTable MIB architecture support
  *
- * $Id: tcpConn_linux.c 15654 2006-12-08 14:30:56Z rstory $
+ * $Id$
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -11,7 +11,7 @@
 
 #include "tcp-mib/tcpConnectionTable/tcpConnectionTable_constants.h"
 #include "tcp-mib/data_access/tcpConn_private.h"
-
+#include "mibgroup/util_funcs/get_pid_from_inode.h"
 static int
 linux_states[12] = { 1, 5, 3, 4, 6, 7, 11, 1, 8, 9, 2, 10 };
 
@@ -56,18 +56,19 @@ netsnmp_arch_tcpconn_entry_copy(netsnmp_tcpconn_entry *lhs,
     return 0;
 }
 
+#ifdef TCPCONN_DELETE_SUPPORTED
 /*
  * delete an entry
  */
 int
-netsnmp_arch_tcpconn_delete(netsnmp_tcpconn_entry *entry)
+netsnmp_arch_tcpconn_entry_delete(netsnmp_tcpconn_entry *entry)
 {
     if (NULL == entry)
         return -1;
     /** xxx-rks:9 tcpConn delete not implemented */
     return -1;
 }
-
+#endif /* TCPCONN_DELETE_SUPPORTED */
 
 /**
  *
@@ -81,7 +82,10 @@ netsnmp_arch_tcpconn_container_load(netsnmp_container *container,
     int rc = 0;
 
     DEBUGMSGTL(("access:tcpconn:container",
-                "tcpconn_container_arch_load (flags %p)\n", load_flags));
+                "tcpconn_container_arch_load (flags %x)\n", load_flags));
+
+    /* Setup the pid_from_inode table, and fill it.*/
+    netsnmp_get_pid_from_inode_init();
 
     if (NULL == container) {
         snmp_log(LOG_ERR, "no container specified/found for access_tcpconn\n");
@@ -134,16 +138,17 @@ _load4(netsnmp_container *container, u_int load_flags)
      */
     while (fgets(line, sizeof(line), in)) {
         netsnmp_tcpconn_entry *entry;
-        int             state, rc, local_port, remote_port, tmp_state;
+        unsigned int    state, local_port, remote_port, tmp_state;
+        unsigned long long inode;
         size_t          buf_len, offset;
-        u_char          local_addr[10], remote_addr[10];
+        char            local_addr[10], remote_addr[10];
         u_char         *tmp_ptr;
 
-        if (5 != (rc = sscanf(line, "%*d: %8[0-9A-Z]:%x %8[0-9A-Z]:%x %x",
+        if (6 != (rc = sscanf(line, "%*d: %8[0-9A-Z]:%x %8[0-9A-Z]:%x %x %*x:%*x %*x:%*x %*x %*x %*x %llu",
                               local_addr, &local_port,
-                              remote_addr, &remote_port, &tmp_state))) {
+                              remote_addr, &remote_port, &tmp_state, &inode))) {
             DEBUGMSGT(("access:tcpconn:container",
-                       "error parsing line (%d != 5)\n", rc));
+                       "error parsing line (%d != 6)\n", rc));
             DEBUGMSGT(("access:tcpconn:container"," line '%s'\n", line));
             continue;
         }
@@ -180,7 +185,8 @@ _load4(netsnmp_container *container, u_int load_flags)
         entry->loc_port = (unsigned short) local_port;
         entry->rmt_port = (unsigned short) remote_port;
         entry->tcpConnState = state;
-        
+        entry->pid = netsnmp_get_pid_from_inode(inode);
+
         /** the addr string may need work */
         buf_len = strlen(local_addr);
         if ((8 != buf_len) ||
@@ -254,27 +260,16 @@ _load6(netsnmp_container *container, u_int load_flags)
     int             rc = 0;
     FILE           *in;
     char            line[180];
-    static int      log_open_err = 1;
 
     netsnmp_assert(NULL != container);
 
 #undef PROCFILE
 #define PROCFILE "/proc/net/tcp6"
     if (!(in = fopen(PROCFILE, "r"))) {
-        snmp_log(LOG_ERR,"could not open " PROCFILE "\n");
-        if (1 == log_open_err) {
-            snmp_log(LOG_ERR,"could not open " PROCFILE "\n");
-            log_open_err = 0;
-        }
+        DEBUGMSGTL(("access:tcpconn:container","could not open " PROCFILE "\n"));
         return -2;
     }
-    /*
-     * if we turned off logging of open errors, turn it back on now that
-     * we have been able to open the file.
-     */
-    if (0 == log_open_err)
-        log_open_err = 1;
-    
+
     fgets(line, sizeof(line), in); /* skip header */
 
     /*
@@ -285,16 +280,17 @@ _load6(netsnmp_container *container, u_int load_flags)
      */
     while (fgets(line, sizeof(line), in)) {
         netsnmp_tcpconn_entry *entry;
-        int             state, rc, local_port, remote_port, tmp_state;
+        int             state, local_port, remote_port, tmp_state;
+        unsigned long long  inode;
         size_t          buf_len, offset;
-        u_char          local_addr[48], remote_addr[48];
+        char            local_addr[48], remote_addr[48];
         u_char         *tmp_ptr;
 
-        if (5 != (rc = sscanf(line, "%*d: %47[0-9A-Z]:%x %47[0-9A-Z]:%x %x",
+        if (6 != (rc = sscanf(line, "%*d: %47[0-9A-Z]:%x %47[0-9A-Z]:%x %x %*x:%*x %*x:%*x %*x %*x %*x %llu",
                               local_addr, &local_port,
-                              remote_addr, &remote_port, &tmp_state))) {
+                              remote_addr, &remote_port, &tmp_state, &inode))) {
             DEBUGMSGT(("access:tcpconn:container",
-                       "error parsing line (%d != 5)\n", rc));
+                       "error parsing line (%d != 6)\n", rc));
             DEBUGMSGT(("access:tcpconn:container"," line '%s'\n", line));
             continue;
         }
@@ -331,9 +327,10 @@ _load6(netsnmp_container *container, u_int load_flags)
         entry->loc_port = (unsigned short) local_port;
         entry->rmt_port = (unsigned short) remote_port;
         entry->tcpConnState = state;
+        entry->pid = netsnmp_get_pid_from_inode(inode);
 
         /** the addr string may need work */
-        buf_len = strlen((char*)local_addr);
+        buf_len = strlen(local_addr);
         if ((32 != buf_len) ||
             (-1 == netsnmp_addrstr_hton(local_addr, 32))) {
             DEBUGMSGT(("verbose:access:tcpconn:container",

@@ -170,9 +170,6 @@ SOFTWARE.
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
 #if HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -211,16 +208,14 @@ SOFTWARE.
 #  define CHECK_OVERFLOW_S(x,y)
 #  define CHECK_OVERFLOW_U(x,y)
 #else
-#  define CHECK_OVERFLOW_S(x,y) do { int trunc = 0;                     \
+#  define CHECK_OVERFLOW_S(x,y) do {                                    \
         if (x > INT32_MAX) {                                            \
-            trunc = 1;                                                  \
+            DEBUGMSG(("asn","truncating signed value %ld to 32 bits (%d)\n",(long)(x),y)); \
             x &= 0xffffffff;                                            \
         } else if (x < INT32_MIN) {                                     \
-            trunc = 1;                                                  \
+            DEBUGMSG(("asn","truncating signed value %ld to 32 bits (%d)\n",(long)(x),y)); \
             x = 0 - (x & 0xffffffff);                                   \
         }                                                               \
-        if (trunc)                                                      \
-            DEBUGMSG(("asn","truncating signed value to 32 bits (%d)\n",y)); \
     } while(0)
 
 #  define CHECK_OVERFLOW_U(x,y) do {                                    \
@@ -248,6 +243,24 @@ _asn_size_err(const char *str, size_t wrongsize, size_t rightsize)
     snprintf(ebuf, sizeof(ebuf),
             "%s size %lu: s/b %lu", str,
 	    (unsigned long)wrongsize, (unsigned long)rightsize);
+    ebuf[ sizeof(ebuf)-1 ] = 0;
+    ERROR_MSG(ebuf);
+}
+
+/**
+ * @internal
+ * output an error for a wrong type
+ * 
+ * @param str        error string
+ * @param wrongtype  wrong type
+ */
+static
+    void
+_asn_type_err(const char *str, int wrongtype)
+{
+    char            ebuf[128];
+
+    snprintf(ebuf, sizeof(ebuf), "%s type %d", str, wrongtype);
     ebuf[ sizeof(ebuf)-1 ] = 0;
     ERROR_MSG(ebuf);
 }
@@ -484,6 +497,11 @@ asn_parse_int(u_char * data,
         return NULL;
     }
     *type = *bufp++;
+    if (*type != ASN_INTEGER) {
+        _asn_type_err(errpre, *type);
+        return NULL;
+    }
+
     bufp = asn_parse_length(bufp, &asn_length);
     if (_asn_parse_length_check
         (errpre, bufp, data, asn_length, *datalength))
@@ -505,7 +523,7 @@ asn_parse_int(u_char * data,
 
     CHECK_OVERFLOW_S(value,1);
 
-    DEBUGMSG(("dumpv_recv", "  Integer:\t%ld (0x%.2X)\n", value, value));
+    DEBUGMSG(("dumpv_recv", "  Integer:\t%ld (0x%.2lX)\n", value, value));
 
     *intp = value;
     return bufp;
@@ -551,13 +569,18 @@ asn_parse_unsigned_int(u_char * data,
         return NULL;
     }
     *type = *bufp++;
+    if (*type != ASN_COUNTER && *type != ASN_GAUGE && *type != ASN_TIMETICKS
+            && *type != ASN_UINTEGER) {
+        _asn_type_err(errpre, *type);
+        return NULL;
+    }
     bufp = asn_parse_length(bufp, &asn_length);
     if (_asn_parse_length_check
         (errpre, bufp, data, asn_length, *datalength))
         return NULL;
 
-    if (((int) asn_length > (intsize + 1)) ||
-        (((int) asn_length == intsize + 1) && *bufp != 0x00)) {
+    if ((asn_length > (intsize + 1)) ||
+        ((asn_length == intsize + 1) && *bufp != 0x00)) {
         _asn_length_err(errpre, (size_t) asn_length, intsize);
         return NULL;
     }
@@ -572,7 +595,7 @@ asn_parse_unsigned_int(u_char * data,
 
     CHECK_OVERFLOW_U(value,2);
 
-    DEBUGMSG(("dumpv_recv", "  UInteger:\t%ld (0x%.2X)\n", value, value));
+    DEBUGMSG(("dumpv_recv", "  UInteger:\t%ld (0x%.2lX)\n", value, value));
 
     *intp = value;
     return bufp;
@@ -651,7 +674,7 @@ asn_build_int(u_char * data,
         integer <<= 8;
     }
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
-    DEBUGMSG(("dumpv_send", "  Integer:\t%ld (0x%.2X)\n", *intp, *intp));
+    DEBUGMSG(("dumpv_send", "  Integer:\t%ld (0x%.2lX)\n", *intp, *intp));
     return data;
 }
 
@@ -747,7 +770,7 @@ asn_build_unsigned_int(u_char * data,
         integer <<= 8;
     }
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
-    DEBUGMSG(("dumpv_send", "  UInteger:\t%ld (0x%.2X)\n", *intp, *intp));
+    DEBUGMSG(("dumpv_send", "  UInteger:\t%ld (0x%.2lX)\n", *intp, *intp));
     return data;
 }
 
@@ -790,13 +813,19 @@ asn_parse_string(u_char * data,
     u_long          asn_length;
 
     *type = *bufp++;
+    if (*type != ASN_OCTET_STR && *type != ASN_IPADDRESS && *type != ASN_OPAQUE
+            && *type != ASN_NSAP) {
+        _asn_type_err(errpre, *type);
+        return NULL;
+    }
+
     bufp = asn_parse_length(bufp, &asn_length);
     if (_asn_parse_length_check
         (errpre, bufp, data, asn_length, *datalength)) {
         return NULL;
     }
 
-    if ((int) asn_length > *strlength) {
+    if (asn_length > *strlength) {
         _asn_length_err(errpre, (size_t) asn_length, *strlength);
         return NULL;
     }
@@ -804,10 +833,10 @@ asn_parse_string(u_char * data,
     DEBUGDUMPSETUP("recv", data, bufp - data + asn_length);
 
     memmove(str, bufp, asn_length);
-    if (*strlength > (int) asn_length)
+    if (*strlength > asn_length)
         str[asn_length] = 0;
-    *strlength = (int) asn_length;
-    *datalength -= (int) asn_length + (bufp - data);
+    *strlength = asn_length;
+    *datalength -= asn_length + (bufp - data);
 
     DEBUGIF("dumpv_recv") {
         u_char         *buf = (u_char *) malloc(1 + asn_length);
@@ -1288,6 +1317,7 @@ asn_parse_objid(u_char * data,
                 size_t * datalength,
                 u_char * type, oid * objid, size_t * objidlength)
 {
+    static const char *errpre = "parse objid";
     /*
      * ASN.1 objid ::= 0x06 asnlength subidentifier {subidentifier}*
      * subidentifier ::= {leadingbyte}* lastbyte
@@ -1302,6 +1332,10 @@ asn_parse_objid(u_char * data,
     size_t          original_length = *objidlength;
 
     *type = *bufp++;
+    if (*type != ASN_OBJECT_ID) {
+        _asn_type_err(errpre, *type);
+        return NULL;
+    }
     bufp = asn_parse_length(bufp, &asn_length);
     if (_asn_parse_length_check("parse objid", bufp, data,
                                 asn_length, *datalength))
@@ -1337,7 +1371,7 @@ asn_parse_objid(u_char * data,
             }
         }
 #if defined(EIGHTBIT_SUBIDS) || (SIZEOF_LONG != 4)
-        if (subidentifier > (u_long) MAX_SUBID) {
+        if (subidentifier > MAX_SUBID) {
             ERROR_MSG("subidentifier too large");
             return NULL;
         }
@@ -1506,13 +1540,8 @@ asn_build_objid(u_char * data,
      */
     for (i = 1, objid_val = first_objid_val, op = objid + 2;
          i < (int) objidlength; i++) {
-        if (i != 1) {
-            objid_val = *op++;
-#if SIZEOF_LONG != 4
-            if (objid_val > 0xffffffff) /* already logged warning above */
-                objid_val &= 0xffffffff;
-#endif
-        }
+        if (i != 1)
+            objid_val = (uint32_t)(*op++); /* already logged warning above */
         switch (objid_size[i]) {
         case 1:
             *data++ = (u_char) objid_val;
@@ -1676,6 +1705,10 @@ asn_parse_bitstring(u_char * data,
     u_long          asn_length;
 
     *type = *bufp++;
+    if (*type != ASN_BIT_STR) {
+        _asn_type_err(errpre, *type);
+        return NULL;
+    }
     bufp = asn_parse_length(bufp, &asn_length);
     if (_asn_parse_length_check(errpre, bufp, data,
                                 asn_length, *datalength))
@@ -1796,6 +1829,14 @@ asn_parse_unsigned_int64(u_char * data,
         return NULL;
     }
     *type = *bufp++;
+    if (*type != ASN_COUNTER64
+#ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
+            && *type != ASN_OPAQUE_COUNTER64 && *type != ASN_OPAQUE_U64
+#endif
+            ) {
+        _asn_type_err(errpre, *type);
+        return NULL;
+    }
     bufp = asn_parse_length(bufp, &asn_length);
     if (_asn_parse_length_check
         (errpre, bufp, data, asn_length, *datalength))
@@ -1830,13 +1871,8 @@ asn_parse_unsigned_int64(u_char * data,
         return NULL;
     }
     *datalength -= (int) asn_length + (bufp - data);
-    if (*bufp & 0x80) {
-        low = 0xFFFFFF;     /* first byte bit 1 means start the data with 1s */
-        high = 0xFFFFFF;
-    }
-
     while (asn_length--) {
-        high = ((0x00FFFFFF & high) << 8) | ((low & 0xFF000000) >> 24);
+        high = ((0x00FFFFFF & high) << 8) | ((low & 0xFF000000U) >> 24);
         low = ((low & 0x00FFFFFF) << 8) | *bufp++;
     }
 
@@ -1849,7 +1885,7 @@ asn_parse_unsigned_int64(u_char * data,
     DEBUGIF("dumpv_recv") {
         char            i64buf[I64CHARSZ + 1];
         printU64(i64buf, cp);
-        DEBUGMSG(("dumpv_recv", "Counter64: %s", i64buf));
+        DEBUGMSG(("dumpv_recv", "Counter64: %s\n", i64buf));
     }
 
     return bufp;
@@ -1907,11 +1943,8 @@ asn_build_unsigned_int64(u_char * data,
     CHECK_OVERFLOW_U(high,7);
     CHECK_OVERFLOW_U(low,7);
 
-    mask = ((u_long) 0xFF) << (8 * (sizeof(long) - 1));
-    /*
-     * mask is 0xFF000000 on a big-endian machine 
-     */
-    if ((u_char) ((high & mask) >> (8 * (sizeof(long) - 1))) & 0x80) {
+    mask = 0xff000000U;
+    if (high & 0x80000000U) {
         /*
          * if MSB is set 
          */
@@ -1924,16 +1957,12 @@ asn_build_unsigned_int64(u_char * data,
          * There should be no sequence of 9 consecutive 1's or 0's at the most
          * significant end of the integer.
          */
-        mask2 = ((u_long) 0x1FF) << ((8 * (sizeof(long) - 1)) - 1);
-        /*
-         * mask2 is 0xFF800000 on a big-endian machine 
-         */
+        mask2 = 0xff800000U;
         while ((((high & mask2) == 0) || ((high & mask2) == mask2))
                && intsize > 1) {
             intsize--;
-            high = (high << 8)
-                | ((low & mask) >> (8 * (sizeof(long) - 1)));
-            low <<= 8;
+            high = ((high & 0x00ffffffu) << 8) | ((low & mask) >> 24);
+            low = (low & 0x00ffffffu) << 8;
         }
     }
 #ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
@@ -1998,17 +2027,16 @@ asn_build_unsigned_int64(u_char * data,
         intsize--;
     }
     while (intsize--) {
-        *data++ = (u_char) ((high & mask) >> (8 * (sizeof(long) - 1)));
-        high = (high << 8)
-            | ((low & mask) >> (8 * (sizeof(long) - 1)));
-        low <<= 8;
+        *data++ = (u_char) (high >> 24);
+        high = ((high & 0x00ffffff) << 8) | ((low & mask) >> 24);
+        low = (low & 0x00ffffff) << 8;
 
     }
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
     DEBUGIF("dumpv_send") {
         char            i64buf[I64CHARSZ + 1];
         printU64(i64buf, cp);
-        DEBUGMSG(("dumpv_send", i64buf));
+        DEBUGMSG(("dumpv_send", "%s", i64buf));
     }
     return data;
 }
@@ -2096,12 +2124,12 @@ asn_parse_signed_int64(u_char * data,
     }
     *datalength -= (int) asn_length + (bufp - data);
     if (*bufp & 0x80) {
-        low = 0xFFFFFF;     /* first byte bit 1 means start the data with 1s */
+        low = 0xFFFFFFFFU;   /* first byte bit 1 means start the data with 1s */
         high = 0xFFFFFF;
     }
 
     while (asn_length--) {
-        high = ((0x00FFFFFF & high) << 8) | ((low & 0xFF000000) >> 24);
+        high = ((0x00FFFFFF & high) << 8) | ((low & 0xFF000000U) >> 24);
         low = ((low & 0x00FFFFFF) << 8) | *bufp++;
     }
 
@@ -2114,7 +2142,7 @@ asn_parse_signed_int64(u_char * data,
     DEBUGIF("dumpv_recv") {
         char            i64buf[I64CHARSZ + 1];
         printI64(i64buf, cp);
-        DEBUGMSG(("dumpv_recv", "Integer64: %s", i64buf));
+        DEBUGMSG(("dumpv_recv", "Integer64: %s\n", i64buf));
     }
 
     return bufp;
@@ -2153,9 +2181,9 @@ asn_build_signed_int64(u_char * data,
      * ASN.1 integer ::= 0x02 asnlength byte {byte}*
      */
 
-    struct counter64 c64;
     register u_int  mask, mask2;
-    u_long          low, high;
+    u_long          low;
+    long            high; /* MUST be signed because of CHECK_OVERFLOW_S(). */
     size_t          intsize;
 #ifndef NETSNMP_NO_DEBUGGING
     u_char         *initdatap = data;
@@ -2167,9 +2195,8 @@ asn_build_signed_int64(u_char * data,
         return NULL;
     }
     intsize = 8;
-    memcpy(&c64, cp, sizeof(struct counter64)); /* we're may modify it */
-    low = c64.low;
-    high = c64.high;
+    low = cp->low;
+    high = cp->high; /* unsigned to signed conversion */
 
     CHECK_OVERFLOW_S(high,9);
     CHECK_OVERFLOW_U(low,9);
@@ -2180,17 +2207,13 @@ asn_build_signed_int64(u_char * data,
      * consecutive 1's or 0's at the most significant end of the
      * integer.
      */
-    mask = ((u_int) 0xFF) << (8 * (sizeof(u_int) - 1));
-    mask2 = ((u_int) 0x1FF) << ((8 * (sizeof(u_int) - 1)) - 1);
-    /*
-     * mask is 0xFF800000 on a big-endian machine 
-     */
+    mask = 0xFF000000U;
+    mask2 = 0xFF800000U;
     while ((((high & mask2) == 0) || ((high & mask2) == mask2))
            && intsize > 1) {
         intsize--;
-        high = (high << 8)
-            | ((low & mask) >> (8 * (sizeof(u_int) - 1)));
-        low <<= 8;
+        high = ((high & 0x00ffffff) << 8) | ((low & mask) >> 24);
+        low = (low & 0x00ffffff) << 8;
     }
     /*
      * until a real int64 gets incorperated into SNMP, we are going to
@@ -2209,16 +2232,15 @@ asn_build_signed_int64(u_char * data,
     *datalength -= (3 + intsize);
 
     while (intsize--) {
-        *data++ = (u_char) ((high & mask) >> (8 * (sizeof(u_int) - 1)));
-        high = (high << 8)
-            | ((low & mask) >> (8 * (sizeof(u_int) - 1)));
-        low <<= 8;
+        *data++ = (u_char) (high >> 24);
+        high = ((high & 0x00ffffff) << 8) | ((low & mask) >> 24);
+        low = (low & 0x00ffffff) << 8;
     }
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
     DEBUGIF("dumpv_send") {
         char            i64buf[I64CHARSZ + 1];
         printU64(i64buf, cp);
-        DEBUGMSG(("dumpv_send", i64buf));
+        DEBUGMSG(("dumpv_send", "%s\n", i64buf));
     }
     return data;
 }
@@ -2250,6 +2272,7 @@ asn_parse_float(u_char * data,
                 size_t * datalength,
                 u_char * type, float *floatp, size_t floatsize)
 {
+    static const char *errpre = "parse float";
     register u_char *bufp = data;
     u_long          asn_length;
     union {
@@ -2288,6 +2311,11 @@ asn_parse_float(u_char * data,
          * change type to Float 
          */
         *type = ASN_OPAQUE_FLOAT;
+    }
+
+    if (*type != ASN_OPAQUE_FLOAT) {
+        _asn_type_err(errpre, *type);
+        return NULL;
     }
 
     if (asn_length != sizeof(float)) {
@@ -2415,6 +2443,7 @@ asn_parse_double(u_char * data,
                  size_t * datalength,
                  u_char * type, double *doublep, size_t doublesize)
 {
+    static const char *errpre = "parse double";
     register u_char *bufp = data;
     u_long          asn_length;
     long            tmp;
@@ -2455,6 +2484,11 @@ asn_parse_double(u_char * data,
          * change type to Double 
          */
         *type = ASN_OPAQUE_DOUBLE;
+    }
+
+    if (*type != ASN_OPAQUE_DOUBLE) {
+        _asn_type_err(errpre, *type);
+        return NULL;
     }
 
     if (asn_length != sizeof(double)) {
@@ -2556,7 +2590,7 @@ asn_build_double(u_char * data,
 
     data += doublesize;
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
-    DEBUGMSG(("dumpv_send", "  Opaque double: %f", *doublep));
+    DEBUGMSG(("dumpv_send", "  Opaque double: %f\n", *doublep));
     return data;
 }
 
@@ -2583,15 +2617,16 @@ asn_realloc(u_char ** pkt, size_t * pkt_len)
     if (pkt != NULL && pkt_len != NULL) {
         size_t          old_pkt_len = *pkt_len;
 
-        DEBUGMSGTL(("asn_realloc", " old_pkt %08p, old_pkt_len %08x\n",
-                    *pkt, old_pkt_len));
+        DEBUGMSGTL(("asn_realloc", " old_pkt %8p, old_pkt_len %lu\n",
+                    *pkt, (unsigned long)old_pkt_len));
 
         if (snmp_realloc(pkt, pkt_len)) {
-            DEBUGMSGTL(("asn_realloc", " new_pkt %08p, new_pkt_len %08x\n",
-                        *pkt, *pkt_len));
+            DEBUGMSGTL(("asn_realloc", " new_pkt %8p, new_pkt_len %lu\n",
+                        *pkt, (unsigned long)*pkt_len));
             DEBUGMSGTL(("asn_realloc",
-                        " memmove(%08p + %08x, %08p, %08x)\n", *pkt,
-                        (*pkt_len - old_pkt_len), *pkt, old_pkt_len));
+                        " memmove(%8p + %08x, %8p, %08x)\n",
+			*pkt, (unsigned)(*pkt_len - old_pkt_len),
+			*pkt, (unsigned)old_pkt_len));
             memmove(*pkt + (*pkt_len - old_pkt_len), *pkt, old_pkt_len);
             memset(*pkt, (int) ' ', *pkt_len - old_pkt_len);
             return 1;
@@ -2782,7 +2817,7 @@ asn_realloc_rbuild_int(u_char ** pkt, size_t * pkt_len,
         } else {
             DEBUGDUMPSETUP("send", (*pkt + *pkt_len - *offset),
                            (*offset - start_offset));
-            DEBUGMSG(("dumpv_send", "  Integer:\t%ld (0x%.2X)\n", *intp,
+            DEBUGMSG(("dumpv_send", "  Integer:\t%ld (0x%.2lX)\n", *intp,
                       *intp));
             return 1;
         }
@@ -2935,7 +2970,7 @@ asn_realloc_rbuild_unsigned_int(u_char ** pkt, size_t * pkt_len,
         } else {
             DEBUGDUMPSETUP("send", (*pkt + *pkt_len - *offset),
                            (*offset - start_offset));
-            DEBUGMSG(("dumpv_send", "  UInteger:\t%lu (0x%.2X)\n", *intp,
+            DEBUGMSG(("dumpv_send", "  UInteger:\t%lu (0x%.2lX)\n", *intp,
                       *intp));
             return 1;
         }

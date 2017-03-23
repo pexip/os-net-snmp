@@ -7,7 +7,7 @@
 #     modify it under the same terms as Perl itself.
 
 package SNMP;
-$VERSION = '5.0403';   # current release version number
+$VERSION = '5.07021';   # current release version number
 
 use strict;
 use warnings;
@@ -46,6 +46,8 @@ use NetSNMP::default_store (':all');
         snmp_getnext
         snmp_set
         snmp_trap
+	SNMP_API_TRADITIONAL
+	SNMP_API_SINGLE
 );
 
 sub AUTOLOAD {
@@ -57,7 +59,7 @@ sub AUTOLOAD {
     my $constname;
     ($constname = $AUTOLOAD) =~ s/.*:://;
     # croak "&$module::constant not defined" if $constname eq 'constant';
-    $val = constant($constname, @_ ? $_[0] : 0);
+    ($!, $val) = constant($constname, @_ ? $_[0] : 0);
     if ($! != 0) {
 	if ($! =~ /Invalid/) {
 	    $AutoLoader::AUTOLOAD = $AUTOLOAD;
@@ -133,6 +135,26 @@ $replace_newer = 0; # determine whether or not to tell the parser to replace
                     # older MIB modules with newer ones when loading MIBs.
                     # WARNING: This can cause an incorrect hierarchy.
 
+sub register_debug_tokens {
+    my $tokens = shift;
+
+    SNMP::_register_debug_tokens($tokens);
+}
+
+sub getenv {
+    my $name = shift;
+
+    return SNMP::_getenv($name);
+}
+
+sub setenv {
+    my $envname = shift;
+    my $envval = shift;
+    my $overwrite = shift;
+
+    return SNMP::_setenv($envname, $envval, $overwrite);
+}
+
 sub setMib {
 # loads mib from file name provided
 # setting second arg to true causes currently loaded mib to be replaced
@@ -145,10 +167,10 @@ sub setMib {
 }
 
 sub initMib {
-# eqivalent to calling the snmp library init_mib if Mib is NULL
+# equivalent to calling the snmp library init_mib if Mib is NULL
 # if Mib is already loaded this function does nothing
-# Pass a zero valued argument to get minimal mib tree initialzation
-# If non zero agrgument or no argument then full mib initialization
+# Pass a zero valued argument to get minimal mib tree initialization
+# If non zero argument or no argument then full mib initialization
 
   SNMP::init_snmp("perl");
   return;
@@ -245,8 +267,8 @@ sub mapEnum {
   my $var = shift;
   my ($tag, $val, $update);
   if (ref($var) =~ /ARRAY/ or ref($var) =~ /Varbind/) {
-      $tag = $var->[$SNMP::Varbind::tag_f];
-      $val = $var->[$SNMP::Varbind::val_f];
+      $tag = SNMP::Varbind::tag($var);
+      $val = SNMP::Varbind::val($var);
       $update = 1;
   } else {
       $tag = $var;
@@ -254,7 +276,7 @@ sub mapEnum {
   }
   my $iflag = $val =~ /^\d+$/;
   my $res = SNMP::_map_enum($tag, $val, $iflag, $SNMP::best_guess);
-  if ($update and defined $res) { $var->[$SNMP::Varbind::val_f] = $res; }
+  if ($update and defined $res) { SNMP::Varbind::val($var) = $res; }
   return($res);
 }
 
@@ -328,12 +350,24 @@ sub snmp_trap {
     $sess->trap(@_);
 }
 
+#--------------------------------------------------------------------- 
+# Preserves the ability to call MainLoop() with no args so we don't 
+# break old code
+#
+# Alternately, MainLoop() could be called as an object method, 
+# ( $sess->MainLoop() ) , so that $self winds up in @_.  Then it would 
+# be more like :
+# my $self = shift;
+# .... 
+# SNMP::_main_loop(......, $self->{SessPtr});
+#--------------------------------------------------------------------- 
 sub MainLoop {
+    my $ss = shift if(&SNMP::_api_mode() == SNMP::SNMP_API_SINGLE());
     my $time = shift;
     my $callback = shift;
     my $time_sec = ($time ? int $time : 0);
     my $time_usec = ($time ? int(($time-$time_sec)*1000000) : 0);
-    SNMP::_main_loop($time_sec,$time_usec,$callback);
+    SNMP::_main_loop($time_sec,$time_usec,$callback,(defined($ss) ? $ss->{SessPtr} : ()));
 }
 
 sub finish {
@@ -470,6 +504,11 @@ sub new {
        $this->{DestHost} = $this->{DestHost} . ":" . $this->{RemotePort};
    }
 
+   if ($this->{DestHost} =~ /^(dtls|tls|ssh)/) {
+       # only works with version 3
+       $this->{Version} = 3;
+   }
+
    if ($this->{Version} eq '1' or $this->{Version} eq '2'
        or $this->{Version} eq '2c') {
        $this->{SessPtr} = SNMP::_new_session($this->{Version},
@@ -497,51 +536,84 @@ sub new {
        $this->{Context} ||= 
 	   NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
 		         NetSNMP::default_store::NETSNMP_DS_LIB_CONTEXT()) || '';
-       $this->{AuthProto} ||= 'DEFAULT'; # defaults to the library's default
-       $this->{AuthPass} ||=
-       NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
-		     NetSNMP::default_store::NETSNMP_DS_LIB_AUTHPASSPHRASE()) ||
-       NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
-		     NetSNMP::default_store::NETSNMP_DS_LIB_PASSPHRASE()) || '';
 
-       $this->{AuthMasterKey} ||= '';
-       $this->{PrivMasterKey} ||= '';
-       $this->{AuthLocalizedKey} ||= '';
-       $this->{PrivLocalizedKey} ||= '';
+       if ($this->{DestHost} =~ /^(dtls|tls|ssh)/) {
+	   # this is a tunneled protocol
 
-       $this->{PrivProto} ||= 'DEFAULT';  # defaults to hte library's default
-       $this->{PrivPass} ||=
-       NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
-		     NetSNMP::default_store::NETSNMP_DS_LIB_PRIVPASSPHRASE()) ||
-       NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
-		     NetSNMP::default_store::NETSNMP_DS_LIB_PASSPHRASE()) || '';
-       $this->{EngineBoots} = 0 if not defined $this->{EngineBoots};
-       $this->{EngineTime} = 0 if not defined $this->{EngineTime};
+	   $this->{'OurIdentity'} ||= '';
+	   $this->{'TheirIdentity'} ||= '';
+	   $this->{'TheirHostname'} ||= '';
+	   $this->{'TrustCert'} ||= '';
 
-       $this->{SessPtr} = SNMP::_new_v3_session($this->{Version},
-						$this->{DestHost},
-						$this->{Retries},
-						$this->{Timeout},
-						$this->{SecName},
-						$this->{SecLevel},
-						$this->{SecEngineId},
-						$this->{ContextEngineId},
-						$this->{Context},
-						$this->{AuthProto},
-						$this->{AuthPass},
-						$this->{PrivProto},
-						$this->{PrivPass},
-						$this->{EngineBoots},
-						$this->{EngineTime},
-						$this->{AuthMasterKey},
-						length($this->{AuthMasterKey}),
-						$this->{PrivMasterKey},
-						length($this->{PrivMasterKey}),
-						$this->{AuthLocalizedKey},
-						length($this->{AuthLocalizedKey}),
-						$this->{PrivLocalizedKey},
-						length($this->{PrivLocalizedKey}),
-					       );
+	   $this->{'SecLevel'} = $SNMP::V3_SEC_LEVEL_MAP{'authPriv'};
+
+	   $this->{SessPtr} =
+	     SNMP::_new_tunneled_session($this->{Version},
+					 $this->{DestHost},
+					 $this->{Retries},
+					 $this->{Timeout},
+					 $this->{SecName},
+					 $this->{SecLevel},
+					 $this->{ContextEngineId},
+					 $this->{Context},
+					 $this->{'OurIdentity'},
+					 $this->{'TheirIdentity'},
+					 $this->{'TheirHostname'},
+					 $this->{'TrustCert'},
+					);
+
+
+       } else {
+	   # USM or some other internal security protocol
+
+	   # USM specific parameters:
+	   $this->{AuthProto} ||= 'DEFAULT'; # use the library's default
+	   $this->{AuthPass} ||=
+	     NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
+							   NetSNMP::default_store::NETSNMP_DS_LIB_AUTHPASSPHRASE()) ||
+							       NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
+													     NetSNMP::default_store::NETSNMP_DS_LIB_PASSPHRASE()) || '';
+
+	   $this->{AuthMasterKey} ||= '';
+	   $this->{PrivMasterKey} ||= '';
+	   $this->{AuthLocalizedKey} ||= '';
+	   $this->{PrivLocalizedKey} ||= '';
+
+	   $this->{PrivProto} ||= 'DEFAULT'; # use the library's default
+	   $this->{PrivPass} ||=
+	     NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
+							   NetSNMP::default_store::NETSNMP_DS_LIB_PRIVPASSPHRASE()) ||
+							       NetSNMP::default_store::netsnmp_ds_get_string(NetSNMP::default_store::NETSNMP_DS_LIBRARY_ID(), 
+													     NetSNMP::default_store::NETSNMP_DS_LIB_PASSPHRASE()) || '';
+	   $this->{EngineBoots} = 0 if not defined $this->{EngineBoots};
+	   $this->{EngineTime} = 0 if not defined $this->{EngineTime};
+
+	   $this->{SessPtr} =
+	     SNMP::_new_v3_session($this->{Version},
+				   $this->{DestHost},
+				   $this->{Retries},
+				   $this->{Timeout},
+				   $this->{SecName},
+				   $this->{SecLevel},
+				   $this->{SecEngineId},
+				   $this->{ContextEngineId},
+				   $this->{Context},
+				   $this->{AuthProto},
+				   $this->{AuthPass},
+				   $this->{PrivProto},
+				   $this->{PrivPass},
+				   $this->{EngineBoots},
+				   $this->{EngineTime},
+				   $this->{AuthMasterKey},
+				   length($this->{AuthMasterKey}),
+				   $this->{PrivMasterKey},
+				   length($this->{PrivMasterKey}),
+				   $this->{AuthLocalizedKey},
+				   length($this->{AuthLocalizedKey}),
+				   $this->{PrivLocalizedKey},
+				   length($this->{PrivLocalizedKey}),
+				  );
+       }
    }
    unless ($this->{SessPtr}) {
        warn("unable to create session") if $SNMP::verbose;
@@ -694,7 +766,7 @@ sub gettable {
 	    if ($parse_indexes) {
 		# get indexes
 		my @indexes =
-		  @{$SNMP::MIB{$textnode}{'children'}[0]{'indexes'} || [] };
+		  @{$SNMP::MIB{$textnode}{'children'}[0]{'indexes'} || []};
 		# quick translate into a hash
 		map { $indexes{$_} = 1; } @indexes;
 	    }
@@ -711,7 +783,7 @@ sub gettable {
 		# least one column.  We pick the last.
 		push @{$state->{'columns'}}, $root_oid . ".1." .
 		  $children->[$#$children]{'subID'}
-		  if ref($state) eq 'HASH' and ref($children) eq 'HASH';
+		  if ref($state) eq 'HASH' and ref($children) eq 'ARRAY';
 	    }
 	}
     } else {
@@ -754,6 +826,10 @@ sub gettable {
 	# 26.  Again, being safe.  Then devide by the number of
 	# varbinds.
 	$state->{'repeatcount'} = int(1000 / 36 / ($#{$state->{'varbinds'}} + 1));
+    }
+    # Make sure we run at least once
+    if ($state->{'repeatcount'} < 1) {
+	$state->{'repeatcount'} = 1;
     }
 
     #
@@ -944,10 +1020,10 @@ sub fget {
    SNMP::_get($this, $this->{RetryNoSuch}, $varbind_list_ref, $cb);
 
    foreach my $varbind (@$varbind_list_ref) {
-     my $sub = $this->{VarFormats}{$varbind->[$SNMP::Varbind::tag_f]} ||
-	 $this->{TypeFormats}{$varbind->[$SNMP::Varbind::type_f]};
+     my $sub = $this->{VarFormats}{SNMP::Varbind::tag($varbind)} ||
+	      $this->{TypeFormats}{SNMP::Varbind::type($varbind)};
      &$sub($varbind) if defined $sub;
-     push(@res, $varbind->[$SNMP::Varbind::val_f]);
+     push(@res, SNMP::Varbind::val($varbind));
    }
 
    return(wantarray() ? @res : $res[0]);
@@ -997,10 +1073,10 @@ sub fgetnext {
    SNMP::_getnext($this, $varbind_list_ref, $cb);
 
    foreach my $varbind (@$varbind_list_ref) {
-     my $sub = $this->{VarFormats}{$varbind->[$SNMP::Varbind::tag_f]} ||
-	 $this->{TypeFormats}{$varbind->[$SNMP::Varbind::type_f]};
+     my $sub = $this->{VarFormats}{SNMP::Varbind::tag($varbind)} ||
+	      $this->{TypeFormats}{SNMP::Varbind::type($varbind)};
      &$sub($varbind) if defined $sub;
-     push(@res, $varbind->[$SNMP::Varbind::val_f]);
+     push(@res, SNMP::Varbind::val($varbind));
    }
 
    return(wantarray() ? @res : $res[0]);
@@ -1183,11 +1259,11 @@ sub new {
 
 package SNMP::Varbind;
 
-my $tag_f = 0;
-my $iid_f = 1;
-my $val_f = 2;
-my $type_f = 3;
-my $time_f = 4;
+$SNMP::Varbind::tag_f = 0;
+$SNMP::Varbind::iid_f = 1;
+$SNMP::Varbind::val_f = 2;
+$SNMP::Varbind::type_f = 3;
+$SNMP::Varbind::time_f = 4;
 
 sub new {
    my $type = shift;
@@ -1197,27 +1273,27 @@ sub new {
 }
 
 sub tag {
-  $_[0]->[$tag_f];
+  $_[0]->[$SNMP::Varbind::tag_f];
 }
 
 sub iid {
-  $_[0]->[$iid_f];
+  $_[0]->[$SNMP::Varbind::iid_f];
 }
 
 sub val {
-  $_[0]->[$val_f];
+  $_[0]->[$SNMP::Varbind::val_f];
 }
 
 sub type {
-  $_[0]->[$type_f];
+  $_[0]->[$SNMP::Varbind::type_f];
 }
 
 sub name {
-   if (defined($_[0]->[$iid_f]) && ($_[0]->[$iid_f] =~ m/^[0-9]+$/)) {
-      return $_[0]->[$tag_f] . "." . $_[0]->[$iid_f];
+   if (defined($_[0]->[$SNMP::Varbind::iid_f]) && ($_[0]->[$SNMP::Varbind::iid_f] =~ m/^[0-9]+$/)) {
+      return $_[0]->[$SNMP::Varbind::tag_f] . "." . $_[0]->[$SNMP::Varbind::iid_f];
    }
 
-   return $_[0]->[$tag_f];
+   return $_[0]->[$SNMP::Varbind::tag_f];
 }
 
 sub fmt {
@@ -1343,6 +1419,7 @@ my %node_elements =
      parent => 0,   # parent node
      children => 0, # array reference of children nodes
      indexes => 0,  # returns array of column labels
+     implied => 0,  # boolean: is the last index IMPLIED
      varbinds => 0, # returns array of trap/notification varbinds
      nextNode => 0, # next lexico node (BUG! does not return in lexico order)
      type => 0,     # returns simple type (see getType for values)
@@ -1462,7 +1539,7 @@ init_snmp properly, which means it will read configuration files and
 use those defaults where appropriate automatically parse MIB files,
 etc.  This will likely affect your perl applications if you have, for
 instance, default values set up in your snmp.conf file (as the perl
-module will now make use of those defaults).  The docmuentation,
+module will now make use of those defaults).  The documentation,
 however, has sadly not been updated yet (aside from this note), nor is
 the read_config default usage implementation fully complete.
 
@@ -1473,7 +1550,7 @@ aspects of a connection between the management application and the
 managed agent. Internally the class is implemented as a blessed hash
 reference. This class supplies 'get', 'getnext', 'set', 'fget', and
 'fgetnext' method calls. The methods take a variety of input argument
-formats and support both syncronous and asyncronous operation through
+formats and support both synchronous and asynchronous operation through
 a polymorphic API (i.e., method behaviour varies dependent on args
 passed - see below).
 
@@ -1483,76 +1560,147 @@ $sess = new SNMP::Session(DestHost => 'host', ...)
 
 The following arguments may be passed to new as a hash.
 
+=head2 Basic Options
+
 =over 4
 
 =item DestHost
 
-default 'localhost', hostname or ip addr of SNMP agent
+Hostname or IP address of the SNMP agent you want to talk to.
+Specified in Net-SNMP formatted agent addresses.  These addresses
+typically look like one of the following:
 
-=item Community
+  localhost
+  tcp:localhost
+  tls:localhost
+  tls:localhost:9876
+  udp6:[::1]:9876
+  unix:/some/path/to/file/socket
 
-default 'public', SNMP community string (used for both R/W)
+Defaults to 'localhost'.
 
 =item Version
 
-default taken from library configuration - probably 3 [1, 2 (same as 2c), 2c, 3]
+SNMP version to use.
 
-=item RemotePort
-
-default '161', allow remote UDP port to be overriden
+The default is taken from library configuration - probably 3 [1, 2
+(same as 2c), 2c, 3].
 
 =item Timeout
 
-default '1000000', micro-seconds before retry
+The number of micro-seconds to wait before resending a request.
+
+The default is '1000000'
 
 =item Retries
 
-default '5', retries before failure
+The number of times to retry a request.
+
+The default is '5'
 
 =item RetryNoSuch
 
-default '0', if enabled NOSUCH errors in 'get' pdus will
+If enabled NOSUCH errors in 'get' pdus will
 be repaired, removing the varbind in error, and resent -
 undef will be returned for all NOSUCH varbinds, when set
 to '0' this feature is disabled and the entire get request
 will fail on any NOSUCH error (applies to v1 only)
 
+The default is '0'.
+
+=back
+
+=head2 SNMPv3/TLS Options
+
+=over
+
+=item OurIdentity
+
+Our X.509 identity to use, which should either be a fingerprint or the
+filename that holds the certificate.
+
+=item TheirIdentity
+
+The remote server's identity to connect to, specified as eihter a
+fingerprint or a file name.  Either this must be specified, or the
+hostname below along with a trust anchor.
+
+=item TheirHostname
+
+The remote server's hostname that is expected.  If their certificate
+was signed by a CA then their hostname presented in the certificate
+must match this value or the connection fails to be established (to
+avoid man-in-the-middle attacks).
+
+=item TrustCert
+
+A trusted certificate to use a trust anchor (like a CA certificate)
+for verifying a remote server's certificate.  If a CA certificate is
+used to validate a certificate then the TheirHostname parameter must
+also be specified to ensure their presente hostname in the certificate
+matches.
+
+=back
+
+=head2 SNMPv3/USM Options
+
+=over
+
 =item SecName
 
-default 'initial', security name (v3)
+The SNMPv3 security name to use (most for SNMPv3 with USM).
+
+The default is 'initial'.
 
 =item SecLevel
 
-default 'noAuthNoPriv', security level [noAuthNoPriv,
-authNoPriv, authPriv] (v3)
+The SNMPv3 security level to use [noAuthNoPriv, authNoPriv, authPriv] (v3)
+
+The default is 'noAuthNoPriv'.
 
 =item SecEngineId
 
-default <none>, security engineID, will be probed if not
+The SNMPv3 security engineID to use (if the snmpv3 security model
+needs it; for example USM).
+
+The default is <none>, security engineID and it will be probed if not
 supplied (v3)
 
 =item ContextEngineId
 
-default <SecEngineId>, context engineID, will be
-probed if not supplied (v3)
+The SNMPv3 context engineID to use.
+
+The default is the <none> and will be set either to the SecEngineId
+value if set or discovered or will be discovered in other ways if
+using TLS (RFC5343 based discovery).
 
 =item Context
 
-default '', context name (v3)
+The SNMPv3 context name to use.
+
+The default is '' (an empty string)
 
 =item AuthProto
 
-default 'MD5', authentication protocol [MD5, SHA] (v3)
+The SNMPv3/USM authentication protocol to use [MD5, SHA].
+
+The default is 'MD5'.
 
 =item AuthPass
+
+The SNMPv3/USM authentication passphrase to use.
 
 default <none>, authentication passphrase
 
 =item PrivProto
 
-default 'DES', privacy protocol [DES, AES] (v3)
+The SNMPv3/USM privacy protocol to use [DES, AES].
+
+The default is 'DES'.
 
 =item PrivPass
+
+The SNMPv3/USM privacy passphrase to use.
 
 default <none>, privacy passphrase (v3)
 
@@ -1566,6 +1714,20 @@ default <none>, privacy passphrase (v3)
 
 Directly specified SNMPv3 USM user keys (used if you want to specify
 the keys instead of deriving them from a password as above).
+
+=back
+
+=head2 SNMPv1 and SNMPv2c Options
+
+=item Community
+
+For SNMPv1 and SNMPv2c, the clear-text community name to use.
+
+The default is 'public'.
+
+=head2 Other Configuration Options
+
+=over
 
 =item VarFormats
 
@@ -1660,6 +1822,11 @@ internal field used to hold the translated DestHost field
 
 internal field used to cache a created session structure
 
+=item RemotePort
+
+Obsolete.  Please use the DestHost specifier to indicate the hostname
+and port combination instead of this paramet.
+
 =back
 
 =head2 SNMP::Session methods
@@ -1678,7 +1845,7 @@ do SNMP GET, multiple <vars> formats accepted.
 for syncronous operation <vars> will be updated
 with value(s) and type(s) and will also return
 retrieved value(s). If <callback> supplied method
-will operate asyncronously
+will operate asynchronously
 
 =item $sess->fget(E<lt>varsE<gt> [,E<lt>callbackE<gt>])
 
@@ -1695,7 +1862,7 @@ and <type>
 
 Note: simple string <vars>,(e.g., 'sysDescr.0')
 form is not updated. If <callback> supplied method
-will operate asyncronously
+will operate asynchronously
 
 =item $sess->fgetnext(E<lt>varsE<gt> [,E<lt>callbackE<gt>])
 
@@ -1711,7 +1878,7 @@ format (i.e., well known format) to ensure unambiguous
 translation to SNMP MIB data value (see discussion of
 canonical value format <vars> description section),
 returns snmp_errno. If <callback> supplied method
-will operate asyncronously
+will operate asynchronously
 
 =item $sess->getbulk(E<lt>non-repeatersE<gt>, E<lt>max-repeatersE<gt>, E<lt>varsE<gt>)
 
@@ -1828,7 +1995,7 @@ collect all the columns defined in the MIB table.
 Specifies a GETBULK repeat I<COUNT>.  IE, it will request this many
 varbinds back per column when using the GETBULK operation.  Shortening
 this will mean smaller packets which may help going through some
-systems.  By default, this value is calculated and attepmts to guess
+systems.  By default, this value is calculated and attempts to guess
 at what will fit all the results into 1000 bytes.  This calculation is
 fairly safe, hopefully, but you can either raise or lower the number
 using this option if desired.  In lossy networks, you want to make
@@ -1840,7 +2007,7 @@ one way to help that.
 Force the use of GETNEXT rather than GETBULK.  (always true for
 SNMPv1, as it doesn't have GETBULK anyway).  Some agents are great
 implementers of GETBULK and this allows you to force the use of
-GETNEXT oprations instead.
+GETNEXT operations instead.
 
 =item callback => \&subroutine
 
@@ -1858,7 +2025,7 @@ which are passed to getnext/getbulk as appropriate.
 
 Note 2: callback support is only available in the SNMP module version
 5.04 and above.  To test for this in code intending to support both
-versions prior to 5.04 and and 5.04 and up, the following should work:
+versions prior to 5.04 and 5.04 and up, the following should work:
 
   if ($response = $sess->gettable('ifTable', callback => \&my_sub)) {
       # got a response, gettable doesn't support callback
@@ -1866,7 +2033,7 @@ versions prior to 5.04 and and 5.04 and up, the following should work:
       $no_mainloop = 1;
   }
 
-Deciding on whether to use SNMP::MainLoop is left as an excersize to
+Deciding on whether to use SNMP::MainLoop is left as an exercise to
 the reader since it depends on whether your code uses other callbacks
 as well.
 
@@ -2081,9 +2248,9 @@ will be undef.
 to be used with async SNMP::Session
 calls. MainLoop must be called after initial async calls
 so return packets from the agent will not be processed.
-If no args suplied this function enters an infinite loop
+If no args supplied this function enters an infinite loop
 so program must be exited in a callback or externally
-interupted. If <timeout(sic)
+interrupted. If <timeout(sic)
 
 =item &SNMP::finish()
 
@@ -2165,7 +2332,7 @@ initialization
 
 =item $SNMP::debugging
 
-default '0', controlls debugging output level
+default '0', controls debugging output level
 within SNMP module and libsnmp
 
 =over
@@ -2188,6 +2355,12 @@ level 2 plus snmp_set_dump_packet(1)
 
 default '0', set [non-]zero to independently set
 snmp_set_dump_packet()
+
+=item SNMP::register_debug_tokens()
+
+Allows to register one or more debug tokens, just like the -D option of snmpd.
+Each debug token enables a group of debug statements. An example:
+SNMP::register_debug_tokens("tdomain,netsnmp_unix");
 
 =back
 
@@ -2285,6 +2458,14 @@ be set prior to MIB initialization/parsing)
 
 returns the REFERENCE clause
 
+=item indexes
+
+returns the objects in the INDEX clause
+
+=item implied
+
+returns true if the last object in the INDEX is IMPLIED
+
 =back
 
 =head1 MIB Functions
@@ -2294,7 +2475,7 @@ returns the REFERENCE clause
 =item &SNMP::setMib(<file>)
 
 allows dynamic parsing of the mib and explicit
-specification of mib file independent of enviroment
+specification of mib file independent of environment
 variables. called with no args acts like initMib,
 loading MIBs indicated by environment variables (see
 Net-SNMP mib_api docs). passing non-zero second arg

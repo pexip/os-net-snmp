@@ -15,8 +15,11 @@
  */
 
 #include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-features.h>
 
-#if defined(IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && !defined(IFNET_NEEDS_KERNEL_LATE)
+netsnmp_feature_provide(interface_legacy)
+
+#if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && !defined(NETSNMP_IFNET_NEEDS_KERNEL_LATE)
 #define _KERNEL 1
 #define _I_DEFINED_KERNEL
 #endif
@@ -37,10 +40,7 @@
 #include <sys/param.h>
 #endif
 #include <sys/types.h>
-#if HAVE_WINSOCK_H
-#include <winsock.h>
-#endif
-#if defined(IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && defined(IFNET_NEEDS_KERNEL_LATE)
+#if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && defined(NETSNMP_IFNET_NEEDS_KERNEL_LATE)
 #define _KERNEL 1
 #define _I_DEFINED_KERNEL
 #endif
@@ -57,11 +57,7 @@
 #endif
 
 #if TIME_WITH_SYS_TIME
-# if defined (WIN32) || defined (cygwin)
-#  include <sys/timeb.h>
-# else
 # include <sys/time.h>
-# endif
 # include <time.h>
 #else
 # if HAVE_SYS_TIME_H
@@ -197,49 +193,78 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/auto_nlist.h>
+#include <net-snmp/agent/sysORTable.h>
 #include <net-snmp/data_access/interface.h>
 
 #include "interfaces.h"
 #include "struct.h"
-#include "util_funcs.h"
-#include "sysORTable.h"
+#include "util_funcs/header_generic.h"
 
-/* if you want caching enabled for speed retrival purposes, set this to 5?*/
+/* if you want caching enabled for speed retrieval purposes, set this to 5?*/
 #define MINLOADFREQ 0                     /* min reload frequency in seconds */
 #ifdef linux
 static unsigned long LastLoad = 0;        /* ET in secs at last table load */
 #endif
 
-extern struct timeval starttime;
+#define starttime (*(const struct timeval*)netsnmp_get_agent_starttime())
 
 struct variable3 interfaces_variables[] = {
-    {IFNUMBER, ASN_INTEGER, RONLY, var_interfaces, 1, {1}},
-    {IFINDEX, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 1}},
-    {IFDESCR, ASN_OCTET_STR, RONLY, var_ifEntry, 3, {2, 1, 2}},
-    {NETSNMP_IFTYPE, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 3}},
-    {IFMTU, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 4}},
-    {IFSPEED, ASN_GAUGE, RONLY, var_ifEntry, 3, {2, 1, 5}},
-    {IFPHYSADDRESS, ASN_OCTET_STR, RONLY, var_ifEntry, 3, {2, 1, 6}},
+    {NETSNMP_IFNUMBER, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_interfaces, 1, {1}},
+    {NETSNMP_IFINDEX, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 1}},
+    {NETSNMP_IFDESCR, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 2}},
+    {NETSNMP_IFTYPE, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 3}},
+    {NETSNMP_IFMTU, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 4}},
+    {NETSNMP_IFSPEED, ASN_GAUGE, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 5}},
+    {NETSNMP_IFPHYSADDRESS, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 6}},
+#ifndef NETSNMP_NO_WRITE_SUPPORT
 #if defined (WIN32) || defined (cygwin)
-    {IFADMINSTATUS, ASN_INTEGER, RWRITE, var_ifEntry, 3, {2, 1, 7}},
+    {NETSNMP_IFADMINSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+     var_ifEntry, 3, {2, 1, 7}},
 #else
-    {IFADMINSTATUS, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 7}},
+    {NETSNMP_IFADMINSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 7}},
 #endif
-    {IFOPERSTATUS, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 8}},
-    {IFLASTCHANGE, ASN_TIMETICKS, RONLY, var_ifEntry, 3, {2, 1, 9}},
-    {IFINOCTETS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 10}},
-    {IFINUCASTPKTS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 11}},
-    {IFINNUCASTPKTS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 12}},
-    {IFINDISCARDS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 13}},
-    {IFINERRORS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 14}},
-    {IFINUNKNOWNPROTOS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 15}},
-    {IFOUTOCTETS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 16}},
-    {IFOUTUCASTPKTS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 17}},
-    {IFOUTNUCASTPKTS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 18}},
-    {IFOUTDISCARDS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 19}},
-    {IFOUTERRORS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 20}},
-    {IFOUTQLEN, ASN_GAUGE, RONLY, var_ifEntry, 3, {2, 1, 21}},
-    {IFSPECIFIC, ASN_OBJECT_ID, RONLY, var_ifEntry, 3, {2, 1, 22}}
+#else  /* !NETSNMP_NO_WRITE_SUPPORT */
+    {NETSNMP_IFADMINSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 7}},
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */
+    {NETSNMP_IFOPERSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 8}},
+    {NETSNMP_IFLASTCHANGE, ASN_TIMETICKS, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 9}},
+    {NETSNMP_IFINOCTETS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 10}},
+    {NETSNMP_IFINUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 11}},
+    {NETSNMP_IFINNUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 12}},
+    {NETSNMP_IFINDISCARDS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 13}},
+    {NETSNMP_IFINERRORS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 14}},
+    {NETSNMP_IFINUNKNOWNPROTOS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 15}},
+    {NETSNMP_IFOUTOCTETS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 16}},
+    {NETSNMP_IFOUTUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 17}},
+    {NETSNMP_IFOUTNUCASTPKTS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 18}},
+    {NETSNMP_IFOUTDISCARDS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 19}},
+    {NETSNMP_IFOUTERRORS, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 20}},
+    {NETSNMP_IFOUTQLEN, ASN_GAUGE, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 21}},
+    {NETSNMP_IFSPECIFIC, ASN_OBJECT_ID, NETSNMP_OLDAPI_RONLY,
+     var_ifEntry, 3, {2, 1, 22}}
 };
 
 /*
@@ -385,7 +410,7 @@ var_interfaces(struct variable * vp,
         return NULL;
 
     switch (vp->magic) {
-    case IFNUMBER:
+    case NETSNMP_IFNUMBER:
         long_return = Interface_Scan_Get_Count();
         return (u_char *) & long_return;
     default:
@@ -438,10 +463,8 @@ Interface_Scan_By_Index(int iindex,
                     a = get_address(ifp + 1, ifp->ifm_addrs, RTA_IFP);
                     if (a == NULL)
                         return 0;
-                    strncpy(if_name,
-                            ((const struct sockaddr_in *) a)->sin_zero,
-                            ((const u_char *) a)[5]);
-                    if_name[((const u_char *) a)[5]] = 0;
+                    sprintf(if_name, "%.*s", ((const u_char *) a)[5],
+                            ((const struct sockaddr_in *) a)->sin_zero);
                     *if_msg = *ifp;
                     ++have_ifinfo;
                 }
@@ -574,10 +597,10 @@ var_ifEntry(struct variable *vp,
     if_ptr = netsnmp_access_interface_entry_overrides_get(if_name);
 
     switch (vp->magic) {
-    case IFINDEX:
+    case NETSNMP_IFINDEX:
         long_return = interface;
         return (u_char *) & long_return;
-    case IFDESCR:
+    case NETSNMP_IFDESCR:
         cp = if_name;
         *var_len = strlen(if_name);
         return (u_char *) cp;
@@ -587,14 +610,14 @@ var_ifEntry(struct variable *vp,
         else
         long_return = (long) if_msg.ifm_data.ifi_type;
         return (u_char *) & long_return;
-    case IFMTU:
+    case NETSNMP_IFMTU:
         long_return = (long) if_msg.ifm_data.ifi_mtu;
         return (u_char *) & long_return;
-    case IFSPEED:
+    case NETSNMP_IFSPEED:
         if (if_ptr)
             long_return = if_ptr->speed;
         else {
-#if STRUCT_IFNET_HAS_IF_BAUDRATE_IFS_VALUE
+#if HAVE_STRUCT_IFNET_IF_BAUDRATE_IFS_VALUE
         long_return = (u_long) if_msg.ifm_data.ifi_baudrate.ifs_value <<
             if_msg.ifm_data.ifi_baudrate.ifs_log2;
 #else
@@ -602,52 +625,52 @@ var_ifEntry(struct variable *vp,
 #endif
         }
         return (u_char *) & long_return;
-    case IFPHYSADDRESS:
+    case NETSNMP_IFPHYSADDRESS:
         /*
          * XXX 
          */
         return NULL;
-    case IFADMINSTATUS:
+    case NETSNMP_IFADMINSTATUS:
         long_return = if_msg.ifm_flags & IFF_UP ? 1 : 2;
         return (u_char *) & long_return;
-    case IFOPERSTATUS:
+    case NETSNMP_IFOPERSTATUS:
         long_return = if_msg.ifm_flags & IFF_RUNNING ? 1 : 2;
         return (u_char *) & long_return;
         /*
          * ifLastChange 
          */
-    case IFINOCTETS:
+    case NETSNMP_IFINOCTETS:
         long_return = (u_long) if_msg.ifm_data.ifi_ibytes;
         return (u_char *) & long_return;
-    case IFINUCASTPKTS:
+    case NETSNMP_IFINUCASTPKTS:
         long_return =
             (u_long) if_msg.ifm_data.ifi_ipackets -
             if_msg.ifm_data.ifi_imcasts;
         return (u_char *) & long_return;
-    case IFINNUCASTPKTS:
+    case NETSNMP_IFINNUCASTPKTS:
         long_return = (u_long) if_msg.ifm_data.ifi_imcasts;
         return (u_char *) & long_return;
-    case IFINDISCARDS:
+    case NETSNMP_IFINDISCARDS:
         long_return = (u_long) if_msg.ifm_data.ifi_iqdrops;
         return (u_char *) & long_return;
-    case IFINERRORS:
+    case NETSNMP_IFINERRORS:
         long_return = (u_long) if_msg.ifm_data.ifi_ierrors;
         return (u_char *) & long_return;
-    case IFINUNKNOWNPROTOS:
+    case NETSNMP_IFINUNKNOWNPROTOS:
         long_return = (u_long) if_msg.ifm_data.ifi_noproto;
         return (u_char *) & long_return;
-    case IFOUTOCTETS:
+    case NETSNMP_IFOUTOCTETS:
         long_return = (u_long) if_msg.ifm_data.ifi_obytes;
         return (u_char *) & long_return;
-    case IFOUTUCASTPKTS:
+    case NETSNMP_IFOUTUCASTPKTS:
         long_return =
             (u_long) if_msg.ifm_data.ifi_opackets -
             if_msg.ifm_data.ifi_omcasts;
         return (u_char *) & long_return;
-    case IFOUTNUCASTPKTS:
+    case NETSNMP_IFOUTNUCASTPKTS:
         long_return = (u_long) if_msg.ifm_data.ifi_omcasts;
         return (u_char *) & long_return;
-    case IFOUTDISCARDS:
+    case NETSNMP_IFOUTDISCARDS:
 #ifdef if_odrops
         long_return = (u_long) if_msg.ifm_data.ifi_odrops;
 #else
@@ -657,15 +680,20 @@ var_ifEntry(struct variable *vp,
         long_return = 0;
 #endif
         return (u_char *) & long_return;
-    case IFOUTERRORS:
+    case NETSNMP_IFOUTERRORS:
         long_return = (u_long) if_msg.ifm_data.ifi_oerrors;
         return (u_char *) & long_return;
-    case IFLASTCHANGE:
+    case NETSNMP_IFLASTCHANGE:
 #ifdef irix6
         long_return = 0;
 #else
         if (if_msg.ifm_data.ifi_lastchange.tv_sec == 0 &&
-            if_msg.ifm_data.ifi_lastchange.tv_usec == 0)
+#if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_NSEC
+            if_msg.ifm_data.ifi_lastchange.tv_nsec == 0
+#else
+            if_msg.ifm_data.ifi_lastchange.tv_usec == 0
+#endif
+           )
             long_return = 0;
         else if (if_msg.ifm_data.ifi_lastchange.tv_sec < starttime.tv_sec)
             long_return = 0;
@@ -673,8 +701,13 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long)
                 ((if_msg.ifm_data.ifi_lastchange.tv_sec -
                   starttime.tv_sec) * 100 +
-                 (if_msg.ifm_data.ifi_lastchange.tv_usec -
-                  starttime.tv_usec) / 10000);
+                 (
+#if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_NSEC
+                  if_msg.ifm_data.ifi_lastchange.tv_nsec / 1000
+#else
+                  if_msg.ifm_data.ifi_lastchange.tv_usec
+#endif
+                  - starttime.tv_usec) / 10000);
         }
 #endif
         return (u_char *) & long_return;
@@ -685,6 +718,14 @@ var_ifEntry(struct variable *vp,
 
 int
 Interface_Scan_Next(short *Index,
+                    char *Name,
+                    struct ifnet *Retifnet, struct in_ifaddr *Retin_ifaddr)
+{
+    return 0;
+}
+
+int
+Interface_Scan_NextInt(int *Index,
                     char *Name,
                     struct ifnet *Retifnet, struct in_ifaddr *Retin_ifaddr)
 {
@@ -736,7 +777,7 @@ var_ifEntry(struct variable *vp,
     static char     Name[16];
     char           *cp;
     conf_if_list   *if_ptr;
-#if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_SEC
+#if HAVE_STRUCT_IFNET_IF_LASTCHANGE_TV_SEC
     struct timeval  now;
 #endif
 
@@ -749,10 +790,10 @@ var_ifEntry(struct variable *vp,
     if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
 
     switch (vp->magic) {
-    case IFINDEX:
+    case NETSNMP_IFINDEX:
         long_return = interface;
         return (u_char *) & long_return;
-    case IFDESCR:
+    case NETSNMP_IFDESCR:
         cp = Name;
         *var_len = strlen(cp);
         return (u_char *) cp;
@@ -760,26 +801,26 @@ var_ifEntry(struct variable *vp,
         if (if_ptr)
             long_return = if_ptr->type;
         else {
-#if STRUCT_IFNET_HAS_IF_TYPE
+#if HAVE_STRUCT_IFNET_IF_TYPE
             long_return = ifnet.if_type;
 #else
             long_return = 1;    /* OTHER */
 #endif
         }
         return (u_char *) & long_return;
-    case IFMTU:{
+    case NETSNMP_IFMTU:{
             long_return = (long) ifnet.if_mtu;
             return (u_char *) & long_return;
         }
-    case IFSPEED:
+    case NETSNMP_IFSPEED:
         if (if_ptr)
             long_return = if_ptr->speed;
         else {
-#if STRUCT_IFNET_HAS_IF_BAUDRATE
+#if HAVE_STRUCT_IFNET_IF_BAUDRATE
             long_return = ifnet.if_baudrate;
-#elif STRUCT_IFNET_HAS_IF_SPEED
+#elif HAVE_STRUCT_IFNET_IF_SPEED
             long_return = ifnet.if_speed;
-#elif STRUCT_IFNET_HAS_IF_TYPE && defined(IFT_ETHER)
+#elif HAVE_STRUCT_IFNET_IF_TYPE && defined(IFT_ETHER)
             if (ifnet.if_type == IFT_ETHER)
                 long_return = 10000000;
             if (ifnet.if_type == IFT_P10)
@@ -798,9 +839,9 @@ var_ifEntry(struct variable *vp,
 #endif
         }
         return (u_char *) & long_return;
-    case IFPHYSADDRESS:
+    case NETSNMP_IFPHYSADDRESS:
         Interface_Get_Ether_By_Index(interface, return_buf);
-#if defined(aix4) || defined(aix5) || defined(aix6)
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
 	*var_len = 0;
 #else
         if ((return_buf[0] == 0) && (return_buf[1] == 0) &&
@@ -811,14 +852,14 @@ var_ifEntry(struct variable *vp,
             *var_len = 6;
 #endif
         return (u_char *) return_buf;
-    case IFADMINSTATUS:
+    case NETSNMP_IFADMINSTATUS:
         long_return = ifnet.if_flags & IFF_UP ? 1 : 2;
         return (u_char *) & long_return;
-    case IFOPERSTATUS:
+    case NETSNMP_IFOPERSTATUS:
         long_return = ifnet.if_flags & IFF_RUNNING ? 1 : 2;
         return (u_char *) & long_return;
-    case IFLASTCHANGE:
-#if defined(STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_SEC) && !(defined(freebsd2) && __FreeBSD_version < 199607)
+    case NETSNMP_IFLASTCHANGE:
+#if defined(HAVE_STRUCT_IFNET_IF_LASTCHANGE_TV_SEC) && !(defined(freebsd2) && __FreeBSD_version < 199607)
         /*
          * XXX - SNMP's ifLastchange is time when op. status changed
          * * FreeBSD's if_lastchange is time when packet was input or output
@@ -847,9 +888,9 @@ var_ifEntry(struct variable *vp,
         long_return = 0;        /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINOCTETS:
-#ifdef STRUCT_IFNET_HAS_IF_IBYTES
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFINOCTETS:
+#ifdef HAVE_STRUCT_IFNET_IF_IBYTES
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_ibytes & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_ibytes;
@@ -861,15 +902,15 @@ var_ifEntry(struct variable *vp,
         long_return = (u_long) ifnet.if_ipackets * 308; /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINUCASTPKTS:
+    case NETSNMP_IFINUCASTPKTS:
         {
-#if defined(aix4) || defined(aix5) || defined(aix6)
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
             long_return = (u_long) ifnet.if_ipackets & 0xffffffff;
 #else
             long_return = (u_long) ifnet.if_ipackets;
 #endif
-#if STRUCT_IFNET_HAS_IF_IMCASTS
-#if defined(aix4) || defined(aix5) || defined(aix6)
+#if HAVE_STRUCT_IFNET_IF_IMCASTS
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
             long_return -= (u_long) ifnet.if_imcasts & 0xffffffff;
 #else
             long_return -= (u_long) ifnet.if_imcasts;
@@ -877,9 +918,9 @@ var_ifEntry(struct variable *vp,
 #endif
         }
         return (u_char *) & long_return;
-    case IFINNUCASTPKTS:
-#if STRUCT_IFNET_HAS_IF_IMCASTS
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFINNUCASTPKTS:
+#if HAVE_STRUCT_IFNET_IF_IMCASTS
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_imcasts & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_imcasts;
@@ -891,9 +932,9 @@ var_ifEntry(struct variable *vp,
         long_return = (u_long) 0;       /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINDISCARDS:
-#if STRUCT_IFNET_HAS_IF_IQDROPS
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFINDISCARDS:
+#if HAVE_STRUCT_IFNET_IF_IQDROPS
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_iqdrops & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_iqdrops;
@@ -905,16 +946,16 @@ var_ifEntry(struct variable *vp,
         long_return = (u_long) 0;       /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINERRORS:
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFINERRORS:
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_ierrors & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_ierrors;
 #endif
         return (u_char *) & long_return;
-    case IFINUNKNOWNPROTOS:
-#if STRUCT_IFNET_HAS_IF_NOPROTO
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFINUNKNOWNPROTOS:
+#if HAVE_STRUCT_IFNET_IF_NOPROTO
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_noproto & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_noproto;
@@ -926,9 +967,9 @@ var_ifEntry(struct variable *vp,
         long_return = (u_long) 0;       /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFOUTOCTETS:
-#ifdef STRUCT_IFNET_HAS_IF_OBYTES
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFOUTOCTETS:
+#ifdef HAVE_STRUCT_IFNET_IF_OBYTES
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_obytes & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_obytes;
@@ -940,15 +981,15 @@ var_ifEntry(struct variable *vp,
         long_return = (u_long) ifnet.if_opackets * 308; /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFOUTUCASTPKTS:
+    case NETSNMP_IFOUTUCASTPKTS:
         {
-#if defined(aix4) || defined(aix5) || defined(aix6)
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
             long_return = (u_long) ifnet.if_opackets & 0xffffffff;
 #else
             long_return = (u_long) ifnet.if_opackets;
 #endif
-#if STRUCT_IFNET_HAS_IF_OMCASTS
-#if defined(aix4) || defined(aix5) || defined(aix6)
+#if HAVE_STRUCT_IFNET_IF_OMCASTS
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
             long_return -= (u_long) ifnet.if_omcasts & 0xffffffff;
 #else
             long_return -= (u_long) ifnet.if_omcasts;
@@ -956,9 +997,9 @@ var_ifEntry(struct variable *vp,
 #endif
         }
         return (u_char *) & long_return;
-    case IFOUTNUCASTPKTS:
-#if STRUCT_IFNET_HAS_IF_OMCASTS
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFOUTNUCASTPKTS:
+#if HAVE_STRUCT_IFNET_IF_OMCASTS
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = (u_long) ifnet.if_omcasts & 0xffffffff;
 #else
         long_return = (u_long) ifnet.if_omcasts;
@@ -970,28 +1011,28 @@ var_ifEntry(struct variable *vp,
         long_return = (u_long) 0;       /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFOUTDISCARDS:
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFOUTDISCARDS:
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = ifnet.if_snd.ifq_drops & 0xffffffff;
 #else
         long_return = ifnet.if_snd.ifq_drops;
 #endif
         return (u_char *) & long_return;
-    case IFOUTERRORS:
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFOUTERRORS:
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = ifnet.if_oerrors & 0xffffffff;
 #else
         long_return = ifnet.if_oerrors;
 #endif
         return (u_char *) & long_return;
-    case IFOUTQLEN:
-#if defined(aix4) || defined(aix5) || defined(aix6)
+    case NETSNMP_IFOUTQLEN:
+#if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         long_return = ifnet.if_snd.ifq_len & 0xffffffff;
 #else
         long_return = ifnet.if_snd.ifq_len;
 #endif
         return (u_char *) & long_return;
-    case IFSPECIFIC:
+    case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
         return (u_char *) nullOid;
     default:
@@ -1024,7 +1065,7 @@ var_ifEntry(struct variable *vp,
     static char     Name[16];
 #endif
     register char  *cp;
-#if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_SEC
+#if HAVE_STRUCT_IFNET_IF_LASTCHANGE_TV_SEC
     struct timeval  now;
 #endif
 #if !defined(hpux11)
@@ -1067,10 +1108,10 @@ var_ifEntry(struct variable *vp,
     if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
 
     switch (vp->magic) {
-    case IFINDEX:
+    case NETSNMP_IFINDEX:
         long_return = interface;
         return (u_char *) & long_return;
-    case IFDESCR:
+    case NETSNMP_IFDESCR:
 #if defined(hpux11)
         cp = ifnet.if_entry.ifDescr;
 #else
@@ -1095,7 +1136,7 @@ var_ifEntry(struct variable *vp,
 #endif
         }
         return (u_char *) & long_return;
-    case IFMTU:{
+    case NETSNMP_IFMTU:{
 #if defined(hpux11)
             long_return = (long) ifnet.if_entry.ifMtu;
 #else
@@ -1103,7 +1144,7 @@ var_ifEntry(struct variable *vp,
 #endif
             return (u_char *) & long_return;
         }
-    case IFSPEED:
+    case NETSNMP_IFSPEED:
         if (if_ptr)
             long_return = if_ptr->speed;
         else {
@@ -1117,7 +1158,7 @@ var_ifEntry(struct variable *vp,
 #endif
         }
         return (u_char *) & long_return;
-    case IFPHYSADDRESS:
+    case NETSNMP_IFPHYSADDRESS:
 #if defined(hpux11)
         *var_len = ifnet.if_entry.ifPhysAddress.o_length;
         return (u_char *) ifnet.if_entry.ifPhysAddress.o_bytes;
@@ -1131,21 +1172,21 @@ var_ifEntry(struct variable *vp,
             *var_len = 6;
         return (u_char *) return_buf;
 #endif
-    case IFADMINSTATUS:
+    case NETSNMP_IFADMINSTATUS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifAdmin;
 #else
         long_return = ifnet.if_flags & IFF_UP ? 1 : 2;
 #endif
         return (u_char *) & long_return;
-    case IFOPERSTATUS:
+    case NETSNMP_IFOPERSTATUS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOper;
 #else
         long_return = ifnet.if_flags & IFF_RUNNING ? 1 : 2;
 #endif
         return (u_char *) & long_return;
-    case IFLASTCHANGE:
+    case NETSNMP_IFLASTCHANGE:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifLastChange;
 #else
@@ -1155,7 +1196,7 @@ var_ifEntry(struct variable *vp,
             long_return = 0;    /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINOCTETS:
+    case NETSNMP_IFINOCTETS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifInOctets;
 #else
@@ -1165,7 +1206,7 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) ifnet.if_ipackets * 308;     /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINUCASTPKTS:
+    case NETSNMP_IFINUCASTPKTS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifInUcastPkts;
 #else
@@ -1175,7 +1216,7 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) ifnet.if_ipackets;
 #endif
         return (u_char *) & long_return;
-    case IFINNUCASTPKTS:
+    case NETSNMP_IFINNUCASTPKTS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifInNUcastPkts;
 #else
@@ -1185,7 +1226,7 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) 0;   /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINDISCARDS:
+    case NETSNMP_IFINDISCARDS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifInDiscards;
 #else
@@ -1195,14 +1236,14 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) 0;   /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFINERRORS:
+    case NETSNMP_IFINERRORS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifInErrors;
 #else
         long_return = ifnet.if_ierrors;
 #endif
         return (u_char *) & long_return;
-    case IFINUNKNOWNPROTOS:
+    case NETSNMP_IFINUNKNOWNPROTOS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifInUnknownProtos;
 #else
@@ -1212,7 +1253,7 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) 0;   /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFOUTOCTETS:
+    case NETSNMP_IFOUTOCTETS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOutOctets;
 #else
@@ -1222,7 +1263,7 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) ifnet.if_opackets * 308;     /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFOUTUCASTPKTS:
+    case NETSNMP_IFOUTUCASTPKTS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOutUcastPkts;
 #else
@@ -1232,7 +1273,7 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) ifnet.if_opackets;
 #endif
         return (u_char *) & long_return;
-    case IFOUTNUCASTPKTS:
+    case NETSNMP_IFOUTNUCASTPKTS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOutNUcastPkts;
 #else
@@ -1242,28 +1283,28 @@ var_ifEntry(struct variable *vp,
             long_return = (u_long) 0;   /* XXX */
 #endif
         return (u_char *) & long_return;
-    case IFOUTDISCARDS:
+    case NETSNMP_IFOUTDISCARDS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOutDiscards;
 #else
         long_return = ifnet.if_snd.ifq_drops;
 #endif
         return (u_char *) & long_return;
-    case IFOUTERRORS:
+    case NETSNMP_IFOUTERRORS:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOutErrors;
 #else
         long_return = ifnet.if_oerrors;
 #endif
         return (u_char *) & long_return;
-    case IFOUTQLEN:
+    case NETSNMP_IFOUTQLEN:
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifOutQlen;
 #else
         long_return = ifnet.if_snd.ifq_len;
 #endif
         return (u_char *) & long_return;
-    case IFSPECIFIC:
+    case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
         return (u_char *) nullOid;
     default:
@@ -1315,10 +1356,10 @@ var_ifEntry(struct variable * vp,
      * if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
      */
     switch (vp->magic) {
-    case IFINDEX:
+    case NETSNMP_IFINDEX:
         long_return = ifstat.ifIndex;
         return (u_char *) & long_return;
-    case IFDESCR:
+    case NETSNMP_IFDESCR:
         *var_len = ifstat.ifDescr.o_length;
         (void) memcpy(return_buf, ifstat.ifDescr.o_bytes, *var_len);
         return (u_char *) return_buf;
@@ -1328,65 +1369,65 @@ var_ifEntry(struct variable * vp,
         else
         long_return = (u_long) ifstat.ifType;
         return (u_char *) & long_return;
-    case IFMTU:
+    case NETSNMP_IFMTU:
         long_return = (u_long) ifstat.ifMtu;
         return (u_char *) & long_return;
-    case IFSPEED:
+    case NETSNMP_IFSPEED:
         if (if_ptr)
             long_return = if_ptr->speed;
         else
         long_return = (u_long) ifstat.ifSpeed;
         return (u_char *) & long_return;
-    case IFPHYSADDRESS:
+    case NETSNMP_IFPHYSADDRESS:
         *var_len = ifstat.ifPhysAddress.o_length;
         (void) memcpy(return_buf, ifstat.ifPhysAddress.o_bytes, *var_len);
         return (u_char *) return_buf;
-    case IFADMINSTATUS:
+    case NETSNMP_IFADMINSTATUS:
         long_return = (u_long) ifstat.ifAdminStatus;
         return (u_char *) & long_return;
-    case IFOPERSTATUS:
+    case NETSNMP_IFOPERSTATUS:
         long_return = (u_long) ifstat.ifOperStatus;
         return (u_char *) & long_return;
-    case IFLASTCHANGE:
+    case NETSNMP_IFLASTCHANGE:
         long_return = (u_long) ifstat.ifLastChange;
         return (u_char *) & long_return;
-    case IFINOCTETS:
+    case NETSNMP_IFINOCTETS:
         long_return = (u_long) ifstat.ifInOctets;
         return (u_char *) & long_return;
-    case IFINUCASTPKTS:
+    case NETSNMP_IFINUCASTPKTS:
         long_return = (u_long) ifstat.ifInUcastPkts;
         return (u_char *) & long_return;
-    case IFINNUCASTPKTS:
+    case NETSNMP_IFINNUCASTPKTS:
         long_return = (u_long) ifstat.ifInNUcastPkts;
         return (u_char *) & long_return;
-    case IFINDISCARDS:
+    case NETSNMP_IFINDISCARDS:
         long_return = (u_long) ifstat.ifInDiscards;
         return (u_char *) & long_return;
-    case IFINERRORS:
+    case NETSNMP_IFINERRORS:
         long_return = (u_long) ifstat.ifInErrors;
         return (u_char *) & long_return;
-    case IFINUNKNOWNPROTOS:
+    case NETSNMP_IFINUNKNOWNPROTOS:
         long_return = (u_long) ifstat.ifInUnknownProtos;
         return (u_char *) & long_return;
-    case IFOUTOCTETS:
+    case NETSNMP_IFOUTOCTETS:
         long_return = (u_long) ifstat.ifOutOctets;
         return (u_char *) & long_return;
-    case IFOUTUCASTPKTS:
+    case NETSNMP_IFOUTUCASTPKTS:
         long_return = (u_long) ifstat.ifOutUcastPkts;
         return (u_char *) & long_return;
-    case IFOUTNUCASTPKTS:
+    case NETSNMP_IFOUTNUCASTPKTS:
         long_return = (u_long) ifstat.ifOutNUcastPkts;
         return (u_char *) & long_return;
-    case IFOUTDISCARDS:
+    case NETSNMP_IFOUTDISCARDS:
         long_return = (u_long) ifstat.ifOutDiscards;
         return (u_char *) & long_return;
-    case IFOUTERRORS:
+    case NETSNMP_IFOUTERRORS:
         long_return = (u_long) ifstat.ifOutErrors;
         return (u_char *) & long_return;
-    case IFOUTQLEN:
+    case NETSNMP_IFOUTQLEN:
         long_return = (u_long) ifstat.ifOutQLen;
         return (u_char *) & long_return;
-    case IFSPECIFIC:
+    case NETSNMP_IFSPECIFIC:
 	long_return = (u_long) ifstat.ifSpecific;
 	return (u_char *) & long_return;
     default:
@@ -1486,7 +1527,7 @@ Interface_Scan_Init(void)
 
 #ifdef linux
     /*  disallow reloading of structures too often */
-    gettimeofday ( &et, ( struct timezone * ) 0 );  /*  get time-of-day */
+    netsnmp_get_monotonic_clock(&et);
     if ( et.tv_sec < LastLoad + MINLOADFREQ ) {     /*  only reload so often */
       ifnetaddr = ifnetaddr_list;                   /*  initialize pointer */
       return;
@@ -1522,7 +1563,7 @@ Interface_Scan_Init(void)
      */
     if (!(devin = fopen("/proc/net/dev", "r"))) {
         close(fd);
-        snmp_log(LOG_ERR, "cannot open /proc/net/dev - continuing...\n");
+        NETSNMP_LOGONCE((LOG_ERR, "cannot open /proc/net/dev.\n"));
         return; /** exit (1); **/
     }
 
@@ -1568,8 +1609,7 @@ Interface_Scan_Init(void)
         }
 
         *stats   = 0;
-        strncpy(ifname_buf, ifstart, sizeof(ifname_buf));
-        ifname_buf[ sizeof(ifname_buf)-1 ] = 0;
+        strlcpy(ifname_buf, ifstart, sizeof(ifname_buf));
         *stats++ = ':';
         while (*stats == ' ')
             stats++;
@@ -1636,31 +1676,27 @@ Interface_Scan_Init(void)
         nnew->if_unit = strdup(*ptr ? ptr : "");
         *ptr = 0;
 
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         if (ioctl(fd, SIOCGIFADDR, &ifrq) < 0)
             memset((char *) &nnew->if_addr, 0, sizeof(nnew->if_addr));
         else
             nnew->if_addr = ifrq.ifr_addr;
 
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         if (ioctl(fd, SIOCGIFBRDADDR, &ifrq) < 0)
             memset((char *) &nnew->ifu_broadaddr, 0,
                    sizeof(nnew->ifu_broadaddr));
         else
             nnew->ifu_broadaddr = ifrq.ifr_broadaddr;
 
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         if (ioctl(fd, SIOCGIFNETMASK, &ifrq) < 0)
             memset((char *) &nnew->ia_subnetmask, 0,
                    sizeof(nnew->ia_subnetmask));
         else
             nnew->ia_subnetmask = ifrq.ifr_netmask;
 
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         nnew->if_flags = ioctl(fd, SIOCGIFFLAGS, &ifrq) < 0
             ? 0 : ifrq.ifr_flags;
 
@@ -1672,8 +1708,7 @@ Interface_Scan_Init(void)
          * 4 bytes of sa_data.
          */
         memset(ifrq.ifr_hwaddr.sa_data, (0), IFHWADDRLEN);
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         if (ioctl(fd, SIOCGIFHWADDR, &ifrq) < 0)
             memset(nnew->if_hwaddr, (0), IFHWADDRLEN);
         else {
@@ -1730,14 +1765,12 @@ Interface_Scan_Init(void)
 #endif
         }
 
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         nnew->if_metric = ioctl(fd, SIOCGIFMETRIC, &ifrq) < 0
             ? 0 : ifrq.ifr_metric;
 
 #ifdef SIOCGIFMTU
-        strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
-        ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
+        strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         nnew->if_mtu = (ioctl(fd, SIOCGIFMTU, &ifrq) < 0)
             ? 0 : ifrq.ifr_mtu;
 #else
@@ -1816,6 +1849,22 @@ Interface_Scan_Next(short *Index,
                     char *Name,
                     struct ifnet *Retifnet, struct in_ifaddr *dummy)
 {
+    int returnIndex = 0;
+    int ret;
+    if (Index)
+        returnIndex = *Index;
+
+    ret = Interface_Scan_NextInt( &returnIndex, Name, Retifnet, dummy );
+    if (Index)
+        *Index = (returnIndex & 0x8fff);
+    return ret;
+}
+
+int
+Interface_Scan_NextInt(int *Index,
+                    char *Name,
+                    struct ifnet *Retifnet, struct in_ifaddr *dummy)
+{
     struct ifnet    ifnet;
     register char  *cp;
 
@@ -1847,15 +1896,18 @@ Interface_Scan_Next(short *Index,
         }
 #else
         ifnet = *ifnetaddr;
-        strncpy(saveName, ifnet.if_name, sizeof(saveName));
+        strlcpy(saveName, ifnet.if_name, sizeof(saveName));
 #endif
 
         saveName[sizeof(saveName) - 1] = '\0';
         cp = (char *) strchr(saveName, '\0');
 #ifdef linux
-        strncat(cp, ifnet.if_unit, sizeof(saveName)-strlen(saveName)-1);
-        saveName[sizeof(saveName) - 1] = '\0';
+        strlcat(saveName, ifnet.if_unit, sizeof(saveName));
 #else
+#ifdef NETSNMP_FEATURE_CHECKIN
+        /* this exists here just so we don't copy ifdef logic elsewhere */
+        netsnmp_feature_require(string_append_int);
+#endif
         string_append_int(cp, ifnet.if_unit);
 #endif
         if (1 || strcmp(saveName, "lo0") != 0) {        /* XXX */
@@ -1881,11 +1933,11 @@ Interface_Scan_Next(short *Index,
 int
 Interface_Index_By_Name(char *Name, int Len)
 {
-    short           ifIndex = 0;
+    int             ifIndex = 0;
     char            ifName[20];
 
     Interface_Scan_Init();
-    while (Interface_Scan_Next(&ifIndex, ifName, NULL, NULL)
+    while (Interface_Scan_NextInt(&ifIndex, ifName, NULL, NULL)
            && strcmp(Name, ifName));
     return ifIndex;
 }
@@ -1900,9 +1952,23 @@ Interface_Index_By_Name(char *Name, int Len)
 #endif
 
 #if defined(hpux11)
-
 int
 Interface_Scan_Next(short *Index, char *Name, nmapi_phystat * Retifnet)
+{
+    int returnIndex = 0;
+    int ret;
+    if (Index)
+        returnIndex = *Index;
+
+    ret = Interface_Scan_NextInt( &returnIndex, Name, Retifnet );
+    if (Index)
+        *Index = (returnIndex & 0x8fff);
+    return ret;
+}
+
+
+int
+Interface_Scan_NextInt(int *Index, char *Name, nmapi_phystat * Retifnet)
 {
     static nmapi_phystat *if_ptr = (nmapi_phystat *) 0;
     int             count = Interface_Scan_Get_Count();
@@ -1910,10 +1976,13 @@ Interface_Scan_Next(short *Index, char *Name, nmapi_phystat * Retifnet)
     int             ret;
 
     if (!if_ptr) {
-        if (count)
+        if (count) {
             if_ptr =
                 (nmapi_phystat *) malloc(sizeof(nmapi_phystat) * count);
-        else
+            if (if_ptr == NULL)
+                return (0);
+
+        } else
             return (0);         /* EOF */
     }
 
@@ -1935,16 +2004,32 @@ Interface_Scan_Next(short *Index, char *Name, nmapi_phystat * Retifnet)
 }
 
 #else                           /* hpux11 */
-
 int
 Interface_Scan_Next(short *Index,
+                    char *Name,
+                    struct ifnet *Retifnet, struct in_ifaddr *Retin_ifaddr)
+{
+    int returnIndex = 0;
+    int ret;
+    if (Index)
+        returnIndex = *Index;
+
+    ret = Interface_Scan_NextInt( &returnIndex, Name, Retifnet, Retin_ifaddr );
+    if (Index)
+        *Index = (returnIndex & 0x8fff);
+    return ret;
+}
+
+
+int
+Interface_Scan_NextInt(int *Index,
                     char *Name,
                     struct ifnet *Retifnet, struct in_ifaddr *Retin_ifaddr)
 {
     struct ifnet    ifnet;
     struct in_ifaddr *ia, in_ifaddr;
     short           has_ipaddr = 0;
-#if !STRUCT_IFNET_HAS_IF_XNAME
+#if !HAVE_STRUCT_IFNET_IF_XNAME
     register char  *cp;
 #endif
 
@@ -1956,9 +2041,9 @@ Interface_Scan_Next(short *Index,
             DEBUGMSGTL(("mibII/interfaces:Interface_Scan_Next", "klookup failed\n"));
             break;
         }
-#if STRUCT_IFNET_HAS_IF_XNAME
+#if HAVE_STRUCT_IFNET_IF_XNAME
 #if defined(netbsd1) || defined(openbsd2)
-        strncpy(saveName, ifnet.if_xname, sizeof saveName);
+        strlcpy(saveName, ifnet.if_xname, sizeof(saveName));
 #else
         if (!NETSNMP_KLOOKUP(ifnet.if_xname, (char *) saveName, sizeof saveName)) {
             DEBUGMSGTL(("mibII/interfaces:Interface_Scan_Next", "klookup failed\n"));
@@ -1974,6 +2059,10 @@ Interface_Scan_Next(short *Index,
 
         saveName[sizeof(saveName) - 1] = '\0';
         cp = strchr(saveName, '\0');
+#ifdef NETSNMP_FEATURE_CHECKIN
+        /* this exists here just so we don't copy ifdef logic elsewhere */
+        netsnmp_feature_require(string_append_int);
+#endif
         string_append_int(cp, ifnet.if_unit);
 #endif
         if (1 || strcmp(saveName, "lo0") != 0) {        /* XXX */
@@ -2015,7 +2104,7 @@ Interface_Scan_Next(short *Index,
 #endif
             }
 
-#if !defined(netbsd1) && !defined(freebsd2) && !defined(openbsd2) && !defined(STRUCT_IFNET_HAS_IF_ADDRLIST)
+#if !defined(netbsd1) && !defined(freebsd2) && !defined(openbsd2) && !defined(HAVE_STRUCT_IFNET_IF_ADDRLIST)
             ifnet.if_addrlist = (struct ifaddr *) ia;   /* WRONG DATA TYPE; ONLY A FLAG */
 #endif
             /*
@@ -2054,10 +2143,10 @@ Interface_Scan_Next(short *Index,
 static int
 Interface_Scan_By_Index(int Index, char *Name, nmapi_phystat * Retifnet)
 {
-    short           i;
+    int           i;
 
     Interface_Scan_Init();
-    while (Interface_Scan_Next(&i, Name, Retifnet)) {
+    while (Interface_Scan_NextInt(&i, Name, Retifnet)) {
         if (i == Index)
             break;
     }
@@ -2074,10 +2163,10 @@ Interface_Scan_By_Index(int Index,
                         struct ifnet *Retifnet,
                         struct in_ifaddr *Retin_ifaddr)
 {
-    short           i;
+    int           i;
 
     Interface_Scan_Init();
-    while (Interface_Scan_Next(&i, Name, Retifnet, Retin_ifaddr)) {
+    while (Interface_Scan_NextInt(&i, Name, Retifnet, Retin_ifaddr)) {
         if (i == Index)
             break;
     }
@@ -2117,18 +2206,17 @@ Interface_Scan_Get_Count(void)
 
 #else                           /* hpux11 */
 
-static time_t   scan_time = 0;
-
 int
 Interface_Scan_Get_Count(void)
 {
+    static time_t   scan_time = 0;
     time_t          time_now = time(NULL);
 
     if (!Interface_Count || (time_now > scan_time + 60)) {
         scan_time = time_now;
         Interface_Scan_Init();
         Interface_Count = 0;
-        while (Interface_Scan_Next(NULL, NULL, NULL, NULL) != 0) {
+        while (Interface_Scan_NextInt(NULL, NULL, NULL, NULL) != 0) {
             Interface_Count++;
         }
     }
@@ -2139,7 +2227,7 @@ Interface_Scan_Get_Count(void)
 static int
 Interface_Get_Ether_By_Index(int Index, u_char * EtherAddr)
 {
-    short           i;
+    int             i;
 #if !(defined(linux) || defined(netbsd1) || defined(bsdi2) || defined(openbsd2))
     struct arpcom   arpcom;
 #else                           /* is linux or netbsd1 */
@@ -2164,7 +2252,7 @@ Interface_Get_Ether_By_Index(int Index, u_char * EtherAddr)
 
         Interface_Scan_Init();
 
-        while (Interface_Scan_Next((short *) &i, NULL, NULL, NULL) != 0) {
+        while (Interface_Scan_NextInt(&i, NULL, NULL, NULL) != 0) {
             if (i == Index)
                 break;
         }
@@ -2477,10 +2565,10 @@ var_ifEntry(struct variable * vp,
      */
 
     switch (vp->magic) {
-    case IFINDEX:
+    case NETSNMP_IFINDEX:
         long_return = interface;
         return (u_char *) & long_return;
-    case IFDESCR:
+    case NETSNMP_IFDESCR:
         cp = ifmd.ifmd_name;
         *var_len = strlen(cp);
         return (u_char *) cp;
@@ -2490,16 +2578,16 @@ var_ifEntry(struct variable * vp,
         else
         long_return = ifmd.ifmd_data.ifi_type;
         return (u_char *) & long_return;
-    case IFMTU:
+    case NETSNMP_IFMTU:
         long_return = (long) ifmd.ifmd_data.ifi_mtu;
         return (u_char *) & long_return;
-    case IFSPEED:
+    case NETSNMP_IFSPEED:
         if (if_ptr)
             long_return = if_ptr->speed;
         else
         long_return = ifmd.ifmd_data.ifi_baudrate;
         return (u_char *) & long_return;
-    case IFPHYSADDRESS:
+    case NETSNMP_IFPHYSADDRESS:
         {
             char           *cp;
             if (get_phys_address(interface, &cp, var_len))
@@ -2507,13 +2595,13 @@ var_ifEntry(struct variable * vp,
             else
                 return cp;
         }
-    case IFADMINSTATUS:
+    case NETSNMP_IFADMINSTATUS:
         long_return = ifmd.ifmd_flags & IFF_UP ? 1 : 2;
         return (u_char *) & long_return;
-    case IFOPERSTATUS:
+    case NETSNMP_IFOPERSTATUS:
         long_return = ifmd.ifmd_flags & IFF_RUNNING ? 1 : 2;
         return (u_char *) & long_return;
-    case IFLASTCHANGE:
+    case NETSNMP_IFLASTCHANGE:
         if (ifmd.ifmd_data.ifi_lastchange.tv_sec == 0 &&
             ifmd.ifmd_data.ifi_lastchange.tv_usec == 0) {
             long_return = 0;
@@ -2527,45 +2615,45 @@ var_ifEntry(struct variable * vp,
                    starttime.tv_usec) / 10000));
         }
         return (u_char *) & long_return;
-    case IFINOCTETS:
+    case NETSNMP_IFINOCTETS:
         long_return = (u_long) ifmd.ifmd_data.ifi_ibytes;
         return (u_char *) & long_return;
-    case IFINUCASTPKTS:
+    case NETSNMP_IFINUCASTPKTS:
         long_return = (u_long) ifmd.ifmd_data.ifi_ipackets;
         long_return -= (u_long) ifmd.ifmd_data.ifi_imcasts;
         return (u_char *) & long_return;
-    case IFINNUCASTPKTS:
+    case NETSNMP_IFINNUCASTPKTS:
         long_return = (u_long) ifmd.ifmd_data.ifi_imcasts;
         return (u_char *) & long_return;
-    case IFINDISCARDS:
+    case NETSNMP_IFINDISCARDS:
         long_return = (u_long) ifmd.ifmd_data.ifi_iqdrops;
         return (u_char *) & long_return;
-    case IFINERRORS:
+    case NETSNMP_IFINERRORS:
         long_return = ifmd.ifmd_data.ifi_ierrors;
         return (u_char *) & long_return;
-    case IFINUNKNOWNPROTOS:
+    case NETSNMP_IFINUNKNOWNPROTOS:
         long_return = (u_long) ifmd.ifmd_data.ifi_noproto;
         return (u_char *) & long_return;
-    case IFOUTOCTETS:
+    case NETSNMP_IFOUTOCTETS:
         long_return = (u_long) ifmd.ifmd_data.ifi_obytes;
         return (u_char *) & long_return;
-    case IFOUTUCASTPKTS:
+    case NETSNMP_IFOUTUCASTPKTS:
         long_return = (u_long) ifmd.ifmd_data.ifi_opackets;
         long_return -= (u_long) ifmd.ifmd_data.ifi_omcasts;
         return (u_char *) & long_return;
-    case IFOUTNUCASTPKTS:
+    case NETSNMP_IFOUTNUCASTPKTS:
         long_return = (u_long) ifmd.ifmd_data.ifi_omcasts;
         return (u_char *) & long_return;
-    case IFOUTDISCARDS:
+    case NETSNMP_IFOUTDISCARDS:
         long_return = ifmd.ifmd_snd_drops;
         return (u_char *) & long_return;
-    case IFOUTERRORS:
+    case NETSNMP_IFOUTERRORS:
         long_return = ifmd.ifmd_data.ifi_oerrors;
         return (u_char *) & long_return;
-    case IFOUTQLEN:
+    case NETSNMP_IFOUTQLEN:
         long_return = ifmd.ifmd_snd_len;
         return (u_char *) & long_return;
-    case IFSPECIFIC:
+    case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
         return (u_char *) nullOid;
     default:
@@ -2578,10 +2666,12 @@ var_ifEntry(struct variable * vp,
 #endif                          /* HAVE_NET_IF_MIB_H */
 #endif                          /* !USE_SYSCTL_IFLIST */
 
-#else                           /* WIN32 cygwin */
+#elif defined(HAVE_IPHLPAPI_H)  /* WIN32 cygwin */
 #include <iphlpapi.h>
 
+#ifndef NETSNMP_NO_WRITE_SUPPORT
 WriteMethod     writeIfEntry;
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */
 long            admin_status = 0;
 long            oldadmin_status = 0;
 
@@ -2596,7 +2686,6 @@ header_ifEntry(struct variable *vp,
     register int    ifIndex;
     int             result, count;
     DWORD           status = NO_ERROR;
-    DWORD           statusRetry = NO_ERROR;
     DWORD           dwActualSize = 0;
     PMIB_IFTABLE    pIfTable = NULL;
 
@@ -2610,23 +2699,11 @@ header_ifEntry(struct variable *vp,
      * find "next" ifIndex 
      */
 
-
-    /*
-     * query for buffer size needed 
-     */
     status = GetIfTable(pIfTable, &dwActualSize, TRUE);
-
     if (status == ERROR_INSUFFICIENT_BUFFER) {
-        /*
-         * need more space 
-         */
-        pIfTable = (PMIB_IFTABLE) malloc(dwActualSize);
-        if (pIfTable != NULL) {
-            /*
-             * Get the sorted IF table 
-             */
+        pIfTable = malloc(dwActualSize);
+        if (pIfTable)
             GetIfTable(pIfTable, &dwActualSize, TRUE);
-        }
     }
     count = pIfTable->dwNumEntries;
     for (ifIndex = 0; ifIndex < count; ifIndex++) {
@@ -2638,11 +2715,11 @@ header_ifEntry(struct variable *vp,
         if ((exact && (result == 0)) || (!exact && (result < 0)))
             break;
     }
-    if (ifIndex > count) {
+    if (ifIndex >= count) {
         DEBUGMSGTL(("mibII/interfaces", "... index out of range\n"));
-        return MATCH_FAILED;
+        count = MATCH_FAILED;
+        goto out;
     }
-
 
     memcpy((char *) name, (char *) newname,
            ((int) vp->namelen + 1) * sizeof(oid));
@@ -2655,6 +2732,7 @@ header_ifEntry(struct variable *vp,
     DEBUGMSG(("mibII/interfaces", "\n"));
 
     count = pIfTable->table[ifIndex].dwIndex;
+out:
     free(pIfTable);
     return count;
 }
@@ -2672,8 +2750,9 @@ var_interfaces(struct variable * vp,
         return NULL;
 
     switch (vp->magic) {
-    case IFNUMBER:
-        GetNumberOfInterfaces(&long_return);
+    case NETSNMP_IFNUMBER:
+        netsnmp_assert(sizeof(DWORD) == sizeof(long_return));
+        GetNumberOfInterfaces((DWORD *) &long_return);
         return (u_char *) & long_return;
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_interfaces\n",
@@ -2709,10 +2788,10 @@ var_ifEntry(struct variable * vp,
     if (GetIfEntry(&ifRow) != NO_ERROR)
         return NULL;
     switch (vp->magic) {
-    case IFINDEX:
+    case NETSNMP_IFINDEX:
         long_return = ifIndex;
         return (u_char *) & long_return;
-    case IFDESCR:
+    case NETSNMP_IFDESCR:
         *var_len = ifRow.dwDescrLen;
         return (u_char *) ifRow.bDescr;
     case NETSNMP_IFTYPE:
@@ -2721,68 +2800,70 @@ var_ifEntry(struct variable * vp,
         else
         long_return = ifRow.dwType;
         return (u_char *) & long_return;
-    case IFMTU:
+    case NETSNMP_IFMTU:
         long_return = (long) ifRow.dwMtu;
         return (u_char *) & long_return;
-    case IFSPEED:
+    case NETSNMP_IFSPEED:
         if (if_ptr)
-            long_return = if_ptr->speed;
+            long_return = (long) if_ptr->speed;
         else
         long_return = (long) ifRow.dwSpeed;
         return (u_char *) & long_return;
-    case IFPHYSADDRESS:
+    case NETSNMP_IFPHYSADDRESS:
         *var_len = ifRow.dwPhysAddrLen;
         memcpy(return_buf, ifRow.bPhysAddr, *var_len);
         return (u_char *) return_buf;
-    case IFADMINSTATUS:
+    case NETSNMP_IFADMINSTATUS:
         long_return = ifRow.dwAdminStatus;
         admin_status = long_return;
+#ifndef NETSNMP_NO_WRITE_SUPPORT
         *write_method = writeIfEntry;
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */
         return (u_char *) & long_return;
-    case IFOPERSTATUS:
+    case NETSNMP_IFOPERSTATUS:
         long_return =
            (MIB_IF_OPER_STATUS_OPERATIONAL == ifRow.dwOperStatus) ? 1 : 2;
         return (u_char *) & long_return;
-    case IFLASTCHANGE:
+    case NETSNMP_IFLASTCHANGE:
         long_return = 0 /* XXX not a UNIX epochal time ifRow.dwLastChange */ ;
         return (u_char *) & long_return;
-    case IFINOCTETS:
+    case NETSNMP_IFINOCTETS:
         long_return = ifRow.dwInOctets;
         return (u_char *) & long_return;
-    case IFINUCASTPKTS:
+    case NETSNMP_IFINUCASTPKTS:
         long_return = ifRow.dwInUcastPkts;
         return (u_char *) & long_return;
-    case IFINNUCASTPKTS:
+    case NETSNMP_IFINNUCASTPKTS:
         long_return = ifRow.dwInNUcastPkts;
         return (u_char *) & long_return;
-    case IFINDISCARDS:
+    case NETSNMP_IFINDISCARDS:
         long_return = ifRow.dwInDiscards;
         return (u_char *) & long_return;
-    case IFINERRORS:
+    case NETSNMP_IFINERRORS:
         long_return = ifRow.dwInErrors;
         return (u_char *) & long_return;
-    case IFINUNKNOWNPROTOS:
+    case NETSNMP_IFINUNKNOWNPROTOS:
         long_return = ifRow.dwInUnknownProtos;
         return (u_char *) & long_return;
-    case IFOUTOCTETS:
+    case NETSNMP_IFOUTOCTETS:
         long_return = ifRow.dwOutOctets;
         return (u_char *) & long_return;
-    case IFOUTUCASTPKTS:
+    case NETSNMP_IFOUTUCASTPKTS:
         long_return = ifRow.dwOutUcastPkts;
         return (u_char *) & long_return;
-    case IFOUTNUCASTPKTS:
+    case NETSNMP_IFOUTNUCASTPKTS:
         long_return = ifRow.dwOutNUcastPkts;
         return (u_char *) & long_return;
-    case IFOUTDISCARDS:
+    case NETSNMP_IFOUTDISCARDS:
         long_return = ifRow.dwOutDiscards;
         return (u_char *) & long_return;
-    case IFOUTERRORS:
+    case NETSNMP_IFOUTERRORS:
         long_return = ifRow.dwOutErrors;
         return (u_char *) & long_return;
-    case IFOUTQLEN:
+    case NETSNMP_IFOUTQLEN:
         long_return = ifRow.dwOutQLen;
         return (u_char *) & long_return;
-    case IFSPECIFIC:
+    case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
         return (u_char *) nullOid;
     default:
@@ -2793,6 +2874,7 @@ var_ifEntry(struct variable * vp,
 }
 
 
+#ifndef NETSNMP_NO_WRITE_SUPPORT
 int
 writeIfEntry(int action,
              u_char * var_val,
@@ -2801,7 +2883,7 @@ writeIfEntry(int action,
              u_char * statP, oid * name, size_t name_len)
 {
     MIB_IFROW       ifEntryRow;
-    if ((char) name[9] != IFADMINSTATUS) {
+    if ((char) name[9] != NETSNMP_IFADMINSTATUS) {
         return SNMP_ERR_NOTWRITABLE;
     }
 
@@ -2851,7 +2933,7 @@ writeIfEntry(int action,
          */
         if (SetIfEntry(&ifEntryRow) != NO_ERROR) {
             snmp_log(LOG_ERR,
-                     "Error in writeIfEntry case COMMIT with index: %d & adminStatus %d\n",
+                     "Error in writeIfEntry case COMMIT with index: %lu & adminStatus %lu\n",
                      ifEntryRow.dwIndex, ifEntryRow.dwAdminStatus);
             return SNMP_ERR_COMMITFAILED;
         }
@@ -2864,4 +2946,5 @@ writeIfEntry(int action,
     }
     return SNMP_ERR_NOERROR;
 }                               /* end of writeIfEntry */
+#endif /* !NETSNMP_NO_WRITE_SUPPORT */ 
 #endif                          /* WIN32 cygwin */
