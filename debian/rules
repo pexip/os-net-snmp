@@ -98,6 +98,9 @@ override_dh_fixperms:
 	chmod -x debian/libsnmp-dev/etc/snmp/*.conf
 	chmod 600 debian/snmpd/etc/snmp/snmp*d.conf
 
+override_dh_installinit:
+	dh_installinit -u"start 20 2 3 4 5 . stop 20 1 ."
+
 override_dh_auto_test:
 	# prevent test since it fails with network configuration under pbuilder/etc.
 	true

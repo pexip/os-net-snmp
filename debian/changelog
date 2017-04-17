@@ -1,6 +1,8 @@
 net-snmp (5.7.2.1+dfsg-1pexip1) pexip; urgency=low
 
   * Migrate to Jessie
+  * Retain the following change from Ubuntu:
+    - Avoid installing links in rc[06].d.
   * Remaining changes:
     - Disable MD5 support
     - Use OpenSSL EVP API for AES.
