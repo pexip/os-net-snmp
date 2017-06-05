@@ -1,3 +1,9 @@
+net-snmp (5.7.2.1+dfsg-1pexip2) pexip; urgency=low
+
+  * debian/snmpd.maintscript: Remove snmptrapd.conf on upgrade
+
+ -- John-Mark Bell <jmb@pexip.com>  Mon, 05 Jun 2017 16:39:18 +0100
+
 net-snmp (5.7.2.1+dfsg-1pexip1) pexip; urgency=low
 
   * Migrate to Jessie
