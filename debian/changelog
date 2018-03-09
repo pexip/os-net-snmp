@@ -1,3 +1,10 @@
+net-snmp (5.7.2.1+dfsg-1pexip3) pexip; urgency=low
+
+  * debian/patches/CHANGES-BUG-2615-Don-t-return-incompletely-parsed-va.patch:
+    Backport fix for CVE-2015-5621, CVE-2018-1000116
+
+ -- John-Mark Bell <jmb@pexip.com>  Fri, 09 Mar 2018 17:31:09 +0000
+
 net-snmp (5.7.2.1+dfsg-1pexip2) pexip; urgency=low
 
   * debian/snmpd.maintscript: Remove snmptrapd.conf on upgrade

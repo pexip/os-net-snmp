@@ -28,3 +28,4 @@ Fix-kfreebsd-builds-with-kernel-headers-10.patch
 fix-request-id-0.patch
 CVE-2014-3565.patch
 use_evp_api.patch
+CHANGES-BUG-2615-Don-t-return-incompletely-parsed-va.patch
