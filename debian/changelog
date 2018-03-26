@@ -1,3 +1,10 @@
+net-snmp (5.7.2.1+dfsg-1+deb8u1) jessie-security; urgency=high
+
+  * CVE-2018-1000116: Correct a heap corruption vulnerability prior to the
+    authentication process. (Closes: #894110)
+
+ -- Chris Lamb <lamby@debian.org>  Sun, 25 Mar 2018 20:58:00 -0400
+
 net-snmp (5.7.2.1+dfsg-1) unstable; urgency=medium
 
   * re-generate upstream source due to accidentally include non-free MIB files.
