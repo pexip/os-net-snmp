@@ -1,3 +1,4 @@
 usr/sbin/snmpd
 usr/share/snmp/snmpconf-data/snmpd-data
 usr/share/snmp/snmp_perl.pl
+debian/forking.conf				/lib/systemd/system/snmpd.service.d
