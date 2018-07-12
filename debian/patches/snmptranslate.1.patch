@@ -1,18 +1,17 @@
-Description: fix hyphen-used-as-minus-sign
- fix lintian "hyphen-used-as-minus-sign" warnings.
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: snmptranslate.1
 
 Author: Hideki Yamane <henrich@debian.org>
-
 ---
-Origin: vendor
-Forwarded: no
-Last-Update: 2012-07-17
+ man/snmptranslate.1.def | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
 
-Index: net-snmp-5.7.2~dfsg/man/snmptranslate.1.def
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/man/snmptranslate.1.def	2012-10-10 07:28:58.000000000 +0900
-+++ net-snmp-5.7.2~dfsg/man/snmptranslate.1.def	2013-01-15 01:19:05.000000000 +0900
-@@ -163,22 +163,22 @@
+diff --git a/man/snmptranslate.1.def b/man/snmptranslate.1.def
+index 721af99..13da01f 100644
+--- a/man/snmptranslate.1.def
++++ b/man/snmptranslate.1.def
+@@ -166,22 +166,22 @@ will print the following tree:
  .nf
  +--system(1)
     |
@@ -43,7 +42,7 @@ Index: net-snmp-5.7.2~dfsg/man/snmptranslate.1.def
     |        Textual Convention: TimeStamp
     |
     +--sysORTable(9)
-@@ -186,11 +186,11 @@
+@@ -189,11 +189,11 @@ will print the following tree:
        +--sysOREntry(1)
           |
           +-- ---- Integer   sysORIndex(1)

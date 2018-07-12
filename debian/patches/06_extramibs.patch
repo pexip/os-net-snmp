@@ -1,8 +1,18 @@
-Extra MIB files shipped with Debian.
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:04 +0900
+Subject: _extramibs
 
-diff -ruN net-snmp-5.4.1.orig/mibs/GNOME-SMI.txt net-snmp-5.4.1/mibs/GNOME-SMI.txt
---- net-snmp-5.4.1.orig/mibs/GNOME-SMI.txt	1970-01-01 01:00:00.000000000 +0100
-+++ net-snmp-5.4.1/mibs/GNOME-SMI.txt	2007-09-20 16:33:55.000000000 +0200
+Extra MIB files shipped with Debian.
+---
+ mibs/GNOME-SMI.txt | 88 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 88 insertions(+)
+ create mode 100644 mibs/GNOME-SMI.txt
+
+diff --git a/mibs/GNOME-SMI.txt b/mibs/GNOME-SMI.txt
+new file mode 100644
+index 0000000..a496ee4
+--- /dev/null
++++ b/mibs/GNOME-SMI.txt
 @@ -0,0 +1,88 @@
 +GNOME-SMI DEFINITIONS ::= BEGIN
 +

@@ -1,15 +1,16 @@
-Description: fix man description
-Author: Hideki Yamane <henrich@debian.org>
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: fix_logging_option
 
 ---
-Origin: vendor
-Bug-Debian: http://bugs.debian.org/616437
-Forwarded: no
-Last-Update: 2013-01-23
+ man/snmpd.8.def | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
---- net-snmp-5.7.2~dfsg.orig/man/snmpd.8.def
-+++ net-snmp-5.7.2~dfsg/man/snmpd.8.def
-@@ -78,9 +78,9 @@ To get a list of compiled modules, run t
+diff --git a/man/snmpd.8.def b/man/snmpd.8.def
+index f173396..d86023a 100644
+--- a/man/snmpd.8.def
++++ b/man/snmpd.8.def
+@@ -78,9 +78,9 @@ To get a list of compiled modules, run the agent with the arguments
  .I "\-Dmib_init \-H"
  (assuming debugging support has been compiled in).
  .TP

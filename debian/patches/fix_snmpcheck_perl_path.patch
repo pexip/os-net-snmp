@@ -1,16 +1,16 @@
-Description: fix snmpcheck shebang
- Just don't use /usr/local/bin/perl...
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: fix_snmpcheck_perl_path
 
 Author: Hideki Yamane <henrich@debian.org>
-
 ---
-Origin: vendor
-Bug-Debian: http://bugs.debian.org/44373
-Forwarded: not-needed
-Last-Update: 2012-07-17
+ local/snmpcheck.def | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- net-snmp-5.7.1~dfsg.orig/local/snmpcheck.def
-+++ net-snmp-5.7.1~dfsg/local/snmpcheck.def
+diff --git a/local/snmpcheck.def b/local/snmpcheck.def
+index ad392ee..df3450e 100755
+--- a/local/snmpcheck.def
++++ b/local/snmpcheck.def
 @@ -1,4 +1,4 @@
 -#!/usr/local/bin/perl -w
 +#!/usr/bin/perl 

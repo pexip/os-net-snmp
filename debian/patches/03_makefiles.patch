@@ -1,36 +1,21 @@
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:04 +0900
+Subject: _makefiles
+
 Makefile patch to include libwrap and libsensors libraries and install extra
 MIB files.
+---
+ Makefile.in       | 4 ++--
+ Makefile.top      | 1 +
+ local/Makefile.in | 2 +-
+ mibs/Makefile.in  | 6 +++---
+ 4 files changed, 7 insertions(+), 6 deletions(-)
 
-Index: net-snmp-5.7.2~dfsg/local/Makefile.in
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/local/Makefile.in	2013-01-15 01:05:58.571396020 +0900
-+++ net-snmp-5.7.2~dfsg/local/Makefile.in	2013-01-15 01:05:58.567396010 +0900
-@@ -103,7 +103,7 @@
- 
- mib2c.made: $(srcdir)/mib2c
- 	if test "x$(PERL)" != "x" ; then \
--	  $(PERL) -p -e 's%^#!.*/perl.*%#!$(PERL)%;s#/usr/local/share/snmp#$(snmplibdir)#;' ${srcdir}/mib2c > mib2c.made; \
-+	  $(PERL) -p -e 's%^#!.*/perl.*%#!$(PERL)%;s#/usr/local/share/snmp#$(snmplibdir)#;s#/usr/local/etc/snmp#$(SNMPCONFPATH)#;' ${srcdir}/mib2c > mib2c.made; \
- 	else \
- 	  touch mib2c.made; \
-         fi
-Index: net-snmp-5.7.2~dfsg/Makefile.top
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/Makefile.top	2013-01-15 01:05:58.571396020 +0900
-+++ net-snmp-5.7.2~dfsg/Makefile.top	2013-01-15 01:11:31.544153075 +0900
-@@ -27,6 +27,7 @@
- snmplibdir	= $(datadir)/snmp
- mibdir		= $(snmplibdir)/mibs
- persistentdir	= @PERSISTENT_DIRECTORY@
-+sysconfdir	= @sysconfdir@
- DESTDIR         = @INSTALL_PREFIX@
- INSTALL_PREFIX  = $(DESTDIR)
- 
-Index: net-snmp-5.7.2~dfsg/Makefile.in
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/Makefile.in	2013-01-15 01:05:58.571396020 +0900
-+++ net-snmp-5.7.2~dfsg/Makefile.in	2013-01-15 01:09:08.607827737 +0900
-@@ -17,7 +17,7 @@
+diff --git a/Makefile.in b/Makefile.in
+index cfcdf73..10f36f3 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -17,7 +17,7 @@ CPP		= @CPP@ 					        \
  
  INSTALLHEADERS=version.h net-snmp-features.h
  INCLUDESUBDIR=system
@@ -38,8 +23,8 @@ Index: net-snmp-5.7.2~dfsg/Makefile.in
 +INCLUDESUBDIRHEADERS= aix.h bsd.h bsdi3.h bsdi4.h bsdi.h cygwin.h kfreebsd.h \
  	darwin.h darwin7.h darwin8.h darwin9.h darwin10.h dragonfly.h dynix.h \
  	freebsd2.h freebsd3.h freebsd4.h freebsd5.h freebsd6.h \
- 	freebsd7.h freebsd8.h freebsd9.h freebsd10.h freebsd.h \
-@@ -170,7 +170,7 @@
+ 	freebsd7.h freebsd8.h freebsd9.h freebsd10.h freebsd11.h \
+@@ -171,7 +171,7 @@ OTHERCLEANTODOS=perlclean @PYTHONCLEANTARGS@ cleanfeatures perlcleanfeatures pyt
  #
  # override LD_RUN_PATH to avoid dependencies on the build directory
  perlmodules: perlmakefiles subdirs
@@ -48,11 +33,36 @@ Index: net-snmp-5.7.2~dfsg/Makefile.in
          if test $$? != 0 ; then \
             exit 1 ; \
          fi
-Index: net-snmp-5.7.2~dfsg/mibs/Makefile.in
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/mibs/Makefile.in	2013-01-15 01:05:58.571396020 +0900
-+++ net-snmp-5.7.2~dfsg/mibs/Makefile.in	2013-01-15 01:17:21.484984229 +0900
-@@ -48,11 +48,11 @@
+diff --git a/Makefile.top b/Makefile.top
+index 503f61e..bf32f3c 100644
+--- a/Makefile.top
++++ b/Makefile.top
+@@ -27,6 +27,7 @@ man8dir		= $(mandir)/man8
+ snmplibdir	= $(datadir)/snmp
+ mibdir		= $(snmplibdir)/mibs
+ persistentdir	= @PERSISTENT_DIRECTORY@
++sysconfdir	= @sysconfdir@
+ DESTDIR         = @INSTALL_PREFIX@
+ INSTALL_PREFIX  = $(DESTDIR)
+ 
+diff --git a/local/Makefile.in b/local/Makefile.in
+index cb84afc..12d7132 100644
+--- a/local/Makefile.in
++++ b/local/Makefile.in
+@@ -103,7 +103,7 @@ tkmib.made: $(srcdir)/tkmib
+ 
+ mib2c.made: $(srcdir)/mib2c
+ 	if test "x$(PERL)" != "x" ; then \
+-	  $(PERL) -p -e 's%^#!.*/perl.*%#!$(PERL)%;s#/usr/local/share/snmp#$(snmplibdir)#;' ${srcdir}/mib2c > mib2c.made; \
++	  $(PERL) -p -e 's%^#!.*/perl.*%#!$(PERL)%;s#/usr/local/share/snmp#$(snmplibdir)#;s#/usr/local/etc/snmp#$(SNMPCONFPATH)#;' ${srcdir}/mib2c > mib2c.made; \
+ 	else \
+ 	  touch mib2c.made; \
+         fi
+diff --git a/mibs/Makefile.in b/mibs/Makefile.in
+index f185002..1ad4558 100644
+--- a/mibs/Makefile.in
++++ b/mibs/Makefile.in
+@@ -49,11 +49,11 @@ NETSNMPMIBS = NET-SNMP-TC.txt NET-SNMP-MIB.txt NET-SNMP-AGENT-MIB.txt \
  UCDMIBS = UCD-SNMP-MIB.txt UCD-DEMO-MIB.txt UCD-IPFWACC-MIB.txt \
  	UCD-DLMOD-MIB.txt UCD-DISKIO-MIB.txt
  

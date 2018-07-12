@@ -1,8 +1,16 @@
-Index: pkg-net-snmp/EXAMPLE.conf.def
-===================================================================
---- pkg-net-snmp.orig/EXAMPLE.conf.def	2013-09-04 19:13:13.000000000 +0900
-+++ pkg-net-snmp/EXAMPLE.conf.def	2013-09-04 19:13:13.000000000 +0900
-@@ -49,6 +49,8 @@
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: add_rocommunity6
+
+---
+ EXAMPLE.conf.def | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/EXAMPLE.conf.def b/EXAMPLE.conf.def
+index f619c8e..0c21dee 100644
+--- a/EXAMPLE.conf.def
++++ b/EXAMPLE.conf.def
+@@ -49,6 +49,8 @@ view   systemonly  included   .1.3.6.1.2.1.25.1
  #rocommunity public  localhost
                                                   #  Default access to basic system info
   rocommunity public  default    -V systemonly

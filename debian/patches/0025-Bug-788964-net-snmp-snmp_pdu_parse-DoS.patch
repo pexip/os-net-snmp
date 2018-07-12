@@ -1,6 +1,17 @@
---- net-snmp-5.7.2.1+dfsg.orig/snmplib/snmp_api.c
-+++ net-snmp-5.7.2.1+dfsg/snmplib/snmp_api.c
-@@ -4345,10 +4345,9 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char
+From: Hideki Yamane <henrich@debian.org>
+Date: Thu, 18 Jun 2015 06:21:20 +0900
+Subject: Bug#788964: net-snmp snmp_pdu_parse() DoS
+
+taken patch from https://sourceforge.net/p/net-snmp/code/ci/f23bcd3ac6ddee5d0a48f9703007ccc738914791/
+---
+ snmplib/snmp_api.c | 55 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
+index d2568bf..85cc720 100644
+--- a/snmplib/snmp_api.c
++++ b/snmplib/snmp_api.c
+@@ -4350,10 +4350,9 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
      u_char          type;
      u_char          msg_type;
      u_char         *var_val;
@@ -10,18 +21,9 @@
 -    netsnmp_variable_list *vp = NULL;
 +    netsnmp_variable_list *vp = NULL, *vplast = NULL;
      oid             objid[MAX_OID_LEN];
+     u_char         *p;
  
-     /*
-@@ -4356,7 +4355,7 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char
-      */
-     data = asn_parse_header(data, length, &msg_type);
-     if (data == NULL)
--        return -1;
-+        goto fail;
-     DEBUGMSGTL(("dumpv_recv","    Command %s\n", snmp_pdu_type(msg_type)));
-     pdu->command = msg_type;
-     pdu->flags &= (~UCD_MSG_FLAG_RESPONSE_PDU);
-@@ -4487,38 +4486,23 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char
+@@ -4493,38 +4492,24 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
                                (ASN_SEQUENCE | ASN_CONSTRUCTOR),
                                "varbinds");
      if (data == NULL)
@@ -43,12 +45,12 @@
 -            vp->next_variable = vptemp;
 -        }
 -        vp = vptemp;
--
--        vp->next_variable = NULL;
--        vp->val.string = NULL;
 +        vp = SNMP_MALLOC_TYPEDEF(netsnmp_variable_list);
 +        if (NULL == vp)
 +            goto fail;
+ 
+-        vp->next_variable = NULL;
+-        vp->val.string = NULL;
          vp->name_length = MAX_OID_LEN;
 -        vp->name = NULL;
 -        vp->index = 0;
@@ -66,16 +68,16 @@
  
          len = MAX_PACKET_LENGTH;
          DEBUGDUMPHEADER("recv", "Value");
-@@ -4583,7 +4567,7 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char
+@@ -4604,7 +4589,7 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
                  vp->val.string = (u_char *) malloc(vp->val_len);
              }
              if (vp->val.string == NULL) {
 -                return -1;
 +                goto fail;
              }
-             asn_parse_string(var_val, &len, &vp->type, vp->val.string,
+             p = asn_parse_string(var_val, &len, &vp->type, vp->val.string,
                               &vp->val_len);
-@@ -4594,7 +4578,7 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char
+@@ -4619,7 +4604,7 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
              vp->val_len *= sizeof(oid);
              vp->val.objid = (oid *) malloc(vp->val_len);
              if (vp->val.objid == NULL) {
@@ -84,15 +86,16 @@
              }
              memmove(vp->val.objid, objid, vp->val_len);
              break;
-@@ -4606,19 +4590,34 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char
+@@ -4631,7 +4616,7 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
          case ASN_BIT_STR:
              vp->val.bitstring = (u_char *) malloc(vp->val_len);
              if (vp->val.bitstring == NULL) {
 -                return -1;
 +                goto fail;
              }
-             asn_parse_bitstring(var_val, &len, &vp->type,
+             p = asn_parse_bitstring(var_val, &len, &vp->type,
                                  vp->val.bitstring, &vp->val_len);
+@@ -4640,12 +4625,28 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
              break;
          default:
              snmp_log(LOG_ERR, "bad type returned (%x)\n", vp->type);
@@ -101,6 +104,7 @@
              break;
          }
          DEBUGINDENTADD(-4);
++
 +        if (NULL == vplast) {
 +            pdu->variables = vp;
 +        } else {

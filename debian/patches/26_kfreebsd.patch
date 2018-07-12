@@ -1,8 +1,6 @@
 Preliminary support for kfreebsd.
-Index: net-snmp-5.7.2~dfsg/agent/mibgroup/hardware/cpu/cpu_sysctl.c
-===================================================================
---- net-snmp-5.7.2~dfsg.orig/agent/mibgroup/hardware/cpu/cpu_sysctl.c	2013-01-07 13:18:53.861513650 +0900
-+++ net-snmp-5.7.2~dfsg/agent/mibgroup/hardware/cpu/cpu_sysctl.c	2013-01-07 13:21:32.693902019 +0900
+--- a/agent/mibgroup/hardware/cpu/cpu_sysctl.c
++++ b/agent/mibgroup/hardware/cpu/cpu_sysctl.c
 @@ -12,7 +12,7 @@
  #include <unistd.h>
  #include <sys/types.h>
@@ -12,16 +10,16 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/hardware/cpu/cpu_sysctl.c
  #include <sys/resource.h>
  #if !defined(CPUSTATES)
  #include <sys/dkstat.h>
-@@ -83,7 +83,7 @@
+@@ -89,7 +89,7 @@
  #elif defined(KERN_CPTIME)                /* OpenBSD */
  #define NETSNMP_KERN_CPU  KERN_CPTIME
  
 -#elif defined(__FreeBSD__)
 +#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
- #define NETSNMP_KERN_CPU  0    /* dummy value - sysctlnametomib(2) should be used */
+ #define NETSNMP_KERN_MCPU 1    /* Enable support for multi-cpu stats. Valid for FreeBSD >=6.4, >=7.1, >=8.0 and beyond */
+ #define NETSNMP_KERN_MCPU_TYPE NETSNMP_CPU_STATS
  
- #else
-@@ -117,7 +117,7 @@
+@@ -129,7 +129,7 @@
  #define NETSNMP_VM_STATS_TYPE  struct uvmexp
  #endif  /* VM_UVMEXP2 || VM_UVMEXP */
  
@@ -30,21 +28,34 @@ Index: net-snmp-5.7.2~dfsg/agent/mibgroup/hardware/cpu/cpu_sysctl.c
  #define NETSNMP_VM_STATS       VM_METER
  #define NETSNMP_VM_STATS_TYPE  struct vmmeter
      #define NS_VM_INTR		v_intr
-@@ -159,7 +159,7 @@
-      * Don't fight it, Dave - go with the flow....
+@@ -169,10 +169,10 @@
       */
      NETSNMP_CPU_STATS cpu_stats[CPUSTATES];
+     size_t         cpu_size  = sizeof(cpu_stats);
 -#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-+#if !defined(__FreeBSD__) || defined(__FreeBSD_kernel__) && !defined(__NetBSD__)
++#if !defined(__FreeBSD__) && !defined(__FreeBSD_kernel__) && !defined(__NetBSD__)
      int            cpu_mib[] = { CTL_KERN, NETSNMP_KERN_CPU };
  #endif
-     size_t         cpu_size  = sizeof(cpu_stats);
-@@ -173,7 +173,7 @@
+-#ifdef __FreeBSD__
++#if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__))
+     static int     cp_times = -1;
+ #endif
+ #ifdef KERN_CPTIME2
+@@ -189,7 +189,7 @@
      size_t         mem_size  = sizeof(NETSNMP_VM_STATS_TYPE);
      netsnmp_cpu_info *cpu = netsnmp_cpu_get_byIdx( -1, 0 );
  
--#if (defined(__FreeBSD__) || defined(__NetBSD__))
-+#if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__))
+-#if defined(__FreeBSD__) || defined(__NetBSD__)
++#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
      sysctlbyname("kern.cp_time", cpu_stats, &cpu_size, NULL, 0);
  #else
      sysctl(cpu_mib, 2,  cpu_stats, &cpu_size, NULL, 0);
+@@ -226,7 +226,7 @@
+     mcpu_size  = cpu_num*sizeof(cpu_stats);
+     mcpu_stats = malloc(mcpu_size);
+     sysctlbyname("kern.cp_time", mcpu_stats, &mcpu_size, NULL, 0);
+-#elif defined(__FreeBSD__)
++#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+     if (cp_times == -1) {
+ 	int ret = sysctlbyname("kern.cp_times", NULL, &mcpu_size, NULL, 0);
+ 	cp_times = ret == -1 ? 0 : 1;

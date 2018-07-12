@@ -1,7 +1,7 @@
-Description: fix regular expression mismatching
- setup.py would find library via net-snmp-config, however, its result also 
- matches to "-L/usr/lib/x86_64-linux-gnu" and return "inux-gnu" as library
- in Debian/Ubuntu enabling Multi-Arch environtment as below.
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: fix_regular_expression
+
 >>> import os
 >>> import re
 >>> import string
@@ -17,17 +17,15 @@ Description: fix regular expression mismatching
 ['netsnmp', 'crypto', 'm']
 
 Author: Hideki Yamane <henrich@debian.org>
-
 ---
-Origin: vendor
-Forwarded: no
-Last-Update: 2013-01-07
+ python/setup.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Index: net-snmp-5.7.1~dfsg/python/setup.py
-===================================================================
---- net-snmp-5.7.1~dfsg.orig/python/setup.py	2013-01-07 11:33:32.346195340 +0900
-+++ net-snmp-5.7.1~dfsg/python/setup.py	2013-01-07 11:33:58.654255360 +0900
-@@ -18,14 +18,14 @@
+diff --git a/python/setup.py b/python/setup.py
+index c520df9..0bd3155 100644
+--- a/python/setup.py
++++ b/python/setup.py
+@@ -18,14 +18,14 @@ if intree:
      netsnmp_libs = os.popen(basedir+'/net-snmp-config --libs').read()
      libdir = os.popen(basedir+'/net-snmp-config --build-lib-dirs '+basedir).read()
      incdir = os.popen(basedir+'/net-snmp-config --build-includes '+basedir).read()

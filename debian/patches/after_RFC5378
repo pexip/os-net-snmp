@@ -1,13 +1,16 @@
-Description: exclude under RFC5378 modules
-Author: Hideki Yamane <henrich@debian.org>
----
-Origin: vendor
-Forwarded: not-needed
-Last-Update: 2013-02-08
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: after_RFC5378
 
---- net-snmp-5.7.2~dfsg.orig/mibs/rfclist
-+++ net-snmp-5.7.2~dfsg/mibs/rfclist
-@@ -233,33 +233,3 @@
+---
+ mibs/rfclist | 45 ---------------------------------------------
+ 1 file changed, 45 deletions(-)
+
+diff --git a/mibs/rfclist b/mibs/rfclist
+index e0d3eef..9cca4cc 100644
+--- a/mibs/rfclist
++++ b/mibs/rfclist
+@@ -232,48 +232,3 @@
  5190	MIDCOM-MIB
  5240	PIM-BSR-MIB
  5324	T11-FC-SP-TC-MIB:T11-FC-SP-AUTHENTICATION-MIB:T11-FC-SP-ZONING-MIB:T11-FC-SP-POLICY-MIB:T11-FC-SP-SA-MIB
@@ -28,7 +31,6 @@ Last-Update: 2013-02-08
 -5676	SYSLOG-MSG-MIB
 -5728	DVB-RCS-MIB
 -5813	FORCES-MIB
--5815	IPFIX-MIB:IPFIX-SELECTOR-MIB
 -5833	CAPWAP-BASE-MIB
 -5834	CAPWAP-DOT11-MIB
 -5907	NTPv4-MIB
@@ -41,3 +43,19 @@ Last-Update: 2013-02-08
 -6475	PMIPV6-TC-MIB:PMIPV6-MIB
 -6527	VRRPV3-MIB
 -6615	IPFIX-MIB:IPFIX-SELECTOR-MIB
+-6727	PSAMP-MIB
+-6765	GBOND-MIB:IANA-GBOND-TC-MIB
+-6766	G9983-MIB
+-6767	G9982-MIB
+-6768	G9981-MIB
+-6779	NHDP-MIB
+-6825	TED-MIB
+-6850	RBRIDGE-MIB
+-6933	ENTITY-MIB:UUID-TC-MIB
+-6945	RPKI-ROUTER-MIB
+-7052	LISP-MIB
+-7147	ISCSI-MIB
+-7184	OLSRv2-MIB
+-7257	VPLS-GENERIC-MIB:VPLS-LDP-MIB:VPLS-BGP-MIB
+-7330	BFD-TC-STD-MIB
+-7331	BFD-STD-MIB
