@@ -1,1 +1,0 @@
-rm_conffile /etc/snmp/snmptrapd.conf 5.7.2.1+dfsg-1pexip1

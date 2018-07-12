@@ -1,6 +1,7 @@
 net-snmp (5.7.3+dfsg-1.7pexip1) pexip; urgency=medium
 
   * Migrate to Stretch
+  * debian/snmpd.maintscript: Drop; no longer needed
 
  -- John-Mark Bell <jmb@pexip.com>  Thu, 12 Jul 2018 16:46:28 +0100
 
