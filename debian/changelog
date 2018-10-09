@@ -1,3 +1,9 @@
+net-snmp (5.7.3+dfsg-1.7pexip2) pexip; urgency=medium
+
+  * CVE-2018-18065: Backport fix for CVE-2018-18065
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 09 Oct 2018 11:22:07 +0100
+
 net-snmp (5.7.3+dfsg-1.7pexip1) pexip; urgency=medium
 
   * Migrate to Stretch

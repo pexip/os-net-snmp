@@ -35,3 +35,4 @@ fix_engineid_reprobe.diff
 ensure_correct_openssl_version.patch
 drop_lcrypto_from_NSC_LNETSNMPLIBS.patch
 use_evp_api.patch
+CVE-2018-18065.patch
