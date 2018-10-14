@@ -1,3 +1,17 @@
+net-snmp (5.7.3+dfsg-1.7+deb9u1pexip1) pexip; urgency=high
+
+  * New upstream release
+
+ -- John-Mark Bell <jmb@pexip.com>  Sun, 14 Oct 2018 18:21:07 +0100
+
+net-snmp (5.7.3+dfsg-1.7+deb9u1) stretch-security; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * snmpd crashes when receiving a GetNext PDU with multiple Varbinds
+    (CVE-2018-18065) (Closes: #910638)
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Tue, 09 Oct 2018 10:45:49 +0200
+
 net-snmp (5.7.3+dfsg-1.7pexip2) pexip; urgency=medium
 
   * CVE-2018-18065: Backport fix for CVE-2018-18065

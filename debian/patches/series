@@ -34,5 +34,5 @@ fix_engineid_reprobe.diff
 0001-CHANGES-BUG-2712-Fix-Perl-module-compilation.patch
 ensure_correct_openssl_version.patch
 drop_lcrypto_from_NSC_LNETSNMPLIBS.patch
-use_evp_api.patch
 CVE-2018-18065.patch
+use_evp_api.patch
