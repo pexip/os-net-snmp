@@ -5,8 +5,6 @@ export DEB_BUILD_MAINT_OPTIONS := hardening=+all
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 LIB_VERSION = 30
-UPSTREAM_VERSION = $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ':' | sed 's/ //' | sed 's/~dfsg.*$$//')
-COMPAT_VERSION = $(UPSTREAM_VERSION)~dfsg
 PYTHON_VERSION = 1.0a1
 
 MIB_MODULES = smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib
@@ -35,7 +33,7 @@ MIB_MODULES += host
 endif
 
 %:
-	dh $@ --with autotools-dev,autoreconf,python2,systemd
+	dh $@ --with python2
 
 override_dh_auto_configure:
 	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man \
@@ -83,7 +81,7 @@ override_dh_strip:
 	dh_strip
 
 override_dh_makeshlibs:
-	dh_makeshlibs -plibsnmp$(LIB_VERSION) -V"libsnmp$(LIB_VERSION) (>= $(COMPAT_VERSION))"
+	dh_makeshlibs -plibsnmp$(LIB_VERSION) -VUpstream-Version
 
 override_dh_install-arch:
 	dh_install
@@ -108,17 +106,11 @@ override_dh_auto_test:
 	# prevent test since it fails with network configuration under pbuilder/etc.
 	true
 
-override_dh_systemd_enable:
-	dh_systemd_enable --package=snmptrapd --no-enable
-	dh_systemd_enable --remaining-packages
+override_dh_installsystemd:
+	dh_installsystemd -psnmptrapd --no-enable --no-start
+	dh_installsystemd -Nsnmptrapd
 
-get-orig-source:
-	@uscan --download-version $(UPSTREAM_VERSION) --destdir /tmp --force-download --no-symlink
-	@tar xf /tmp/net-snmp-$(UPSTREAM_VERSION).tar.gz -C /tmp
-	@rm -rf /tmp/net-snmp-$(UPSTREAM_VERSION)/doc
-	@cd /tmp/net-snmp-$(UPSTREAM_VERSION)/mibs; \
-	 grep ^iana ianalist | while read iana mibs; do rm -f `echo $$mibs | sed -e s/$$/.txt/`; done; \
-	 cat rfclist | while read rfc mibs; do rm -f `echo $$mibs | sed 's/:/.txt /g' | sed 's/$$/.txt/'`; done
-	@rm -f /tmp/net-snmp-$(UPSTREAM_VERSION)/mibs/RFC-1215.txt
-	@cd /tmp; tar cJf net-snmp_$(COMPAT_VERSION).orig.tar.xz net-snmp-$(UPSTREAM_VERSION)
-	@rm -rf /tmp/net-snmp-$(UPSTREAM_VERSION)
+override_dh_installinit:
+	dh_installinit -psnmptrapd --no-enable --no-start
+	dh_installinit -Nsnmptrapd
+

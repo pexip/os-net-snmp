@@ -1,8 +1,18 @@
-Index: net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.pm
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Mon, 5 Mar 2018 21:13:51 +1100
+Subject: let_perl_access_engineid
+
 ===================================================================
---- net-snmp-5.7.2.1+dfsg.orig/perl/SNMP/SNMP.pm
-+++ net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.pm
-@@ -1238,6 +1238,16 @@ sub inform {
+---
+ perl/SNMP/SNMP.pm | 21 +++++++++++++++++++++
+ perl/SNMP/SNMP.xs | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+)
+
+diff --git a/perl/SNMP/SNMP.pm b/perl/SNMP/SNMP.pm
+index a05cd38..aa90ac5 100644
+--- a/perl/SNMP/SNMP.pm
++++ b/perl/SNMP/SNMP.pm
+@@ -1243,6 +1243,16 @@ sub inform {
     return(wantarray() ? @res : $res[0]);
  }
  
@@ -19,7 +29,7 @@ Index: net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.pm
  package SNMP::TrapSession;
  @SNMP::TrapSession::ISA = ('SNMP::Session');
  
-@@ -2034,6 +2044,17 @@ as well.
+@@ -2039,6 +2049,17 @@ as well.
  
  =back
  
@@ -37,14 +47,15 @@ Index: net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.pm
  =back
  
  =head1 SNMP::TrapSession
-Index: net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.xs
-===================================================================
---- net-snmp-5.7.2.1+dfsg.orig/perl/SNMP/SNMP.xs
-+++ net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.xs
-@@ -4741,6 +4741,50 @@ done:
+diff --git a/perl/SNMP/SNMP.xs b/perl/SNMP/SNMP.xs
+index 2a734e8..288c6a6 100644
+--- a/perl/SNMP/SNMP.xs
++++ b/perl/SNMP/SNMP.xs
+@@ -4736,6 +4736,50 @@ done:
  
  
- char *
+ 
++char *
 +snmp_get_sec_engine_id(sess_ref)
 +        SV *	sess_ref
 +	CODE:
@@ -88,7 +99,6 @@ Index: net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.xs
 +        netsnmp_free(RETVAL);
 +
 +
-+char *
+ char *
  snmp_get_type(tag, best_guess)
  	char *		tag
-         int             best_guess
