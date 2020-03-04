@@ -1,3 +1,9 @@
+net-snmp (5.7.3+dfsg-5pexip1) pexip; urgency=medium
+
+  * Migrate to Buster
+
+ -- Vincent Sanders <vince@pexip.com>  Wed, 04 Mar 2020 10:15:02 +0000
+
 net-snmp (5.7.3+dfsg-5) unstable; urgency=medium
 
   * Use debhelper macros for shlibs Closes: #912685
