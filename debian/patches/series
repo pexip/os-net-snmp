@@ -1,3 +1,4 @@
+pingmib_perl_path
 02_statistics.patch
 03_makefiles.patch
 05_searchdirs.patch
@@ -32,7 +33,9 @@ callback_print.diff
 fix_engineid_reprobe.diff
 0001-Remove-U64-typedef.patch
 0001-CHANGES-BUG-2712-Fix-Perl-module-compilation.patch
-ensure_correct_openssl_version.patch
-drop_lcrypto_from_NSC_LNETSNMPLIBS.patch
+Port-OpenSSL-1.1.0-with-support-for-1.0.2.patch
+perl-parallel-build.patch
+snmpwalk_args_in_snmpcheck
 CVE-2018-18065.patch
+snmptrapd_mysql_init
 use_evp_api.patch

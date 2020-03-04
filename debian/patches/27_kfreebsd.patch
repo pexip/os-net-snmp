@@ -1,6 +1,17 @@
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Mon, 5 Mar 2018 21:13:50 +1100
+Subject: _kfreebsd
+
+---
+ agent/mibgroup/mibII/icmp.h          | 1 +
+ agent/mibgroup/mibII/kernel_sysctl.c | 6 ++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/agent/mibgroup/mibII/icmp.h b/agent/mibgroup/mibII/icmp.h
+index d07841a..03a2788 100644
 --- a/agent/mibgroup/mibII/icmp.h
 +++ b/agent/mibgroup/mibII/icmp.h
-@@ -14,6 +14,7 @@
+@@ -14,6 +14,7 @@ config_arch_require(freebsd7,  mibII/kernel_sysctl)
  config_arch_require(freebsd8,  mibII/kernel_sysctl)
  config_arch_require(freebsd9,  mibII/kernel_sysctl)
  config_arch_require(freebsd10, mibII/kernel_sysctl)
@@ -8,6 +19,8 @@
  config_arch_require(netbsd,    mibII/kernel_netbsd)
  config_arch_require(netbsdelf, mibII/kernel_netbsd)
  config_arch_require(openbsd4,  mibII/kernel_sysctl)
+diff --git a/agent/mibgroup/mibII/kernel_sysctl.c b/agent/mibgroup/mibII/kernel_sysctl.c
+index 166f664..8ea87f8 100644
 --- a/agent/mibgroup/mibII/kernel_sysctl.c
 +++ b/agent/mibgroup/mibII/kernel_sysctl.c
 @@ -14,6 +14,12 @@

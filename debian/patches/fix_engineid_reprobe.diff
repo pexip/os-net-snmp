@@ -1,8 +1,17 @@
-Index: net-snmp-5.7.3/snmplib/snmpusm.c
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Mon, 5 Mar 2018 21:13:51 +1100
+Subject: fix_engineid_reprobe
+
 ===================================================================
---- net-snmp-5.7.3.orig/snmplib/snmpusm.c
-+++ net-snmp-5.7.3/snmplib/snmpusm.c
-@@ -3129,6 +3129,11 @@ int usm_discover_engineid(void *slpv, ne
+---
+ snmplib/snmpusm.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/snmplib/snmpusm.c b/snmplib/snmpusm.c
+index 6a9cec3..f8fc74c 100644
+--- a/snmplib/snmpusm.c
++++ b/snmplib/snmpusm.c
+@@ -3129,6 +3129,11 @@ int usm_discover_engineid(void *slpv, netsnmp_session *session) {
      int status, i;
      struct session_list *slp = (struct session_list *) slpv;
  

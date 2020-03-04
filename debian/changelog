@@ -1,16 +1,82 @@
+net-snmp (5.7.3+dfsg-5) unstable; urgency=medium
+
+  * Use debhelper macros for shlibs Closes: #912685
+  * Relocate snmp.conf to libsnmp-base Closes: #914657
+
+ -- Craig Small <csmall@debian.org>  Sat, 05 Jan 2019 16:16:10 +1100
+
+net-snmp (5.7.3+dfsg-4) unstable; urgency=medium
+
+  [ Craig Small ]
+  * Use correct snmpwalk args in snmpcheck Closes: #898197
+  * Remove user only on purge Closes: #911216
+
+  [ Ondřej Nový ]
+  * d/copyright: Use https protocol in Format field
+  * d/control: Removing redundant Priority field in binary package
+  * d/changelog: Remove trailing whitespaces
+  * d/control: Remove trailing whitespaces
+  * d/watch: Use https protocol
+
+  [ Salvatore Bonaccorso ]
+  * snmpd crashes when receiving a GetNext PDU with multiple Varbinds
+    (CVE-2018-18065) (Closes: #910638)
+
+ -- Craig Small <csmall@debian.org>  Fri, 26 Oct 2018 12:40:34 +1100
+
+net-snmp (5.7.3+dfsg-3) unstable; urgency=medium
+
+  * Compile perl module after library Closes: #894626
+
+ -- Craig Small <csmall@debian.org>  Wed, 04 Apr 2018 21:34:09 +1000
+
+net-snmp (5.7.3+dfsg-2) unstable; urgency=medium
+
+  [ Craig Small ]
+  * New maintainer Closes: #835654
+  * Imported old NMU diff Closes: #851343, #852479
+  * Change VCS urls to salsa
+  * Update to standards 4.1.3 - no change
+  * Update to debhelper version 11
+  * Remove empty copyright file for libsnmp30
+  * snmp.prerm - remove killall
+  * snmpd and snmptrapd init scripts follow LSB minimal skeleton
+    Closes: #823079, #746397
+  * Drop Jochen Friedrich from Uploaders Closes: #891770
+  * Make snmpd and snmptrapd write pid files Closes: #878828
+
+  [ Hideki Yamane ]
+  * debian/control
+    - fix lintian error "old-style-config-script-multiarch-path" by adding
+      "Multi-Arch: no" to libsnmp-dev. It also fix multi-arch install
+      (Closes: #774775)
+    - note net-snmp-config script moved to libsnmp-dev (Closes: #801991)
+      Thanks to Vanush Misha Paturyan <misha@cs.nuim.ie>
+  * debian/libsnmp-perl.manpages
+    - fix to install perl modules man pages (Closes: #778539)
+      Thanks to Guillem Jover <gjover@sipwise.com> for the patch
+  * move debian/NEWS to debian/snmpd.NEWS (Closes: #586722, #587183)
+  * debian/control
+    - drop Hideki Yamane <henrich@debian.org> from Uploaders.
+
+ -- Craig Small <csmall@debian.org>  Sat, 31 Mar 2018 20:00:51 +1100
+
+net-snmp (5.7.3+dfsg-1.8) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Add support for OpenSSL 1.1.0 and revert that were added
+    (Closes: #828449):
+    - add libssl-dev back as dependency of libsnmp-dev
+    - drop the guard which enforced libssl 1.0.2
+    - add -lcrypto back to pkg-config
+
+ -- Sebastian Andrzej Siewior <sebastian@breakpoint.cc>  Sat, 23 Dec 2017 23:48:23 +0100
+
 net-snmp (5.7.3+dfsg-1.7+deb9u1pexip1) pexip; urgency=high
 
   * New upstream release
 
  -- John-Mark Bell <jmb@pexip.com>  Sun, 14 Oct 2018 18:21:07 +0100
-
-net-snmp (5.7.3+dfsg-1.7+deb9u1) stretch-security; urgency=high
-
-  * Non-maintainer upload by the Security Team.
-  * snmpd crashes when receiving a GetNext PDU with multiple Varbinds
-    (CVE-2018-18065) (Closes: #910638)
-
- -- Salvatore Bonaccorso <carnil@debian.org>  Tue, 09 Oct 2018 10:45:49 +0200
 
 net-snmp (5.7.3+dfsg-1.7pexip2) pexip; urgency=medium
 
@@ -100,7 +166,7 @@ net-snmp (5.7.3+dfsg-1.2) unstable; urgency=medium
   [ Steven Chamberlain ]
   * Add missing Build-Depends: pkg-config on kfreebsd (Closes: #810982)
 
-  [ Steinar H. Gunderson ] 
+  [ Steinar H. Gunderson ]
   * Add --force-badname when creating the Debian-snmp user, as the name would
     otherwise be rejected. (Closes: #819531)
 
@@ -325,7 +391,7 @@ net-snmp (5.7.2~dfsg-8.1) unstable; urgency=low
 net-snmp (5.7.2~dfsg-8) unstable; urgency=low
 
   * add libsnmp-perl.preinst to deal with empty directory by libsnmp15
-    package removal (Closes: #709761) 
+    package removal (Closes: #709761)
   * {snmp,snmpd}.postinst: deal with "copyright file missing after upgrade
     (policy 12.5)" (Closes: #709087)
 
@@ -373,7 +439,7 @@ net-snmp (5.7.2~dfsg-5) unstable; urgency=low
 net-snmp (5.7.2~dfsg-4) unstable; urgency=low
 
   * debian/snmpd.{init,default,postinst}
-    - silly bug related to handle /var/run/agentx directory 
+    - silly bug related to handle /var/run/agentx directory
       (Closes: #708335, #708328) Thanks to Hilmar Preuße <hille42@web.de> and
       Vincent Bernat <bernat@debian.org> for reporting
 
@@ -382,7 +448,7 @@ net-snmp (5.7.2~dfsg-4) unstable; urgency=low
 net-snmp (5.7.2~dfsg-3) unstable; urgency=low
 
   * Upload to unstable
-  * debian/control 
+  * debian/control
     - specify version for "Breaks: libsnmp15"
 
  -- Hideki Yamane <henrich@debian.org>  Thu, 09 May 2013 20:38:28 +0900
@@ -390,7 +456,7 @@ net-snmp (5.7.2~dfsg-3) unstable; urgency=low
 net-snmp (5.7.2~dfsg-2) experimental; urgency=low
 
   * debian/snmpd.{postinst,postrm}
-    - avoid failure with /var/run/agentx 
+    - avoid failure with /var/run/agentx
   * debian/control
     - add "Breaks: libsnmp15" to snmp since snmp.conf moves from it.
 
@@ -454,7 +520,7 @@ net-snmp (5.7.2~dfsg-1~0.1) experimental; urgency=low
   * debian/*.install
     - split into *.manpages
   * debian/fixman: drop it.
-  * debian/*.manpages (Closes: #505149) 
+  * debian/*.manpages (Closes: #505149)
     - remove unnecessary"snmp" from tail of all man pages
   * debian/libsnmp-base.install
     - move /usr/share/mibs to /usr/share/snmp/mibs (probably, previous setting
@@ -485,7 +551,7 @@ net-snmp (5.7.2~dfsg-1~0.1) experimental; urgency=low
     - add fix_man_error.patch
     - drop 25_duplicate_iftable.patch and 44_nlist_kvm.patch since it cannot be
       applied to current code.
-    - drop 32_mnttab_path.patch since it was merged to upstream as 
+    - drop 32_mnttab_path.patch since it was merged to upstream as
       configure.d/config_os_misc4
     - drop 56_manpage.patch since most of patches are merged, and others are
       unnecessary because upstream files are disappeared.
@@ -493,7 +559,7 @@ net-snmp (5.7.2~dfsg-1~0.1) experimental; urgency=low
     - drop 63_fix_shell.patch since it was merged to upstream
     - reapplied 64_missing_lib.patch since upstream source has been changed.
     - drop 65_CVE-2012-2141.patch since it was merged to upstream
-    - drop 66_formatstrings.patch since almost merged to upstream, some of 
+    - drop 66_formatstrings.patch since almost merged to upstream, some of
       code are changed in upstream and become unnecessary.
     - move 08_defaultconfig.patch to debian/snmptrapd.conf
   * debian/rules
@@ -502,7 +568,7 @@ net-snmp (5.7.2~dfsg-1~0.1) experimental; urgency=low
     - specify LDFLAGS to enable hardening
     - add "--with autotools-dev,autoreconf"
     - export DEB_BUILD_MAINT_OPTIONS to enable hardening
-    - drop "dh --with python-central" (Closes: #616913) 
+    - drop "dh --with python-central" (Closes: #616913)
     - drop "include /usr/share/python/python.mk"
     - remove "$(PYVERS:%=debian/python-install-stamp-%)"
     - move exist python targets under override_dh_install
@@ -571,7 +637,7 @@ net-snmp (5.4.3~dfsg-2.5) unstable; urgency=medium
   * Non-maintainer upload by the Security Team.
   * Fix CVE-2012-2141 by using Ubuntu's patch (Closes: #672492).
   * Do not ship *.la files (Closes: #633166).
-  * Enable hardened build flags and fix missing format strings 
+  * Enable hardened build flags and fix missing format strings
     (Closes: #657519).
   * Source debconf before doing work in postinst (Closes: #626312).
   * Fix check for existing snmp group in postinst (Closes: #609430).
@@ -724,7 +790,7 @@ net-snmp (5.4.2.1~dfsg-1) unstable; urgency=low
     - 55_cve2008_4309.patch
     - 54_fix_xen.patch
     - 53_fix_python_regression.patch
-    - 52_suppress_registration_warnings.patch 
+    - 52_suppress_registration_warnings.patch
     - 51_allow_g_groupname.patch
     - 50_cve2008_0960.patch
     - 49_cve2008_2292_python.patch
@@ -811,7 +877,7 @@ net-snmp (5.4.1~dfsg-8) unstable; urgency=low
   * Really fix CVE-2008-2292 using two upstream patches (Closes: #482333)
   * Update nl translation (Closes: #460587)
   * Update patch for support of long interface names to upstream version
- 
+
  -- Jochen Friedrich <jochen@scram.de>  Tue, 03 Jun 2008 13:06:57 +0200
 
 net-snmp (5.4.1~dfsg-7) unstable; urgency=low
@@ -857,7 +923,7 @@ net-snmp (5.4.1~dfsg-4) unstable; urgency=low
 
 net-snmp (5.4.1~dfsg-3) unstable; urgency=low
 
-  * Add some Conflicts: and Replaces: magic to allow moving 
+  * Add some Conflicts: and Replaces: magic to allow moving
     net-snmp-config to libsnmp-base. (Closes: #443420, #443396, #261686)
 
  -- Jochen Friedrich <jochen@scram.de>  Fri, 21 Sep 2007 16:47:48 +0200
@@ -972,9 +1038,9 @@ net-snmp (5.3.1-3) unstable; urgency=low
 
 net-snmp (5.3.1-2) experimental; urgency=low
 
-  * Add kfreebsd support. Thanks to Petr Salinger 
+  * Add kfreebsd support. Thanks to Petr Salinger
     <Petr.Salinger@seznam.cz> (Closes: #380252)
-  * Add Russian translation. Thanks to Yuri Kozlov 
+  * Add Russian translation. Thanks to Yuri Kozlov
     <kozlov.y@gmail.com> (Closes: #380300)
   * Update Czech translation. Thanks to Miroslav Kure
     <kurem@upcase.inf.upol.cz> (Closes: #380528)
@@ -991,18 +1057,18 @@ net-snmp (5.3.1-1) experimental; urgency=low
     entries (Closes: #368617)
 
  -- Jochen Friedrich <jochen@scram.de>  Wed, 26 Jul 2006 12:08:46 +0200
-     
+
 net-snmp (5.2.2-4) unstable; urgency=low
 
   * Add French translation. Thanks to Thomas Huriaux
     <thomas.huriaux@gmail.com> (Closes: #357928)
-  * Add Czech translation. Thanks to Miroslav Kure 
+  * Add Czech translation. Thanks to Miroslav Kure
     <kurem@upcase.inf.upol.cz> (Closes: #358845)
-  * Add Dutch translation. Thanks to Vincent Zweije 
+  * Add Dutch translation. Thanks to Vincent Zweije
     <zweije@xs4all.nl> (Closes: #360441)
-  * Add Galician translation. Thanks to Jacobo Tarrio 
+  * Add Galician translation. Thanks to Jacobo Tarrio
     <jtarrio@trasno.net> (Closes: #361778)
-  * Add Portuguese translation. Thanks to Rui Branco 
+  * Add Portuguese translation. Thanks to Rui Branco
     <ruipb@debianpt.org> (Closes: #375018)
   * Add patch from upstream to correct sysObjectID.
     (Closes: #363399, #374065)
@@ -1050,7 +1116,7 @@ net-snmp (5.2.2-1) unstable; urgency=low
     eventually be left over from old packages. Thanks to "Mario 'BitKoenig'
     Holbe" <Mario.Holbe@TU-Ilmenau.DE> (Closes: #336365)
   * Run snmpd as snmp user by default (Closes: #275374, #337053)
-  * Depend and Builddepend libsnmpd9-dev on procps. Thanks to 
+  * Depend and Builddepend libsnmpd9-dev on procps. Thanks to
     Peder Chr. Norgaard <Peder.Chr.Norgaard> for pointing this out.
     (Closes: #325840)
   * Fix man page section mismatch found by lintian.
@@ -1260,15 +1326,15 @@ net-snmp (5.0.9-1) unstable; urgency=low
   * Updated the debian/copyright file.
   * Changed to work with current libtool and autoconf (closes: $208380).
   * Link libraries with complete dependencies (closes: #199166).
-  * Updated package descriptions (closes: #210122, closes: #210017, 
+  * Updated package descriptions (closes: #210122, closes: #210017,
     closes: #209704, closes: #209857, closes: #209905, closes: #209839).
-  * Added manpages for net-snmp-config, snmpvacm, encode_keychange 
-    (closes: #182996) and tkmib (closes: #130684) from Jurij Smakov 
+  * Added manpages for net-snmp-config, snmpvacm, encode_keychange
+    (closes: #182996) and tkmib (closes: #130684) from Jurij Smakov
     <jurij@wooyd.org>.
   * Fixed mib2c to look for config files in the correct places.
   * Enabled support for the lm-sensors MIB (closes: #204543).
-  * Use the process name instead of the command-line when matching 
-    processes with proc config file directives (closes: #204542) from 
+  * Use the process name instead of the command-line when matching
+    processes with proc config file directives (closes: #204542) from
     Philippe Troin <phil@fifi.org>.
   * Really enabled dlmod support (closes: #180639).
   * Don't use obsolete SO_BSDCOMPAT sockopt (closes: #201853).
@@ -1295,10 +1361,10 @@ net-snmp (5.0.7-1.1) unstable; urgency=low
   * Run debian/fixman.sh using bash.  Closes: #186834.
 
  -- Daniel Schepler <schepler@debian.org>  Sat, 26 Apr 2003 16:52:18 -0700
-  
+
 net-snmp (5.0.7-1) unstable; urgency=low
 
-  * New upstream version (closes:177127, closes:154323, 
+  * New upstream version (closes:177127, closes:154323,
     closes:154322).
   * Enabled dlmod support in snmpd (closes:180639).
   * Use current config.guess and config.sub (closes:172501).
@@ -1327,13 +1393,13 @@ net-snmp (5.0.3-2) unstable; urgency=low
 net-snmp (5.0.3-1) unstable; urgency=low
 
   * New upstream version.
-  * Linked libraries with libcrypto and libwrap to get proper 
-    dependencies.  Updated net-snmp-config accordingly 
+  * Linked libraries with libcrypto and libwrap to get proper
+    dependencies.  Updated net-snmp-config accordingly
     (closes: #155153).
-  * Included the UCD compatibility headers and library 
+  * Included the UCD compatibility headers and library
     (closes: #155133).
   * Fixed bad snmpinform symlink (closes: #155196).
-  * Fixed mib2c to look in /etc/snmp for config files 
+  * Fixed mib2c to look in /etc/snmp for config files
     (closes: #155157).
 
  -- David Engel <david@debian.org>  Mon,  5 Aug 2002 21:01:27 -0500
@@ -1377,7 +1443,7 @@ ucd-snmp (4.2.3-2) unstable; urgency=high
 ucd-snmp (4.2.3-1) unstable; urgency=low
 
   * New upstream version (closes:122331).
-  * Changed the snmpd syslog message when interface statistics are 
+  * Changed the snmpd syslog message when interface statistics are
     not available from LOG_ERR to LOG_DEBUG (closes:121555).
   * Added a note in README.Debian about changes to
     ucd-snmp-includes.h (closes:121095).
@@ -1395,7 +1461,7 @@ ucd-snmp (4.2.2-1) unstable; urgency=low
   * Fixed int/size_t errors in mib_api man page (closes:114478).
   * Added a blurb in README.Debian about snmpconf (closes:115378).
   * Enabled smux support.
-  * Moved the agentx socket from /var/agentx/master to /var/run/agents 
+  * Moved the agentx socket from /var/agentx/master to /var/run/agents
     for FHS compatibility (closes:120015).
 
  -- David Engel <david@debian.org>  Mon, 19 Nov 2001 13:33:59 -0600
@@ -1430,14 +1496,14 @@ ucd-snmp (4.2.1-5) unstable; urgency=low
 
 ucd-snmp (4.2.1-4) unstable; urgency=low
 
-  * Fixed bug uncovered by libtool upgrade which caused snmpd 
+  * Fixed bug uncovered by libtool upgrade which caused snmpd
     not to build (closes:97965).
 
  -- David Engel <david@debian.org>  Fri, 18 May 2001 20:49:14 -0500
 
 ucd-snmp (4.2.1-3) unstable; urgency=low
 
-  * Installed the libsnmp-perl module into the perl vendor 
+  * Installed the libsnmp-perl module into the perl vendor
     directory (closes:95530).
   * Updated the description of the libsnmp-base package
     (closes:97170).
@@ -1448,7 +1514,7 @@ ucd-snmp (4.2.1-3) unstable; urgency=low
 ucd-snmp (4.2.1-2) unstable; urgency=low
 
   * Enabled SSL support.
-  * Included the agent libraries in the -dev package to allow 
+  * Included the agent libraries in the -dev package to allow
     for building agent extensions.
 
  -- David Engel <david@debian.org>  Tue, 15 May 2001 20:15:56 -0500
@@ -1456,7 +1522,7 @@ ucd-snmp (4.2.1-2) unstable; urgency=low
 ucd-snmp (4.2.1-1) unstable; urgency=low
 
   * New upstream version.
-  * Gave up and added autoconf and libtool to Build-Depends: 
+  * Gave up and added autoconf and libtool to Build-Depends:
     (closes:92103).
   * Fixed mib2c to use /etc/snmp instead of /usr/share/snmp.
 
@@ -1500,7 +1566,7 @@ ucd-snmp (4.2-2) unstable; urgency=low
 
   * Created new libsnmp-base package to allow future libsnmpX.Y
     packages to coexist (Bug#31253).
-  * Added a slight delay after stopping the daemons to let them 
+  * Added a slight delay after stopping the daemons to let them
     completely exit before restarting them (Bug#84696).
   * Added a /etc/default/snmpd file to control daemon activity.
   * Hopefully fixed strange error starting snmpd (Bug#58411).
@@ -1522,7 +1588,7 @@ ucd-snmp (4.2-1) unstable; urgency=low
 ucd-snmp (4.1.2-2) unstable; urgency=low
 
   * Added real counter objects to the IPFWCHAINS MIB (George Bonser).
-  * Don't resolve addresses to names in the IPFWCHAINS MIB (George 
+  * Don't resolve addresses to names in the IPFWCHAINS MIB (George
     Bonser).
   * Update the IPFWCHAINS MIB information properly.
   * Use /dev/null as logfile to force closing of std* (Bug#71959,

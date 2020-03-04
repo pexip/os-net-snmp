@@ -6,7 +6,9 @@ SNMP_GROUP="$SNMP_USER"
 set -e
 
 case "$1" in
-     purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    ;;
+    purge)
          # if "snmp" is system user, it means Debian package created it.
          deluser --quiet --system snmp || true
          delgroup --quiet --system snmp || true
@@ -15,11 +17,9 @@ case "$1" in
          deluser --quiet --system $SNMP_USER || true
          delgroup --quiet --system $SNMP_GROUP || true
 
-         if [ $1 = purge ]; then
-             rm -rf /var/lib/snmp/snmpd.conf* \
-                    /var/run/agentx /var/agentx/master \
-                    /var/run/snmpd.pid
-         fi
+         rm -rf /var/lib/snmp/snmpd.conf* \
+                /var/run/agentx /var/agentx/master \
+                /var/run/snmpd.pid
     ;;
 
     *)

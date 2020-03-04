@@ -1,4 +1,3 @@
-debian/snmp.conf etc/snmp/
 usr/bin/snmp*
 usr/bin/encode*
 usr/bin/fixproc

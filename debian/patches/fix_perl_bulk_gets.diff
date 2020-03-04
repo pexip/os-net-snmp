@@ -1,7 +1,16 @@
-Index: net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.pm
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Mon, 5 Mar 2018 21:13:51 +1100
+Subject: fix_perl_bulk_gets
+
 ===================================================================
---- net-snmp-5.7.2.1+dfsg.orig/perl/SNMP/SNMP.pm
-+++ net-snmp-5.7.2.1+dfsg/perl/SNMP/SNMP.pm
+---
+ perl/SNMP/SNMP.pm | 53 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 24 insertions(+), 29 deletions(-)
+
+diff --git a/perl/SNMP/SNMP.pm b/perl/SNMP/SNMP.pm
+index aa90ac5..5416f2e 100644
+--- a/perl/SNMP/SNMP.pm
++++ b/perl/SNMP/SNMP.pm
 @@ -866,22 +866,11 @@ sub _gettable_do_it() {
  
      $vbl = $_[$#_] if ($state->{'options'}{'callback'});
