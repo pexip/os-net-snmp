@@ -1,3 +1,9 @@
+net-snmp (5.7.3+dfsg-5pexip2) pexip; urgency=medium
+
+  * Rebuild in buster environment
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Thu, 16 Jul 2020 01:14:30 +0000
+
 net-snmp (5.7.3+dfsg-5pexip1) pexip; urgency=medium
 
   * Migrate to Buster
