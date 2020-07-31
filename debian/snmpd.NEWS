@@ -1,3 +1,11 @@
+net-snmp (5.7.3+dfsg-6+deb10u1) buster-security; urgency=medium
+
+ NET-SNMP-EXTEND-MIB is now read-only. This means you can only
+ add new items through the configuration file and not using 
+ SNMP SET commands. 
+
+ -- Craig Small <csmall@debian.org>  Fri, 31 Jul 2020 21:01:10 +1000
+
 net-snmp (5.4.3~dfsg-1) unstable; urgency=low
 
   As of version 5.4.3, upstream ships a new default configuration in
