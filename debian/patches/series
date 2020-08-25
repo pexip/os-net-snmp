@@ -38,4 +38,9 @@ perl-parallel-build.patch
 snmpwalk_args_in_snmpcheck
 CVE-2018-18065.patch
 snmptrapd_mysql_init
+extend_mib_readonly
+netsnmp_set_agent_user_group
+snmpd_conf_5_ro_extend
+snmpd_stop_mib_indexes_files
+snmp_snmptrapd_disallow_user_change
 use_evp_api.patch
