@@ -47,17 +47,17 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(tcpConnectionTable_external_access, libnetsnmpmibs)
+netsnmp_feature_child_of(tcpConnectionTable_external_access, libnetsnmpmibs);
 
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(check_all_requests_error);
 
 
-netsnmp_feature_child_of(tcpConnectionTable_container_size, tcpConnectionTable_external_access)
-netsnmp_feature_child_of(tcpConnectionTable_registration_set, tcpConnectionTable_external_access)
-netsnmp_feature_child_of(tcpConnectionTable_registration_get, tcpConnectionTable_external_access)
-netsnmp_feature_child_of(tcpConnectionTable_container_get, tcpConnectionTable_external_access)
+netsnmp_feature_child_of(tcpConnectionTable_container_size, tcpConnectionTable_external_access);
+netsnmp_feature_child_of(tcpConnectionTable_registration_set, tcpConnectionTable_external_access);
+netsnmp_feature_child_of(tcpConnectionTable_registration_get, tcpConnectionTable_external_access);
+netsnmp_feature_child_of(tcpConnectionTable_container_get, tcpConnectionTable_external_access);
 
 /**********************************************************************
  **********************************************************************
@@ -291,10 +291,12 @@ _tcpConnectionTable_initialize_interface(tcpConnectionTable_registration *
         netsnmp_handler_registration_create("tcpConnectionTable", handler,
                                             tcpConnectionTable_oid,
                                             tcpConnectionTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP
+                                            HANDLER_CAN_BABY_STEP |
 #if !(defined(NETSNMP_NO_WRITE_SUPPORT) || defined(NETSNMP_DISABLE_SET_SUPPORT))
-                                          | HANDLER_CAN_RWRITE
-#endif
+                                            HANDLER_CAN_RWRITE
+#else
+                                            HANDLER_CAN_RONLY
+#endif /* NETSNMP_NO_WRITE_SUPPORT || NETSNMP_DISABLE_SET_SUPPORT  */
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table tcpConnectionTable\n");

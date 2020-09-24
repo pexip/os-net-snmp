@@ -17,13 +17,16 @@ DESC="SNMP Trap Services"
 DAEMON=/usr/sbin/snmptrapd
 PIDFILE="/run/snmptrapd.pid"
 
-# Defaults
-OLD_MIBS_DIR="/usr/share/mibs/site:/usr/share/snmp/mibs:/usr/share/mibs/iana:/usr/share/mibs/ietf:/usr/share/mibs/netsnmp"
-MIBS_DIR="/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf"
-export MIBDIRS="$MIBS_DIR:$OLD_MIBS_DIR"
+DEFAULT_TRAPDOPTS="-LSwd -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf"
 
-DEFAULT_TRAPDOPTS="-Lsd -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf"
-[ -z "$TRAPDOPTS" ] && TRAPDOPTS=$DEFAULT_TRAPDOPTS
+do_start_prepare()
+{
+    [ -z "$TRAPDOPTS" ] && TRAPDOPTS=$DEFAULT_TRAPDOPTS
+    DAEMON_ARGS=" $TRAPDOPTS -p $PIDFILE"
+}
 
-DAEMON_ARGS=" $TRAPDOPTS \
-	-p $PIDFILE"
+do_restart_prepare()
+{
+    do_start_prepare
+}
+

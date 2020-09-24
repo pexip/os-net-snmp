@@ -1,17 +1,10 @@
-From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
-Date: Thu, 18 Jun 2015 06:12:05 +0900
-Subject: _missing_lib
-
----
- apps/Makefile.in | 6 ++++--
- configure.ac     | 3 +++
- 2 files changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/apps/Makefile.in b/apps/Makefile.in
-index 77404dd..c611e01 100644
+Description: Add missing libraries to Makefile
+Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Reviewed-by: Craig Small <csmall@debian.org>
+Last-Update: 2019-02-07
 --- a/apps/Makefile.in
 +++ b/apps/Makefile.in
-@@ -83,6 +83,8 @@ MIBLIB          = ../agent/libnetsnmpmibs.$(LIB_EXTENSION)$(LIB_VERSION)
+@@ -95,6 +95,8 @@
  USEAGENTLIBS	= $(MIBLIB) $(AGENTLIB) $(USELIBS)
  MYSQL_LIBS	= @MYSQL_LIBS@
  MYSQL_INCLUDES	= @MYSQL_INCLUDES@
@@ -20,7 +13,7 @@ index 77404dd..c611e01 100644
  
  VAL_LIBS	= @VAL_LIBS@
  LIBS		= $(USELIBS) $(VAL_LIBS) @LIBS@
-@@ -170,7 +172,7 @@ snmptest$(EXEEXT):    snmptest.$(OSUFFIX) $(USELIBS)
+@@ -190,7 +192,7 @@
  	$(LINK) ${CFLAGS} -o $@ snmptest.$(OSUFFIX) ${LDFLAGS} ${LIBS}
  
  snmptrapd$(EXEEXT):    $(TRAPD_OBJECTS) $(USETRAPLIBS) $(INSTALLLIBS)
@@ -29,7 +22,7 @@ index 77404dd..c611e01 100644
  
  snmptrap$(EXEEXT):    snmptrap.$(OSUFFIX) $(USELIBS)
  	$(LINK) ${CFLAGS} -o $@ snmptrap.$(OSUFFIX) ${LDFLAGS} ${LIBS}
-@@ -183,7 +185,7 @@ snmpset$(EXEEXT):    snmpset.$(OSUFFIX) $(USELIBS)
+@@ -207,7 +209,7 @@
  	$(LINK) ${CFLAGS} -o $@ snmpset.$(OSUFFIX) ${LDFLAGS} ${LIBS}
  
  snmpusm$(EXEEXT):    snmpusm.$(OSUFFIX) $(USELIBS)
@@ -38,11 +31,9 @@ index 77404dd..c611e01 100644
  
  snmpvacm$(EXEEXT):    snmpvacm.$(OSUFFIX) $(USELIBS)
  	$(LINK) ${CFLAGS} -o $@ snmpvacm.$(OSUFFIX) ${LDFLAGS} ${LIBS}
-diff --git a/configure.ac b/configure.ac
-index ecf761f..6d28e67 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -78,6 +78,9 @@ AC_SUBST(DLLIBS)
+@@ -107,6 +107,9 @@
  
  AC_SUBST(PARTIALTARGETFLAGS)
  AC_SUBST(ac_cv_NETSNMP_SYSTEM_INCLUDE_FILE)

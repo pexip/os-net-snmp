@@ -30,19 +30,10 @@
  * SUCH DAMAGE.
  */
 
-#ifdef  INHERITED_CODE
-#ifndef lint
-#if 0
-static char sccsid[] = "from: @(#)if.c	8.2 (Berkeley) 2/21/94";
-#else
-static char *rcsid = "$OpenBSD: if.c,v 1.42 2005/03/13 16:05:50 mpf Exp $";
-#endif
-#endif /* not lint */
-#endif
-
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
+#include <stdint.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -274,8 +265,6 @@ intpr(int interval)
         if ( snmp_oid_compare( ifcol_oid, ifcol_len,
                                var->name, ifcol_len) != 0 )
             break;    /* End of Table */
-        if ((var->type & 0xF0) == 0x80)     /* Exception */
-            return;
         cur_if = SNMP_MALLOC_TYPEDEF( struct _if_info );
         if (!cur_if)
             break;
@@ -421,6 +410,7 @@ intpr(int interval)
             }
         }
     }   /* while (1) */
+    snmp_free_varbind(var);
 
         /*
          * Now display the specified results (in Free-BSD format)

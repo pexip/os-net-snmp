@@ -36,6 +36,11 @@ SOFTWARE.
  * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
+ *
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
@@ -61,6 +66,9 @@ SOFTWARE.
 # endif
 #endif
 
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 #if HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -89,9 +97,6 @@ SOFTWARE.
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
-#endif
 
 #include <net-snmp/types.h>
 #include <net-snmp/output_api.h>
@@ -105,18 +110,18 @@ SOFTWARE.
 #include <net-snmp/library/int64.h>
 #include <net-snmp/library/snmp_client.h>
 
-netsnmp_feature_child_of(mib_api, libnetsnmp)
-netsnmp_feature_child_of(mib_strings_all, mib_api)
+netsnmp_feature_child_of(mib_api, libnetsnmp);
+netsnmp_feature_child_of(mib_strings_all, mib_api);
 
-netsnmp_feature_child_of(mib_snprint, mib_strings_all)
-netsnmp_feature_child_of(mib_snprint_description, mib_strings_all)
-netsnmp_feature_child_of(mib_snprint_variable, mib_strings_all)
-netsnmp_feature_child_of(mib_string_conversions, mib_strings_all)
-netsnmp_feature_child_of(print_mib, mib_strings_all)
-netsnmp_feature_child_of(snprint_objid, mib_strings_all)
-netsnmp_feature_child_of(snprint_value, mib_strings_all)
+netsnmp_feature_child_of(mib_snprint, mib_strings_all);
+netsnmp_feature_child_of(mib_snprint_description, mib_strings_all);
+netsnmp_feature_child_of(mib_snprint_variable, mib_strings_all);
+netsnmp_feature_child_of(mib_string_conversions, mib_strings_all);
+netsnmp_feature_child_of(print_mib, mib_strings_all);
+netsnmp_feature_child_of(snprint_objid, mib_strings_all);
+netsnmp_feature_child_of(snprint_value, mib_strings_all);
 
-netsnmp_feature_child_of(mib_to_asn_type, mib_api)
+netsnmp_feature_child_of(mib_to_asn_type, mib_api);
 
 /** @defgroup mib_utilities mib parsing and datatype manipulation routines.
  *  @ingroup library
@@ -126,6 +131,7 @@ netsnmp_feature_child_of(mib_to_asn_type, mib_api)
 
 static char    *uptimeString(u_long, char *, size_t);
 
+#ifndef NETSNMP_DISABLE_MIB_LOADING
 static struct tree *_get_realloc_symbol(const oid * objid, size_t objidlen,
                                         struct tree *subtree,
                                         u_char ** buf, size_t * buf_len,
@@ -141,6 +147,7 @@ static int      print_tree_node(u_char ** buf, size_t * buf_len,
 static void     handle_mibdirs_conf(const char *token, char *line);
 static void     handle_mibs_conf(const char *token, char *line);
 static void     handle_mibfile_conf(const char *token, char *line);
+#endif /*NETSNMP_DISABLE_MIB_LOADING */
 
 static void     _oid_finish_printing(const oid * objid, size_t objidlen,
                                      u_char ** buf, size_t * buf_len,
@@ -150,8 +157,8 @@ static void     _oid_finish_printing(const oid * objid, size_t objidlen,
 /*
  * helper functions for get_module_node 
  */
-static int      node_to_oid(struct tree *, oid *, size_t *);
 #ifndef NETSNMP_DISABLE_MIB_LOADING
+static int      node_to_oid(struct tree *, oid *, size_t *);
 static int      _add_strings_to_oid(struct tree *, char *,
                                     oid *, size_t *, size_t);
 #else
@@ -167,13 +174,14 @@ NETSNMP_IMPORT struct tree *Mib;
 struct tree    *Mib;            /* Backwards compatibility */
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
 
-oid             RFC1213_MIB[] = { 1, 3, 6, 1, 2, 1 };
 static char     Standard_Prefix[] = ".1.3.6.1.2.1";
 
 /*
  * Set default here as some uses of read_objid require valid pointer. 
  */
+#ifndef NETSNMP_DISABLE_MIB_LOADING
 static char    *Prefix = &Standard_Prefix[0];
+#endif /* NETSNMP_DISABLE_MIB_LOADING */
 typedef struct _PrefixList {
     const char     *str;
     int             len;
@@ -354,8 +362,8 @@ sprint_realloc_hexstring(u_char ** buf, size_t * buf_len, size_t * out_len,
 {
     int line_len = netsnmp_ds_get_int(NETSNMP_DS_LIBRARY_ID,
                                       NETSNMP_DS_LIB_HEX_OUTPUT_LENGTH);
-    if (!line_len)
-        line_len=len;
+    if (line_len <= 0)
+        line_len = len;
 
     for (; (int)len > line_len; len -= line_len) {
         if(!_sprint_hexstring_line(buf, buf_len, out_len, allow_realloc, cp, line_len))
@@ -570,10 +578,21 @@ sprint_realloc_octet_string(u_char ** buf, size_t * buf_len,
                     break;
                 case 't': /* new in rfc 3411 */
                 case 'a':
+                    /* A string hint gives the max size - we may not need this much */
                     cnt = SNMP_MIN(width, ecp - cp);
-                    if (!sprint_realloc_asciistring(buf, buf_len, out_len,
-                                                    allow_realloc, cp, cnt))
+                    while ((*out_len + cnt + 1) > *buf_len) {
+                        if (!allow_realloc || !snmp_realloc(buf, buf_len))
+                            return 0;
+                    }
+                    if (memchr(cp, '\0', cnt) == NULL) {
+                        /* No embedded '\0' - use memcpy() to preserve UTF-8 */
+                        memcpy(*buf + *out_len, cp, cnt);
+                        *out_len += cnt;
+                        *(*buf + *out_len) = '\0';
+                    } else if (!sprint_realloc_asciistring(buf, buf_len,
+                                     out_len, allow_realloc, cp, cnt)) {
                         return 0;
+                    }
                     cp += cnt;
                     break;
                 default:
@@ -741,6 +760,8 @@ sprint_realloc_float(u_char ** buf, size_t * buf_len,
                      const struct enum_list *enums,
                      const char *hint, const char *units)
 {
+    char *printf_format_string = NULL;
+
     if (var->type != ASN_OPAQUE_FLOAT) {
         if (!netsnmp_ds_get_boolean(
                 NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_QUICKE_PRINT)) {
@@ -771,7 +792,12 @@ sprint_realloc_float(u_char ** buf, size_t * buf_len,
         }
     }
 
-    sprintf((char *) (*buf + *out_len), "%f", *var->val.floatVal);
+    printf_format_string = make_printf_format_string("%f");
+    if (!printf_format_string) {
+        return 0;
+    }
+    snprintf((char *)(*buf + *out_len), 128, printf_format_string, *var->val.floatVal);
+    free(printf_format_string);
     *out_len += strlen((char *) (*buf + *out_len));
 
     if (units) {
@@ -811,6 +837,8 @@ sprint_realloc_double(u_char ** buf, size_t * buf_len,
                       const struct enum_list *enums,
                       const char *hint, const char *units)
 {
+    char *printf_format_string = NULL;
+
     if (var->type != ASN_OPAQUE_DOUBLE) {
         if (!netsnmp_ds_get_boolean(
                 NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_QUICKE_PRINT)) {
@@ -840,7 +868,12 @@ sprint_realloc_double(u_char ** buf, size_t * buf_len,
         }
     }
 
-    sprintf((char *) (*buf + *out_len), "%f", *var->val.doubleVal);
+    printf_format_string = make_printf_format_string("%f");
+    if (!printf_format_string) {
+        return 0;
+    }
+    snprintf((char *)(*buf + *out_len), 128, printf_format_string, *var->val.doubleVal);
+    free(printf_format_string);
     *out_len += strlen((char *) (*buf + *out_len));
 
     if (units) {
@@ -2062,6 +2095,74 @@ sprint_realloc_by_type(u_char ** buf, size_t * buf_len, size_t * out_len,
     }
 }
 
+/**
+ * Generates a prinf format string.
+ *
+ * The original format string is combined with the optional
+ * NETSNMP_DS_LIB_OUTPUT_PRECISION string (the -Op parameter).
+ *
+ * Example:
+ * If the original format string is "%f", and the NETSNMP_DS_LIB_OUTPUT_PRECISION
+ * is "5.2", the returned format string will be "%5.2f".
+ * 
+ * The PRECISION string is inserted after the '%' of the original format string.
+ * To prevent buffer overflow if NETSNMP_DS_LIB_OUTPUT_PRECISION is set to an
+ * illegal size (e.g. with -Op 10000) snprintf should be used to prevent buffer
+ * overflow.
+ * 
+ * @param printf_format_default  The format string used by the original printf.
+ * 
+ * @return The address of of the new allocated format string (which must be freed
+ *         if no longer used), or NULL if any error (malloc).
+ */
+char *
+make_printf_format_string(const char *printf_format_default)
+{
+    const char *cp_printf_format_default;
+    const char *printf_precision;
+    const char *cp_printf_precision;
+    char       *printf_format_string;
+    char       *cp_out;
+    char       c;
+
+    printf_precision = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OUTPUT_PRECISION);
+    if (!printf_precision) {
+        printf_precision = "";
+    }
+
+    /* reserve new format string buffer */
+    printf_format_string = (char *) malloc(strlen(printf_format_default)+strlen(printf_precision)+1);
+    if (!printf_format_string)
+    {
+        DEBUGMSGTL(("make_printf_format_string", "malloc failed\n"));
+        return NULL;
+    }
+
+    /* copy default format string, including the '%' */
+    cp_out = printf_format_string;
+    cp_printf_format_default = printf_format_default;
+    while((c = *cp_printf_format_default) != '\0')
+    {
+        *cp_out++ = c;
+        cp_printf_format_default++;
+        if (c == '%') break;
+    }
+
+    /* insert the precision string */
+    cp_printf_precision = printf_precision;
+    while ((c = *cp_printf_precision++) != '\0')
+    {
+        *cp_out++ = c;
+    }
+
+    /* copy the remaining default format string, including the terminating '\0' */
+    strcpy(cp_out, cp_printf_format_default);
+
+    DEBUGMSGTL(("make_printf_format_string", "\"%s\"+\"%s\"->\"%s\"\n",
+                printf_format_default, printf_precision, printf_format_string));
+    return printf_format_string;
+}
+
 
 #ifndef NETSNMP_DISABLE_MIB_LOADING
 /**
@@ -2175,8 +2276,8 @@ handle_print_numeric(const char *token, char *line)
     }
 }
 
-char           *
-snmp_out_toggle_options(char *options)
+char *
+snmp_out_options(char *options, int argc, char *const *argv)
 {
     while (*options) {
         switch (*options++) {
@@ -2205,6 +2306,15 @@ snmp_out_toggle_options(char *options)
             netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OID_OUTPUT_FORMAT,
                                                       NETSNMP_OID_OUTPUT_NUMERIC);
             break;
+        case 'p':
+            /* What if argc/argv are null ? */
+            if (!*(options)) {
+                options = argv[optind++];
+            }
+            netsnmp_ds_set_string(NETSNMP_DS_LIBRARY_ID,
+                                  NETSNMP_DS_LIB_OUTPUT_PRECISION,
+                                  options);
+            return NULL;  /* -Op... is a standalone option, so we're done here */
         case 'q':
             netsnmp_ds_toggle_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_QUICK_PRINT);
             break;
@@ -2250,6 +2360,12 @@ snmp_out_toggle_options(char *options)
     return NULL;
 }
 
+char           *
+snmp_out_toggle_options(char *options)
+{
+    return snmp_out_options( options, 0, NULL );
+}
+
 void
 snmp_out_toggle_options_usage(const char *lead, FILE * outf)
 {
@@ -2260,6 +2376,7 @@ snmp_out_toggle_options_usage(const char *lead, FILE * outf)
     fprintf(outf, "%sE:  escape quotes in string indices\n", lead);
     fprintf(outf, "%sf:  print full OIDs on output\n", lead);
     fprintf(outf, "%sn:  print OIDs numerically\n", lead);
+    fprintf(outf, "%sp PRECISION:  display floating point values with specified PRECISION (printf format string)\n", lead);
     fprintf(outf, "%sq:  quick print for easier parsing\n", lead);
     fprintf(outf, "%sQ:  quick print with equal-signs\n", lead);    /* @@JDW */
     fprintf(outf, "%ss:  print only last symbolic element of OID\n", lead);
@@ -2306,7 +2423,7 @@ snmp_in_options(char *optarg, int argc, char *const *argv)
             netsnmp_ds_set_string(NETSNMP_DS_LIBRARY_ID,
                                   NETSNMP_DS_LIB_OIDSUFFIX,
                                   cp);
-            return NULL;
+            return NULL;  /* -Is... is a standalone option, so we're done here */
 
         case 'S':
             /* What if argc/argv are null ? */
@@ -2315,7 +2432,7 @@ snmp_in_options(char *optarg, int argc, char *const *argv)
             netsnmp_ds_set_string(NETSNMP_DS_LIBRARY_ID,
                                   NETSNMP_DS_LIB_OIDPREFIX,
                                   cp);
-            return NULL;
+            return NULL;  /* -IS... is a standalone option, so we're done here */
 
         default:
            /*
@@ -2598,7 +2715,8 @@ netsnmp_init_mib(void)
      */
     netsnmp_fixup_mib_directory();
     env_var = strdup(netsnmp_get_mib_directory());
-    netsnmp_mibindex_load();
+    if (!env_var)
+        return;
 
     DEBUGMSGTL(("init_mib",
                 "Seen MIBDIRS: Looking in '%s' for mib dirs ...\n",
@@ -2618,7 +2736,7 @@ netsnmp_init_mib(void)
         else
             entry = strtok_r(env_var, ENV_SEPARATOR, &st);
         while (entry) {
-            add_mibfile(entry, NULL, NULL);
+            add_mibfile(entry, NULL);
             entry = strtok_r(NULL, ENV_SEPARATOR, &st);
         }
     }
@@ -2769,139 +2887,6 @@ init_mib(void)
 #endif
 
 
-/*
- * Handle MIB indexes centrally
- */
-static int _mibindex     = 0;   /* Last index in use */
-static int _mibindex_max = 0;   /* Size of index array */
-char     **_mibindexes   = NULL;
-
-int _mibindex_add( const char *dirname, int i );
-void
-netsnmp_mibindex_load( void )
-{
-    DIR *dir;
-    struct dirent *file;
-    FILE *fp;
-    char tmpbuf[ 300];
-    char tmpbuf2[300];
-    int  i;
-    char *cp;
-
-    /*
-     * Open the MIB index directory, or create it (empty)
-     */
-    snprintf( tmpbuf, sizeof(tmpbuf), "%s/mib_indexes",
-              get_persistent_directory());
-    tmpbuf[sizeof(tmpbuf)-1] = 0;
-    dir = opendir( tmpbuf );
-    if ( dir == NULL ) {
-        DEBUGMSGTL(("mibindex", "load: (new)\n"));
-        mkdirhier( tmpbuf, NETSNMP_AGENT_DIRECTORY_MODE, 0);
-        return;
-    }
-
-    /*
-     * Create a list of which directory each file refers to
-     */
-    while ((file = readdir( dir ))) {
-        if ( !isdigit((unsigned char)(file->d_name[0])))
-            continue;
-        i = atoi( file->d_name );
-
-        snprintf( tmpbuf, sizeof(tmpbuf), "%s/mib_indexes/%d",
-              get_persistent_directory(), i );
-        tmpbuf[sizeof(tmpbuf)-1] = 0;
-        fp = fopen( tmpbuf, "r" );
-        if (!fp)
-            continue;
-        cp = fgets( tmpbuf2, sizeof(tmpbuf2), fp );
-        if ( !cp ) {
-            DEBUGMSGTL(("mibindex", "Empty MIB index (%d)\n", i));
-            fclose(fp);
-            continue;
-        }
-        tmpbuf2[strlen(tmpbuf2)-1] = 0;
-        DEBUGMSGTL(("mibindex", "load: (%d) %s\n", i, tmpbuf2));
-        (void)_mibindex_add( tmpbuf2+4, i );  /* Skip 'DIR ' */
-        fclose( fp );
-    }
-    closedir( dir );
-}
-
-char *
-netsnmp_mibindex_lookup( const char *dirname )
-{
-    int i;
-    static char tmpbuf[300];
-
-    for (i=0; i<_mibindex; i++) {
-        if ( _mibindexes[i] &&
-             strcmp( _mibindexes[i], dirname ) == 0) {
-             snprintf(tmpbuf, sizeof(tmpbuf), "%s/mib_indexes/%d",
-                      get_persistent_directory(), i);
-             tmpbuf[sizeof(tmpbuf)-1] = 0;
-             DEBUGMSGTL(("mibindex", "lookup: %s (%d) %s\n", dirname, i, tmpbuf ));
-             return tmpbuf;
-        }
-    }
-    DEBUGMSGTL(("mibindex", "lookup: (none)\n"));
-    return NULL;
-}
-
-int
-_mibindex_add( const char *dirname, int i )
-{
-    const int old_mibindex_max = _mibindex_max;
-
-    DEBUGMSGTL(("mibindex", "add: %s (%d)\n", dirname, i ));
-    if ( i == -1 )
-        i = _mibindex++;
-    if ( i >= _mibindex_max ) {
-        /*
-         * If the index array is full (or non-existent)
-         *   then expand (or create) it
-         */
-        _mibindex_max = i + 10;
-        _mibindexes = realloc(_mibindexes,
-                              _mibindex_max * sizeof(_mibindexes[0]));
-        netsnmp_assert(_mibindexes);
-        memset(_mibindexes + old_mibindex_max, 0,
-               (_mibindex_max - old_mibindex_max) * sizeof(_mibindexes[0]));
-    }
-
-    _mibindexes[ i ] = strdup( dirname );
-    if ( i >= _mibindex )
-        _mibindex = i+1;
-
-    DEBUGMSGTL(("mibindex", "add: %d/%d/%d\n", i, _mibindex, _mibindex_max ));
-    return i;
-}
-    
-FILE *
-netsnmp_mibindex_new( const char *dirname )
-{
-    FILE *fp;
-    char  tmpbuf[300];
-    char *cp;
-    int   i;
-
-    cp = netsnmp_mibindex_lookup( dirname );
-    if (!cp) {
-        i  = _mibindex_add( dirname, -1 );
-        snprintf( tmpbuf, sizeof(tmpbuf), "%s/mib_indexes/%d",
-                  get_persistent_directory(), i );
-        tmpbuf[sizeof(tmpbuf)-1] = 0;
-        cp = tmpbuf;
-    }
-    DEBUGMSGTL(("mibindex", "new: %s (%s)\n", dirname, cp ));
-    fp = fopen( cp, "w" );
-    if (fp)
-        fprintf( fp, "DIR %s\n", dirname );
-    return fp;
-}
-
-
 /**
  * Unloads all mibs.
  */
@@ -2916,15 +2901,6 @@ shutdown_mib(void)
     }
     tree_head = NULL;
     Mib = NULL;
-    if (_mibindexes) {
-        int i;
-        for (i = 0; i < _mibindex; ++i)
-            SNMP_FREE(_mibindexes[i]);
-        free(_mibindexes);
-        _mibindex = 0;
-        _mibindex_max = 0;
-        _mibindexes = NULL;
-    }
     if (Prefix != NULL && Prefix != &Standard_Prefix[0])
         SNMP_FREE(Prefix);
     if (Prefix)
@@ -3043,8 +3019,8 @@ read_objid(const char *input, oid * output, size_t * out_len)
 {                               /* number of subid's in "output" */
 #ifndef NETSNMP_DISABLE_MIB_LOADING
     struct tree    *root = tree_top;
-#endif /* NETSNMP_DISABLE_MIB_LOADING */
     char            buf[SPRINT_MAX_LEN];
+#endif /* NETSNMP_DISABLE_MIB_LOADING */
     int             ret, max_out_len;
     char           *name, ch;
     const char     *cp;
@@ -3743,9 +3719,21 @@ build_oid_segment(netsnmp_variable_list * var)
 }
 
 
+/**
+ * Concatenate a prefix and the OIDs of a variable list.
+ *
+ * @param[out]    in         Output buffer.
+ * @param[in]     in_len     Maximum number of OID components that fit in @in.
+ * @param[out]    out_len    Number of OID components of the result.
+ * @param[in]     prefix     OID to be copied to the start of the output buffer.
+ * @param[in]     prefix_len Number of OID components to copy from @prefix.
+ * @param[in/out] indexes    Variable list for which var->name should be set
+ *                           for each variable var in the list and whose OIDs
+ *                           should be appended to @in.
+ */
 int
 build_oid_noalloc(oid * in, size_t in_len, size_t * out_len,
-                  oid * prefix, size_t prefix_len,
+                  const oid * prefix, size_t prefix_len,
                   netsnmp_variable_list * indexes)
 {
     netsnmp_variable_list *var;
@@ -3792,7 +3780,7 @@ build_oid(oid ** out, size_t * out_len,
      *
      * then see if it fits in existing buffer, or realloc buffer.
      */
-    if (build_oid_noalloc(tmpout, sizeof(tmpout), out_len,
+    if (build_oid_noalloc(tmpout, sizeof(tmpout) / sizeof(tmpout[0]), out_len,
                           prefix, prefix_len, indexes) != SNMPERR_SUCCESS)
         return SNMPERR_GENERR;
 
@@ -4215,6 +4203,31 @@ _oid_finish_printing(const oid * objid, size_t objidlen,
 }
 
 #ifndef NETSNMP_DISABLE_MIB_LOADING
+static void
+_get_realloc_symbol_octet_string(size_t numids, const oid * objid,
+				 u_char ** buf, size_t * buf_len,
+				 size_t * out_len, int allow_realloc,
+				 int *buf_overflow, struct tree* tp)
+{
+  netsnmp_variable_list	var = { 0 };
+  u_char		buffer[1024];
+  size_t		i;
+
+  for (i = 0; i < numids; i++)
+    buffer[i] = (u_char) objid[i];
+  var.type = ASN_OCTET_STR;
+  var.val.string = buffer;
+  var.val_len = numids;
+  if (!*buf_overflow) {
+    if (!sprint_realloc_octet_string(buf, buf_len, out_len,
+				     allow_realloc, &var,
+				     NULL, tp->hint,
+				     NULL)) {
+      *buf_overflow = 1;
+    }
+  }
+}
+
 static struct tree *
 _get_realloc_symbol(const oid * objid, size_t objidlen,
                     struct tree *subtree,
@@ -4228,6 +4241,7 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
     int             output_format =
         netsnmp_ds_get_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OID_OUTPUT_FORMAT);
     char            intbuf[64];
+    struct tree    *orgtree = subtree;
 
     if (!objid || !buf) {
         return NULL;
@@ -4288,7 +4302,6 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
         }
     }
 
-
     if (end_of_known) {
         *end_of_known = *out_len;
     }
@@ -4296,6 +4309,18 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
     /*
      * Subtree not found.  
      */
+
+    if (orgtree && in_dices && objidlen > 0) {
+	sprintf(intbuf, "%" NETSNMP_PRIo "u.", *objid);
+	if (!*buf_overflow
+	    && !snmp_strcat(buf, buf_len, out_len,
+			    allow_realloc,
+			    (const u_char *) intbuf)) {
+	    *buf_overflow = 1;
+	}
+	objid++;
+	objidlen--;
+    }
 
     while (in_dices && (objidlen > 0) &&
            (NETSNMP_OID_OUTPUT_NUMERIC != output_format) &&
@@ -4326,11 +4351,6 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
         switch (tp->type) {
         case TYPE_OCTETSTR:
             if (extended_index && tp->hint) {
-                netsnmp_variable_list var;
-                u_char          buffer[1024];
-                int             i;
-
-                memset(&var, 0, sizeof var);
                 if (in_dices->isimplied) {
                     numids = objidlen;
                     if (numids > objidlen)
@@ -4349,19 +4369,9 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
                 }
                 if (numids > objidlen)
                     goto finish_it;
-                for (i = 0; i < (int) numids; i++)
-                    buffer[i] = (u_char) objid[i];
-                var.type = ASN_OCTET_STR;
-                var.val.string = buffer;
-                var.val_len = numids;
-                if (!*buf_overflow) {
-                    if (!sprint_realloc_octet_string(buf, buf_len, out_len,
-                                                     allow_realloc, &var,
-                                                     NULL, tp->hint,
-                                                     NULL)) {
-                        *buf_overflow = 1;
-                    }
-                }
+		_get_realloc_symbol_octet_string(numids, objid, buf, buf_len,
+						 out_len, allow_realloc,
+						 buf_overflow, tp);
             } else if (in_dices->isimplied) {
                 numids = objidlen;
                 if (numids > objidlen)
@@ -5284,7 +5294,6 @@ node_to_oid(struct tree *tp, oid * objid, size_t * objidlen)
 
     return (numids);
 }
-#endif /* NETSNMP_DISABLE_MIB_LOADING */
 
 /*
  * Replace \x with x stop at eos_marker
@@ -5318,6 +5327,7 @@ static char *_apply_escapes(char *src, char eos_marker)
 	return src;
     }
 }
+#endif /* NETSNMP_DISABLE_MIB_LOADING */
 
 static int
 #ifndef NETSNMP_DISABLE_MIB_LOADING
@@ -5329,18 +5339,17 @@ _add_strings_to_oid(void *tp, char *cp,
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
 {
     oid             subid;
-    int             len_index = 1000000;
+    char           *fcp, *ecp, *cp2 = NULL;
+    char            doingquote;
+    int             len = -1;
 #ifndef NETSNMP_DISABLE_MIB_LOADING
     struct tree    *tp2 = NULL;
     struct index_list *in_dices = NULL;
-#endif /* NETSNMP_DISABLE_MIB_LOADING */
-    char           *fcp, *ecp, *cp2 = NULL;
-    char            doingquote;
-    int             len = -1, pos = -1;
-#ifndef NETSNMP_DISABLE_MIB_LOADING
+    int             pos = -1;
     int             check =
         !netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_DONT_CHECK_RANGE);
     int             do_hint = !netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_NO_DISPLAY_HINT);
+    int             len_index = 1000000;
 
     while (cp && tp && tp->child_list) {
         fcp = cp;
@@ -5678,8 +5687,6 @@ _add_strings_to_oid(void *tp, char *cp,
                 (*objidlen)++;
             }
 
-            if (!cp)
-                goto bad_id;
             while (*cp && *cp != doingquote) {
                 if (*objidlen >= maxlen)
                     goto bad_id;
@@ -6077,9 +6084,11 @@ uptime_string_n(u_long timeticks, char *buf, size_t buflen)
 oid            *
 snmp_parse_oid(const char *argv, oid * root, size_t * rootlen)
 {
+#ifndef NETSNMP_DISABLE_MIB_LOADING
     size_t          savlen = *rootlen;
+#endif /* NETSNMP_DISABLE_MIB_LOADING */
     static size_t   tmpbuf_len = 0;
-    static char    *tmpbuf;
+    static char    *tmpbuf = NULL;
     const char     *suffix, *prefix;
 
     suffix = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
@@ -6093,7 +6102,7 @@ snmp_parse_oid(const char *argv, oid * root, size_t * rootlen)
             prefix = "";
         if ((strlen(suffix) + strlen(prefix) + strlen(argv) + 2) > tmpbuf_len) {
             tmpbuf_len = strlen(suffix) + strlen(argv) + strlen(prefix) + 2;
-            tmpbuf = (char *)realloc(tmpbuf, tmpbuf_len);
+            tmpbuf = malloc(tmpbuf_len);
         }
         snprintf(tmpbuf, tmpbuf_len, "%s%s%s%s", prefix, argv,
                  ((suffix[0] == '.' || suffix[0] == '\0') ? "" : "."),
@@ -6106,31 +6115,37 @@ snmp_parse_oid(const char *argv, oid * root, size_t * rootlen)
     if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_RANDOM_ACCESS)
         || strchr(argv, ':')) {
         if (get_node(argv, root, rootlen)) {
+            free(tmpbuf);
             return root;
         }
     } else if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_REGEX_ACCESS)) {
 	clear_tree_flags(tree_head);
         if (get_wild_node(argv, root, rootlen)) {
+            free(tmpbuf);
             return root;
         }
     } else {
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
         if (read_objid(argv, root, rootlen)) {
+            free(tmpbuf);
             return root;
         }
 #ifndef NETSNMP_DISABLE_MIB_LOADING
         *rootlen = savlen;
         if (get_node(argv, root, rootlen)) {
+            free(tmpbuf);
             return root;
         }
         *rootlen = savlen;
         DEBUGMSGTL(("parse_oid", "wildly parsing\n"));
 	clear_tree_flags(tree_head);
         if (get_wild_node(argv, root, rootlen)) {
+            free(tmpbuf);
             return root;
         }
     }
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
+    free(tmpbuf);
     return NULL;
 }
 

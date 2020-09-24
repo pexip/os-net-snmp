@@ -20,19 +20,18 @@
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 
-netsnmp_feature_require(prefix_info)
-netsnmp_feature_require(find_prefix_info)
+netsnmp_feature_require(prefix_info);
+netsnmp_feature_require(find_prefix_info);
 
-netsnmp_feature_child_of(ipaddress_arch_entry_copy, ipaddress_common)
+netsnmp_feature_child_of(ipaddress_arch_entry_copy, ipaddress_common);
 
 #ifdef NETSNMP_FEATURE_REQUIRE_IPADDRESS_ARCH_ENTRY_COPY
-netsnmp_feature_require(ipaddress_ioctl_entry_copy)
+netsnmp_feature_require(ipaddress_ioctl_entry_copy);
 #endif /* NETSNMP_FEATURE_REQUIRE_IPADDRESS_ARCH_ENTRY_COPY */
 
 #include "ipaddress_ioctl.h"
-#ifdef SUPPORT_PREFIX_FLAGS
-extern prefix_cbx *prefix_head_list;
-#endif
+#include "ipaddress_private.h"
+#include "if-mib/data_access/interface_private.h"
 
 #define ROUNDUP(a) \
   ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
@@ -179,11 +178,12 @@ netsnmp_arch_ipaddress_container_load(netsnmp_container *container,
     if_list = (u_char*)malloc(if_list_size);
     if (if_list == NULL) {
         snmp_log(LOG_ERR, "could not allocate memory for interface info "
-                 "(%zu bytes)\n", if_list_size);
+                 "(%u bytes)\n", (unsigned) if_list_size);
         return -3;
     } else {
         DEBUGMSGTL(("access:ipaddress:container:sysctl",
-                    "allocated %zu bytes for if_list\n", if_list_size));
+                    "allocated %u bytes for if_list\n",
+                    (unsigned) if_list_size));
     }
 
     if (sysctl(sysctl_oid, sizeof(sysctl_oid)/sizeof(int), if_list,

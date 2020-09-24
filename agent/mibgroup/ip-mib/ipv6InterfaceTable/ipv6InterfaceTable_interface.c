@@ -49,9 +49,9 @@
 
 #include <ctype.h>
 
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(check_all_requests_error);
 
 /**********************************************************************
  **********************************************************************
@@ -272,10 +272,12 @@ _ipv6InterfaceTable_initialize_interface(ipv6InterfaceTable_registration *
         netsnmp_handler_registration_create("ipv6InterfaceTable", handler,
                                             ipv6InterfaceTable_oid,
                                             ipv6InterfaceTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP
+                                            HANDLER_CAN_BABY_STEP |
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                          | HANDLER_CAN_RWRITE
-#endif
+                                            HANDLER_CAN_RWRITE
+#else
+                                            HANDLER_CAN_RONLY
+#endif /* NETSNMP_DISABLE_SET_SUPPORT */
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table ipv6InterfaceTable\n");

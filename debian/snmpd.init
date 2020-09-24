@@ -20,18 +20,24 @@ DESC="SNMP Services"
 DAEMON=/usr/sbin/snmpd
 PIDFILE="/run/snmpd.pid"
 
-# Defaults
-OLD_MIBS_DIR="/usr/share/mibs/site:/usr/share/snmp/mibs:/usr/share/mibs/iana:/usr/share/mibs/ietf:/usr/share/mibs/netsnmp"
-MIBS_DIR="/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf"
-export MIBDIRS="$MIBS_DIR:$OLD_MIBS_DIR"
+DEFAULT_SNMPDOPTS="-LSwd -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf"
 
-DEFAULT_SNMPDOPTS="-Lsd -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf"
-[ -z "$SNMPDOPTS" ] && SNMPDOPTS=$DEFAULT_SNMPDOPTS
+set_daemon_options()
+{
+        [ -z "$SNMPDOPTS" ] && SNMPDOPTS=$DEFAULT_SNMPDOPTS
+        DAEMON_ARGS="$SNMPDOPTS -p $PIDFILE"
 
-DAEMON_ARGS="$SNMPDOPTS -p $PIDFILE"
+}
+
+do_restart_prepare()
+{
+	set_daemon_options
+}
 
 do_start_prepare()
 {
+	set_daemon_options
+
     	# remove old symlink with previous version
     	if [ -L /var/run/agentx ]; then
 		rm -f /var/run/agentx

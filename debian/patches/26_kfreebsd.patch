@@ -1,14 +1,7 @@
-From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
-Date: Mon, 5 Mar 2018 21:13:50 +1100
-Subject: _kfreebsd
-
-Preliminary support for kfreebsd.
----
- agent/mibgroup/hardware/cpu/cpu_sysctl.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
-
-diff --git a/agent/mibgroup/hardware/cpu/cpu_sysctl.c b/agent/mibgroup/hardware/cpu/cpu_sysctl.c
-index 5ecb68e..d66da6e 100644
+Description: Preliminary support for kfreebsd.
+Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Reviewed-by: Craig Small <csmall@debian.org>
+Last-Update: 2019-02-07
 --- a/agent/mibgroup/hardware/cpu/cpu_sysctl.c
 +++ b/agent/mibgroup/hardware/cpu/cpu_sysctl.c
 @@ -12,7 +12,7 @@
@@ -20,7 +13,7 @@ index 5ecb68e..d66da6e 100644
  #include <sys/resource.h>
  #if !defined(CPUSTATES)
  #include <sys/dkstat.h>
-@@ -89,7 +89,7 @@ void init_cpu_sysctl( void ) {
+@@ -92,7 +92,7 @@
  #elif defined(KERN_CPTIME)                /* OpenBSD */
  #define NETSNMP_KERN_CPU  KERN_CPTIME
  
@@ -29,7 +22,7 @@ index 5ecb68e..d66da6e 100644
  #define NETSNMP_KERN_MCPU 1    /* Enable support for multi-cpu stats. Valid for FreeBSD >=6.4, >=7.1, >=8.0 and beyond */
  #define NETSNMP_KERN_MCPU_TYPE NETSNMP_CPU_STATS
  
-@@ -129,7 +129,7 @@ void init_cpu_sysctl( void ) {
+@@ -132,7 +132,7 @@
  #define NETSNMP_VM_STATS_TYPE  struct uvmexp
  #endif  /* VM_UVMEXP2 || VM_UVMEXP */
  
@@ -38,7 +31,7 @@ index 5ecb68e..d66da6e 100644
  #define NETSNMP_VM_STATS       VM_METER
  #define NETSNMP_VM_STATS_TYPE  struct vmmeter
      #define NS_VM_INTR		v_intr
-@@ -169,10 +169,10 @@ int netsnmp_cpu_arch_load( netsnmp_cache *cache, void *magic ) {
+@@ -172,10 +172,10 @@
       */
      NETSNMP_CPU_STATS cpu_stats[CPUSTATES];
      size_t         cpu_size  = sizeof(cpu_stats);
@@ -51,7 +44,7 @@ index 5ecb68e..d66da6e 100644
      static int     cp_times = -1;
  #endif
  #ifdef KERN_CPTIME2
-@@ -189,7 +189,7 @@ int netsnmp_cpu_arch_load( netsnmp_cache *cache, void *magic ) {
+@@ -192,7 +192,7 @@
      size_t         mem_size  = sizeof(NETSNMP_VM_STATS_TYPE);
      netsnmp_cpu_info *cpu = netsnmp_cpu_get_byIdx( -1, 0 );
  
@@ -60,7 +53,7 @@ index 5ecb68e..d66da6e 100644
      sysctlbyname("kern.cp_time", cpu_stats, &cpu_size, NULL, 0);
  #else
      sysctl(cpu_mib, 2,  cpu_stats, &cpu_size, NULL, 0);
-@@ -226,7 +226,7 @@ int netsnmp_cpu_arch_load( netsnmp_cache *cache, void *magic ) {
+@@ -229,7 +229,7 @@
      mcpu_size  = cpu_num*sizeof(cpu_stats);
      mcpu_stats = malloc(mcpu_size);
      sysctlbyname("kern.cp_time", mcpu_stats, &mcpu_size, NULL, 0);

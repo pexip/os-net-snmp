@@ -1,17 +1,10 @@
-From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
-Date: Mon, 5 Mar 2018 21:13:51 +1100
-Subject: fix_perl_bulk_gets
-
-===================================================================
----
- perl/SNMP/SNMP.pm | 53 ++++++++++++++++++++++++-----------------------------
- 1 file changed, 24 insertions(+), 29 deletions(-)
-
-diff --git a/perl/SNMP/SNMP.pm b/perl/SNMP/SNMP.pm
-index aa90ac5..5416f2e 100644
+Description: Fix perl bulk gets
+Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Reviewed-by: Craig Small <csmall@debian.org>
+Last-Updated: 2019-02-07
 --- a/perl/SNMP/SNMP.pm
 +++ b/perl/SNMP/SNMP.pm
-@@ -866,22 +866,11 @@ sub _gettable_do_it() {
+@@ -866,22 +866,11 @@
  
      $vbl = $_[$#_] if ($state->{'options'}{'callback'});
  
@@ -38,11 +31,11 @@ index aa90ac5..5416f2e 100644
  
  	for (my $i = 0; $i <= $#$vbl; $i++) {
  	    my $row_oid = SNMP::translateObj($vbl->[$i][0]);
-@@ -890,9 +879,11 @@ sub _gettable_do_it() {
+@@ -890,9 +879,11 @@
  	    my $row_value = $vbl->[$i][2];
  	    my $row_type = $vbl->[$i][3];
  
--	    if ($row_oid =~ 
+-	    if ($row_oid =~
 -		/^$state->{'stopconds'}[$i % ($#{$state->{'stopconds'}}+1)]/ &&
 -		$row_value ne 'ENDOFMIBVIEW' ){
 +	    my $stopcond_num = $i % $num_stopconds;
@@ -53,7 +46,7 @@ index aa90ac5..5416f2e 100644
  
  		if ($row_type eq "OBJECTID") {
  
-@@ -903,26 +894,30 @@ sub _gettable_do_it() {
+@@ -903,26 +894,30 @@
  
  		}
  
