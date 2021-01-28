@@ -44,3 +44,4 @@ snmpd_conf_5_ro_extend
 snmpd_stop_mib_indexes_files
 snmp_snmptrapd_disallow_user_change
 
+snmpd_cachetime_exectype

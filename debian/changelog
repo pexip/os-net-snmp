@@ -1,3 +1,13 @@
+net-snmp (5.7.3+dfsg-5+deb10u2) buster; urgency=high
+
+  * snmpd: Add cacheTime and execType flags to EXTEND-MIB.
+    Previous security release made EXTEND-MIB read-only which meant
+    it was not possible to set the timeout of the cache. This patch
+    allows the administrator to set the value in the snmpd.conf file.
+    Closes: #969508
+
+ -- Craig Small <csmall@debian.org>  Thu, 28 Jan 2021 20:49:23 +1100
+
 net-snmp (5.7.3+dfsg-5+deb10u1) buster-security; urgency=high
 
   * snmpd: Make EXTEND-MIB readonly access
