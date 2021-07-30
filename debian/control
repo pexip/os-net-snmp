@@ -7,7 +7,7 @@ XSBC-Pexip-Original-Uploaders: Craig Small <csmall@debian.org>,
  Thomas Anders <tanders@users.sourceforge.net>,
  Noah Meyerhans <noahm@debian.org>
 Build-Depends: debhelper-compat (= 12),
- libtool, libwrap0-dev, libssl-dev, perl:any, perl-xs-dev,
+ libtool, libwrap0-dev, libssl-dev (>= 3), perl:any, perl-xs-dev,
  autoconf, automake, procps,
  pkg-config,
  libbsd-dev [kfreebsd-i386 kfreebsd-amd64],
@@ -116,7 +116,7 @@ Section: libdevel
 Architecture: any
 Multi-Arch: no
 Depends: libc6-dev, libsnmp40 (=${binary:Version}), libnetsnmptrapd40 (=${binary:Version}),
-         libwrap0-dev, libssl-dev, procps,
+         libwrap0-dev, libssl-dev (>= 3), procps,
          libkvm-dev [kfreebsd-any], libsensors-dev [linux-any], ${misc:Depends},
          libpci-dev
 Recommends: libsnmp-perl
