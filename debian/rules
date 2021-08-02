@@ -54,6 +54,7 @@ override_dh_auto_configure:
 	  --with-mibdirs="\$$HOME/.snmp/mibs:$(MIBS_DIR)" \
 	  --without-mysql \
 	  --disable-md5 \
+	  --disable-des \
 	  --with-systemd \
 	  --enable-blumenthal-aes \
 	  UNAMEPROG=/bin/uname \
