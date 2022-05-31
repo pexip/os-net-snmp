@@ -47,16 +47,16 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(inetCidrRouteTable_external_access, libnetsnmpmibs)
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(table_container_row_insert)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_child_of(inetCidrRouteTable_external_access, libnetsnmpmibs);
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(table_container_row_insert);
+netsnmp_feature_require(check_all_requests_error);
 
-netsnmp_feature_child_of(inetCidrRouteTable_container_size, inetCidrRouteTable_external_access)
-netsnmp_feature_child_of(inetCidrRouteTable_registration_set, inetCidrRouteTable_external_access)
-netsnmp_feature_child_of(inetCidrRouteTable_registration_get, inetCidrRouteTable_external_access)
-netsnmp_feature_child_of(inetCidrRouteTable_container_get, inetCidrRouteTable_external_access)
+netsnmp_feature_child_of(inetCidrRouteTable_container_size, inetCidrRouteTable_external_access);
+netsnmp_feature_child_of(inetCidrRouteTable_registration_set, inetCidrRouteTable_external_access);
+netsnmp_feature_child_of(inetCidrRouteTable_registration_get, inetCidrRouteTable_external_access);
+netsnmp_feature_child_of(inetCidrRouteTable_container_get, inetCidrRouteTable_external_access);
 /**********************************************************************
  **********************************************************************
  ***
@@ -294,10 +294,12 @@ _inetCidrRouteTable_initialize_interface(inetCidrRouteTable_registration *
         netsnmp_handler_registration_create("inetCidrRouteTable", handler,
                                             inetCidrRouteTable_oid,
                                             inetCidrRouteTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP
+                                            HANDLER_CAN_BABY_STEP |
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                          | HANDLER_CAN_RWRITE
-#endif
+                                            HANDLER_CAN_RWRITE
+#else
+                                            HANDLER_CAN_RONLY
+#endif /* NETSNMP_DISABLE_SET_SUPPORT */
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table inetCidrRouteTable\n");

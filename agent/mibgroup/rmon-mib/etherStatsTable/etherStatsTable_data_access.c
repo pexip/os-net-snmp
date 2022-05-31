@@ -11,6 +11,10 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 /*
  * include our parent header 
  */
@@ -202,9 +206,6 @@ etherStatsTable_container_load(netsnmp_container * container)
 {
     size_t          count = 0;
 
-    DEBUGMSGTL(("verbose:etherStatsTable:etherStatsTable_container_load",
-                "called\n"));
-
     /*
      * TODO:352:M: |   |-> set indexes in new etherStatsTable rowreq context.
      * data context will be set from the param (unless NULL,
@@ -224,6 +225,10 @@ etherStatsTable_container_load(netsnmp_container * container)
 #if defined(linux)
     struct ifname *list_head = NULL, *p = NULL;
 #endif
+
+    DEBUGMSGTL(("verbose:etherStatsTable:etherStatsTable_container_load",
+                "called\n"));
+
     
     /*
      * create socket for ioctls
@@ -279,6 +284,7 @@ etherStatsTable_container_load(netsnmp_container * container)
         if (NULL == rowreq_ctx) {
             snmp_log(LOG_ERR, "memory allocation failed\n");
             close(fd);
+            etherstats_interface_name_list_free(list_head);
             return MFD_RESOURCE_UNAVAILABLE;
         }
 

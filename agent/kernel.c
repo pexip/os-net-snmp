@@ -17,8 +17,6 @@
 
 #include <net-snmp/net-snmp-config.h>
 
-#ifdef NETSNMP_CAN_USE_NLIST
-
 #include <sys/types.h>
 #if HAVE_STDLIB_H
 #include <stdlib.h>
@@ -46,13 +44,8 @@
 #include "kernel.h"
 #include <net-snmp/agent/ds_agent.h>
 
-#ifndef NULL
-#define NULL 0
-#endif
-
-
 #if HAVE_KVM_H
-kvm_t *kd = NULL;
+kvm_t *kd;
 
 /**
  * Initialize the support for accessing kernel virtual memory.
@@ -137,7 +130,7 @@ free_kmem(void)
     }
 }
 
-#else                           /* HAVE_KVM_H */
+#elif defined(HAVE_NLIST_H) && !defined(__linux__)
 
 static off_t    klseek(off_t);
 static int      klread(char *, int);
@@ -259,8 +252,15 @@ free_kmem(void)
     }
 }
 
-#endif                          /* HAVE_KVM_H */
-
 #else
-int unused;	/* Suppress "empty translation unit" warning */
-#endif                          /* NETSNMP_CAN_USE_NLIST */
+int
+init_kmem(const char *file)
+{
+    return 1;  /* success */
+}
+
+void
+free_kmem(void)
+{
+}
+#endif

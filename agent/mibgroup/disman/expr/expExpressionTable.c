@@ -14,12 +14,12 @@
 #include "disman/expr/expExpression.h"
 #include "disman/expr/expExpressionTable.h"
 
-netsnmp_feature_require(iquery)
-netsnmp_feature_require(table_tdata)
+netsnmp_feature_require(iquery);
+netsnmp_feature_require(table_tdata);
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(check_vb_type_and_max_size)
-netsnmp_feature_require(table_tdata_insert_row)
-netsnmp_feature_require(iquery_pdu_session)
+netsnmp_feature_require(check_vb_type_and_max_size);
+netsnmp_feature_require(table_tdata_insert_row);
+netsnmp_feature_require(iquery_pdu_session);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /* Initializes the expExpressionTable module */
@@ -279,7 +279,8 @@ expExpressionTable_handler(netsnmp_mib_handler *handler,
             tinfo = netsnmp_extract_table_info(request);
             entry = (struct expExpression *)
                     netsnmp_tdata_extract_entry(request);
-            if (!entry) {
+            if (!entry && tinfo->colnum != COLUMN_EXPEXPRESSIONENTRYSTATUS &&
+                *request->requestvb->val.integer != RS_DESTROY) {
                 /*
                  * New rows must be created via the RowStatus column
                  */
