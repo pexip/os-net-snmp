@@ -1,33 +1,142 @@
+net-snmp (5.9+dfsg-3) unstable; urgency=medium
+
+  * Source only upload - no changes Closes: #970798
+
+ -- Craig Small <csmall@debian.org>  Fri, 25 Sep 2020 09:10:00 +1000
+
+net-snmp (5.9+dfsg-2) unstable; urgency=medium
+
+  * Move SNMP.3pm back to perl package Closes: #969436
+  * Moved snmptrapd library into its own package to not pull in mysql
+    dependencies for snmp/snmpd Closes: #953948
+
+ -- Craig Small <csmall@debian.org>  Sun, 06 Sep 2020 21:52:58 +1000
+
+net-snmp (5.9+dfsg-1) unstable; urgency=medium
+
+  [ Sergio Durigan Junior ]
+  * Link libnetsnmptrapd against MYSQL_LIBS
+    - d/p/Link-libnetsnmptrapd-against-MYSQL_LIBS.patch: When building
+      with MySQL (MariaDB) support, this library must be linked against the
+      MySQL client library, or else it will have unresolved symbols.
+    (Closes: #886221)
+
+  [ Craig Small ]
+  * New upstream release
+  * Removed patches included in upstream
+  * Library soname changed to 40
+  * Remove dbg packages, no need to migrate as new soname
+
+ -- Craig Small <csmall@debian.org>  Sat, 22 Aug 2020 17:11:17 +1000
+
+net-snmp (5.8+dfsg-5) unstable; urgency=medium
+
+  * Allow extend to be read-only Closes: #966544
+  * Stop using mib_index files CVE-2020-15861 Closes: 966599
+
+ -- Craig Small <csmall@debian.org>  Fri, 31 Jul 2020 20:29:41 +1000
+
+net-snmp (5.8+dfsg-4) unstable; urgency=high
+
+  [ Sergio Durigan Junior ]
+  * Fix segmentation fault that happens when using the snmpv3
+    protocol with snmpbulkget. (LP #1877027) (Debian Bug #963713)
+    This is a rework of the patches introduced in the last release,
+    to fix CVE-2019-20892.
+    - d/p/move-securityStateRef-into-free_securityStateRef.patch:
+      Consolidate the check of the securityStateRef pointer into the
+      free_securityStateRef function.
+    - d/p/prevent-snmpv3-bulkget-errors-double-free.patch:
+      Prevent snmpv3 bulkget errors from becoming resulting in a
+      double free.
+    - d/p/fix-usmStateReference-free.patch:
+      Fix typo on usm_free_usmStateReference from last patch.
+    - d/p/unexport-struct-usmStateReference.patch:
+      Unexport struct usmStateReference and to prevent ABI breakages,
+      since it will be necessary to add a reference count to it.
+    - d/p/introduce-refcount-usmStateReference.patch:
+      Introduce refcount in the struct usmStateReference, and adjust
+      code to properly use the field.
+    - d/p/libsnmp-securitystateref: Rename to
+      d/p/move-securityStateRef-into-free_securityStateRef.
+    - d/p/doublefree_snmpusm: Rename to
+      d/p/prevent-snmpv3-bulkget-errors-double-free.patch.
+
+  [ Debian Janitor ]
+  * Trim trailing whitespace.
+
+  [ Craig Small ]
+  * snmpd: Disable extend mib Closes: #965166
+  * Don't ignore tmpfs filesystems
+  * snmpd: Command line uid/gid overrides configuration file
+  * Two previous fix CVE-2020-15862 and Closes: #685877
+
+ -- Craig Small <csmall@debian.org>  Thu, 23 Jul 2020 21:35:08 +1000
+
+net-snmp (5.8+dfsg-3) unstable; urgency=medium
+
+  [ Helmut Grohne ]
+  * Improve cross building: (Closes: #944953)
+    + Build-Depends: perl-xs-dev for building a perl extension.
+    + cross.patch: Detect mysql using pkg-config.
+
+  [ Craig Small ]
+  * Log ipv6 error once Closes: #944336
+  * Move net-snmp-create-v3-user to snmpd Closes: #953043
+  * snmpd: Quiet on access errors to mounts Closes: #792832
+  * snmpd: swinst_apt: Don't use dpkg directories Closes: #905668
+  * libsnmp: Fix double free crash CVE-2019-20892 Closes: #963713
+  * Enable TLS and DTLS transports Closes: #964054
+
+  [ Debian Janitor ]
+  * Trim trailing whitespace.
+  * Fix day-of-week for changelog entry 5.2.2-1.
+
+ -- Craig Small <csmall@debian.org>  Thu, 02 Jul 2020 13:38:58 +1000
+
+net-snmp (5.8+dfsg-2) unstable; urgency=medium
+
+  * All MIB directory values removed and just use the default compile-time
+    options, which is usually ok. Admins can add their own environment
+    settings or options to change. Closes: #942151
+  * Do not do parallel builds Closes: #942284
+  * Correct sedscript CPPFLAGS and libnetsnmptrapd LDFLAGS
+  * Also use default flags for restart on init scripts
+
+ -- Craig Small <csmall@debian.org>  Wed, 23 Oct 2019 08:56:17 +1100
+
+net-snmp (5.8+dfsg-1) unstable; urgency=medium
+
+  * New upstream release
+    - snmplib: handle large amount of file descriptors Closes: #754955
+    - BUG: 2815 Display UTF-8 characters again Closes: #898399
+  * Update to Debian standards 4.3.0
+  * Update debhelper to compat 12
+  * snmpd/snmptrapd: Log only warning and above. Closes: #792623
+  * snmpd/snmptrapd: Systemd unit logs to stdout
+  * Build depend on non-versions libsensors Closes: #917444
+  * Library soname updated to 35
+  * snmpd: Change pidfile mode to 0644 Closes: #528103
+  * Remove python modules Closes: #937131
+  * Respect defaults for sysvinit Closes: #932775
+  * Added snmpping.1 manpage
+  * Reduce logging for subcontainer Closes: #684721
+  * Do not enable DISMAN events Closes: #823201
+  * Update to standards 4.4.1
+
+ -- Craig Small <csmall@debian.org>  Thu, 10 Oct 2019 22:37:15 +1100
+
 net-snmp (5.7.3+dfsg-5+deb10u2pexip1) pexip; urgency=medium
 
   * New upstream release
 
  -- Steve McIntyre <steve.mcintyre@pexip.com>  Mon, 08 Feb 2021 17:02:56 +0000
 
-net-snmp (5.7.3+dfsg-5+deb10u2) buster; urgency=high
-
-  * snmpd: Add cacheTime and execType flags to EXTEND-MIB.
-    Previous security release made EXTEND-MIB read-only which meant
-    it was not possible to set the timeout of the cache. This patch
-    allows the administrator to set the value in the snmpd.conf file.
-    Closes: #969508
-
- -- Craig Small <csmall@debian.org>  Thu, 28 Jan 2021 20:49:23 +1100
-
 net-snmp (5.7.3+dfsg-5+deb10u1pexip1) pexip; urgency=medium
 
   * New upstream release
 
  -- Steve McIntyre <steve.mcintyre@pexip.com>  Tue, 25 Aug 2020 09:56:42 +0100
-
-net-snmp (5.7.3+dfsg-5+deb10u1) buster-security; urgency=high
-
-  * snmpd: Make EXTEND-MIB readonly access
-    Fixes CVE-2020-15862 Closes: #965166
-  * snmpd: Do not cache MIB directory
-    Fixes CVE-2020-15861 Closes: #966599
-
- -- Craig Small <csmall@debian.org>  Fri, 31 Jul 2020 20:53:22 +1000
 
 net-snmp (5.7.3+dfsg-5pexip2) pexip; urgency=medium
 
@@ -52,7 +161,7 @@ net-snmp (5.7.3+dfsg-4) unstable; urgency=medium
 
   [ Craig Small ]
   * Use correct snmpwalk args in snmpcheck Closes: #898197
-  * Remove user only on purge Closes: #911216
+  * Remove user only on purge Closes: #911216, #911132
 
   [ Ondřej Nový ]
   * d/copyright: Use https protocol in Format field
@@ -1164,7 +1273,7 @@ net-snmp (5.2.2-1) unstable; urgency=low
     (Closes: #325840)
   * Fix man page section mismatch found by lintian.
 
- -- Jochen Friedrich <jochen@scram.de>  Wed, 23 Feb 2006 15:05:32 +0100
+ -- Jochen Friedrich <jochen@scram.de>  Thu, 23 Feb 2006 15:05:32 +0100
 
 net-snmp (5.2.1.2-4) unstable; urgency=low
 

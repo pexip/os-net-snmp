@@ -1,7 +1,4 @@
 /* -*- C -*- */
-#if defined(_WIN32) && !defined(_WIN32_WINNT)
-#define _WIN32_WINNT 0x501
-#endif
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -45,13 +42,8 @@ static int __sprint_num_objid _((char *, oid *, int));
 #define USE_ENUMS 1
 #define USE_SPRINT_VALUE 2
 static int
-__snprint_value (buf, buf_len, var, tp, type, flag)
-char * buf;
-size_t buf_len;
-netsnmp_variable_list * var;
-struct tree * tp;
-int type;
-int flag;
+__snprint_value(char *buf, size_t buf_len, netsnmp_variable_list *var,
+                struct tree *tp, int type, int flag)
 {
    int len = 0;
    u_char* ip;
@@ -249,7 +241,7 @@ nsop_get_indexes(oid1)
         struct tree    *tp, *tpe, *tpnode, *indexnode;
         struct index_list *index;
         netsnmp_variable_list vbdata;
-        u_char         *buf = NULL;
+        char           *buf = NULL;
         size_t          buf_len = 256, out_len = 0;
         oid name[MAX_OID_LEN];
         size_t name_len = MAX_OID_LEN;
@@ -370,7 +362,7 @@ nsop_get_indexes(oid1)
                                      1, name, name_len, &vbdata);
 */
                 snmp_free_var_internals(&vbdata);
-                av_push(myret, newSVpv((char *)buf, out_len));
+                av_push(myret, newSVpv(buf, out_len));
             }
             netsnmp_free(buf);
             RETVAL = newRV((SV *)myret);

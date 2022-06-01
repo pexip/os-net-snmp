@@ -1,2 +1,2 @@
-man/snmpd.conf.5
-man/snmpd.8
+usr/share/man/man5/snmpd.conf.5
+usr/share/man/man8/snmpd.8

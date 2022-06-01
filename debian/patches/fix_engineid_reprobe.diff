@@ -1,19 +1,13 @@
-From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
-Date: Mon, 5 Mar 2018 21:13:51 +1100
-Subject: fix_engineid_reprobe
-
-===================================================================
----
- snmplib/snmpusm.c | 5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/snmplib/snmpusm.c b/snmplib/snmpusm.c
-index 6a9cec3..f8fc74c 100644
+Description: Fix engineID reprobe
+ Do not probe for engineID when we already know it
+Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Reviewed-by: Craig Small <csmall@debian.org>
+Last-Updated: 2019-02-07
 --- a/snmplib/snmpusm.c
 +++ b/snmplib/snmpusm.c
-@@ -3129,6 +3129,11 @@ int usm_discover_engineid(void *slpv, netsnmp_session *session) {
+@@ -3676,6 +3676,11 @@
+     netsnmp_pdu    *pdu = NULL, *response = NULL;
      int status, i;
-     struct session_list *slp = (struct session_list *) slpv;
  
 +    if (slp->session->securityEngineIDLen != 0) {
 +        DEBUGMSGTL(("snmp_api", "engineID already known, skipping probe\n"));

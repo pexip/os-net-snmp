@@ -4,96 +4,79 @@
 export DEB_BUILD_MAINT_OPTIONS := hardening=+all
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-LIB_VERSION = 30
-PYTHON_VERSION = 1.0a1
+LIB_VERSION = 40
 
 MIB_MODULES = smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib
-EXCL_MIB_MODULES =
+EXCL_MIB_MODULES = 
 
-OLD_MIBS_DIR="/usr/share/mibs/site:/usr/share/snmp/mibs:/usr/share/mibs/iana:/usr/share/mibs/ietf:/usr/share/mibs/netsnmp"
 MIBS_DIR="/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf"
 
 ifeq (linux,$(DEB_BUILD_ARCH_OS))
 MIB_MODULES += ucd-snmp/diskio ucd-snmp/lmsensorsMib etherlike-mib/dot3StatsTable
-IPV6 = --enable-ipv6
 DEB_DH_GENCONTROL_ARGS=-- -Vos-specific-dev="libsensors4-dev"
 else
 ifeq (kfreebsd,$(DEB_BUILD_ARCH_OS))
-IPV6 = --enable-ipv6
 DEB_DH_GENCONTROL_ARGS=-- -Vos-specific-dev="libkvm-dev"
 CFLAGS += $(shell pkg-config --cflags libbsd-overlay)
 LDFLAGS += $(shell pkg-config --libs libbsd-overlay)
 endif
 endif
 ifeq (hurd,$(DEB_BUILD_ARCH_OS))
-IPV6 = --enable-ipv6
 EXCL_MIB_MODULES += mibII
 else
 MIB_MODULES += host
 endif
 
 %:
-	dh $@ --with python2
+	dh $@
+
+# The net-snmp Makefiles cannot handle parallel builds
+override_dh_auto_build:
+	dh_auto_build --no-parallel
 
 override_dh_auto_configure:
 	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc --mandir=/usr/share/man \
 	  --with-persistent-directory=/var/lib/snmp \
 	  --enable-ucd-snmp-compatibility \
-	  --enable-shared --with-cflags="$(CFLAGS) -DNETSNMP_USE_INLINE" \
+	  --with-cflags="$(CFLAGS) -DNETSNMP_USE_INLINE" \
 	  --with-ldflags="$(LDFLAGS)" \
 	  --with-perl-modules="INSTALLDIRS=vendor" --enable-as-needed \
-	  $(IPV6) --with-logfile=none \
+	  --with-logfile=none \
 	  --without-rpm --with-libwrap --with-openssl \
 	  --without-dmalloc --without-efence --without-rsaref \
 	  --with-sys-contact="root" --with-sys-location="Unknown" \
 	  --with-mib-modules="$(MIB_MODULES)" \
 	  --with-out-mib-modules="$(EXCL_MIB_MODULES)" \
+	  --with-transports="TLSTCP DTLSUDP" \
+	  --with-security-modules="tsm" \
 	  --enable-mfd-rewrites \
 	  --with-mnttab=/etc/mtab \
-	  --with-mibdirs="\$$HOME/.snmp/mibs:$(MIBS_DIR):$(OLD_MIBS_DIR)" \
+	  --with-mibdirs="\$$HOME/.snmp/mibs:$(MIBS_DIR)" \
 	  --with-mysql \
 	  --with-defaults \
 	  --disable-md5
-# --with-python-modules=""  # don't specify it, since dh_python2 cannot handle it.
 # --with-dnssec-local-validation  # not enabled since libval doesn't exist in Debian yet
-
-override_dh_auto_build:
-	dh_auto_build
-	cd python; python setup.py build --basedir=$(CURDIR)
-
-override_dh_auto_install:
-	dh_auto_install
-	cd python; python setup.py install --root=$(CURDIR)/debian/tmp \
-		--install-layout=deb --basedir=$(CURDIR) ; \
-		find $(CURDIR) -name *.pyc -delete
 
 override_dh_clean:
 	dh_clean
 	rm -rf `find . -name .libs` \
-	       python/build         \
-	       python/netsnmp_python.egg-info \
 	       dist/generation-scripts/gen-variables \
 	       perl/SNMP/t/snmptest.cmd \
 	       perl/TrapReceiver/const-c.inc \
 	       perl/TrapReceiver/const-xs.inc
 
-override_dh_strip:
-	dh_strip -plibsnmp$(LIB_VERSION) --dbg-package=libsnmp$(LIB_VERSION)-dbg
-	dh_strip
-
 override_dh_makeshlibs:
 	dh_makeshlibs -plibsnmp$(LIB_VERSION) -VUpstream-Version
+	dh_makeshlibs -plibnetsnmptrapd$(LIB_VERSION) -VUpstream-Version
 
 override_dh_install-arch:
 	dh_install
-	install $(CURDIR)/EXAMPLE.conf $(CURDIR)/debian/snmpd/etc/snmp/snmpd.conf
 
 override_dh_installdocs:
 	dh_installdocs -plibsnmp-perl -ptkmib -plibsnmp-base -plibsnmp$(LIB_VERSION)
 	dh_installdocs --link-doc=libsnmp$(LIB_VERSION) \
 		       -plibsnmp-dev \
-		       -plibsnmp$(LIB_VERSION)-dbg \
-		       -ppython-netsnmp \
+		       -plibnetsnmptrapd$(LIB_VERSION) \
 		       -psnmpd \
 		       -psnmptrapd \
 		       -psnmp
@@ -114,4 +97,3 @@ override_dh_installsystemd:
 override_dh_installinit:
 	dh_installinit -psnmptrapd --no-enable --no-start
 	dh_installinit -Nsnmptrapd
-
