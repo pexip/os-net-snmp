@@ -1,3 +1,9 @@
+net-snmp (5.9+dfsg-3pexip1) pexip; urgency=medium
+
+  * Initial bullseye build
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Thu, 02 Jun 2022 14:42:36 +0100
+
 net-snmp (5.9+dfsg-3) unstable; urgency=medium
 
   * Source only upload - no changes Closes: #970798
