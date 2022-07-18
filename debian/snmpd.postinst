@@ -4,6 +4,7 @@ SNMP_DIR="/var/lib/snmp"
 SNMP_USER="Debian-snmp"
 SNMP_GROUP="$SNMP_USER"
 SNMP_SHELL="/bin/false"
+SNMPD_CONF="/etc/snmp/snmpd.conf"
 
 set -e
 
@@ -18,7 +19,16 @@ case "$1" in
                 --shell "$SNMP_SHELL" --force-badname "$SNMP_USER"
 
         # care if SNMP_DIR is used by previous "snmp" user
-        chown -R "$SNMP_USER"."$SNMP_GROUP" "$SNMP_DIR"
+        chown "$SNMP_USER"."$SNMP_GROUP" "$SNMP_DIR"
+	if [ -f "$SNMP_DIR/snmpd.conf" ]; then
+            chown "$SNMP_USER"."$SNMP_GROUP" "$SNMP_DIR/snmpd.conf"
+	fi
+
+	# Change group of snmpd.conf to SNMP_GROUP #998152
+	# This is so its group readable for snmpd reload
+	if [ -f $SNMPD_CONF ]; then
+	    chgrp "$SNMP_GROUP" $SNMPD_CONF
+	fi
 
 	# Bug#709087
         DOCDIR=/usr/share/doc/snmpd

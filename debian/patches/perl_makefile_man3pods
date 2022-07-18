@@ -8,10 +8,10 @@ Author: Craig Small <csmall@debian.org>
 Origin: Debian
 Bug-Debian: https://bugs.debian.org/969436
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2020-09-03
+Last-Update: 2021-09-20
 --- a/perl/SNMP/Makefile.PL
 +++ b/perl/SNMP/Makefile.PL
-@@ -24,7 +24,7 @@
+@@ -25,7 +25,7 @@
      my %Params = (
  		  NAME         => 'SNMP',
  		  dist         => { SUFFIX => "gz", COMPRESS => "gzip -9f"},

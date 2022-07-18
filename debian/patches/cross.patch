@@ -1,6 +1,6 @@
 --- a/configure.d/config_os_libs2
 +++ b/configure.d/config_os_libs2
-@@ -504,12 +504,16 @@
+@@ -546,12 +546,16 @@
  ##
  #   mysql
  ##
@@ -22,7 +22,7 @@
    _libs="${LIBS}"
    _cppflags="${CPPFLAGS}"
    LIBS="${LIBS} ${MYSQL_LIBS}"
-@@ -551,9 +555,9 @@
+@@ -593,9 +597,9 @@
    CPPFLAGS="${_cppflags}"
    LIBS="${_libs}"
    AC_MSG_CACHE_ADD(MYSQL Trap Logging:         enabled)

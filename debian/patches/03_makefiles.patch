@@ -3,7 +3,7 @@ Description: Update Makefiles
  extra MIB files.
 Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2019-02-07
+Last-Update: 2021-09-20
 ---
  Makefile.in       | 4 ++--
  Makefile.top      | 1 +
@@ -13,7 +13,7 @@ Last-Update: 2019-02-07
 
 --- a/Makefile.in
 +++ b/Makefile.in
-@@ -174,7 +174,7 @@
+@@ -173,7 +173,7 @@
  #
  # override LD_RUN_PATH to avoid dependencies on the build directory
  perlmodules: perlmakefiles subdirs

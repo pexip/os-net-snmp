@@ -1,12 +1,8 @@
 [Unit]
 Description=Simple Network Management Protocol (SNMP) Trap Daemon.
-After=network.target
-ConditionPathExists=/etc/snmp/snmptrapd.conf
 
 [Service]
-Type=simple
-ExecStart=/usr/sbin/snmptrapd -LOw -f -p /run/snmptrapd.pid
+Type=notify
+User=Debian-snmp
+ExecStart=/usr/sbin/snmptrapd -LOw -f udp:162 udp6:162
 ExecReload=/bin/kill -HUP $MAINPID
-
-[Install]
-WantedBy=multi-user.target

@@ -96,6 +96,9 @@
    variables */
 #define NETSNMP_ATTRIBUTE_DEPRECATED
 
+/* Used to suppress compiler warnings about unused functions and variables */
+#define NETSNMP_ATTRIBUTE_UNUSED
+
 /* add in recent CMU library extensions (not complete) */
 /* #undef CMU_COMPATIBLE */
 
@@ -207,6 +210,9 @@
 /* If we don't want to use kmem. */
 /* #undef NETSNMP_NO_KMEM_USAGE */
 
+/* Should evaluate to the name of the current function if defined */
+#define NETSNMP_FUNCTION __FUNCTION__
+
 /* If you don't want the agent to report on variables it doesn't have data for */
 #define NETSNMP_NO_DUMMY_VALUES 1
 
@@ -314,7 +320,7 @@
 /* #undef HAVE_FSTAB_H */
 
 /* Define to 1 if you have the `getaddrinfo' function. */
-/* #undef HAVE_GETADDRINFO */
+#define HAVE_GETADDRINFO 1
 
 /* Define to 1 if you have the `getdtablesize' function. */
 /* #undef HAVE_GETDTABLESIZE */
@@ -706,7 +712,7 @@
 /* #undef HAVE_STATVFS */
 
 /* Define to 1 if you have the <stdint.h> header file. */
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || (defined(_MSC_VER) && (_MSC_VER >= 1600))
 #define HAVE_STDINT_H 1
 #endif
 

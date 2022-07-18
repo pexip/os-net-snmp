@@ -1,0 +1,18 @@
+Description: CI - use correct mariadb packagenames
+ Upstream uses the old names for libmariadb-dev-compat package.
+Author: Craig Small <csmall@debian.org>
+Origin: Debian
+Bug-Debian: https://bugs.debian.org/975477
+Reviewed-by: Craig Small <csmall@debian.org>
+Last-Update: 2021-09-20
+--- a/ci/net-snmp-configure
++++ b/ci/net-snmp-configure
+@@ -71,7 +71,7 @@
+ echo "libatmver=$libatmver"
+ 
+ libmysqlver="$(rpm_version libmariadb-devel;
+-	      for p in libmariadbclient-dev libmariadb-client-lgpl-dev; do
++	      for p in libmariadb-dev-compat; do
+ 	        dpkg_version "$p";
+               done;
+               pacman_version mingw-w64-x86_64-libmariadbclient)"

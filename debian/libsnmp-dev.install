@@ -2,7 +2,6 @@ usr/share/snmp/mib2c*.conf etc/snmp
 usr/bin/mib2c
 usr/bin/mib2c-update
 usr/include/*
-usr/lib/*/lib*.a
 usr/lib/*/lib*.so
 usr/lib/*/pkgconfig/netsnmp-agent.pc
 usr/lib/*/pkgconfig/netsnmp.pc

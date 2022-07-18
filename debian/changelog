@@ -1,11 +1,88 @@
-net-snmp (5.9+dfsg-4+deb11u1) bullseye-security; urgency=high
+net-snmp (5.9.3+dfsg-1) unstable; urgency=medium
 
-  * Backport upstream security patches from v5.9.3 Closes: #1016139
-  * snmpd_fix_bounds_checking: CVE-2022-24805, CVE-2022-24809
-  * snmpd_recover_set_status: CVE-2022-24806, CVE-2022-24807, CVE-2022-24808,
-    CVE-2022-24810
+  * New upstream source
+  * Remove patch Link-libnetsnmptrapd-against-MYSQL_LIBS
 
- -- Craig Small <csmall@debian.org>  Mon, 15 Aug 2022 20:12:22 +1000
+ -- Craig Small <csmall@debian.org>  Mon, 18 Jul 2022 21:28:38 +1000
+
+net-snmp (5.9.1+dfsg-4) unstable; urgency=medium
+
+  * d/snmpd.postinst: Just chown $SNMP_DIR/snmpd.conf if the file exists.
+    (Closes: #1012693)
+
+ -- Sergio Durigan Junior <sergiodj@debian.org>  Sat, 11 Jun 2022 17:35:00 -0400
+
+net-snmp (5.9.1+dfsg-3) unstable; urgency=medium
+
+  [ Sergio Durigan Junior ]
+  * Fix FTBFS when compiling against OpenSSL 3.0.
+    - d/p/Fix-the-build-against-OpenSSL-3.0.patch: Fix FTBFS when
+      compiling against OpenSSL 3.0.
+    - d/p/configure-static-linking-Fix-SSL-checks.patch: Fix SSL configure
+      checks. (Closes: #1006511)
+  * d/snmpd.service: Start the service after network-online.target.
+    Closes: #1001268
+
+  [ Debian Janitor ]
+  * Re-export upstream signing key without extra signatures.
+  * Update renamed lintian tag names in lintian overrides.
+  * Remove constraints unnecessary since buster:
+    + Build-Depends: Drop versioned constraint on bash, debianutils, findutils
+      and perl.
+    + snmpd: Drop versioned constraint on lsb-base in Depends.
+    + snmptrapd: Drop versioned constraint on snmp in Replaces.
+    + snmptrapd: Drop versioned constraint on snmp in Breaks.
+    + snmp: Drop versioned constraint on libsnmp-base in Depends.
+    + libsnmp-base: Drop versioned constraint on snmp in Replaces.
+    + libsnmp-base: Drop versioned constraint on snmp in Breaks.
+
+  [ Craig Small ]
+  * Update to Debian standard 4.6.1, no change
+
+ -- Craig Small <csmall@debian.org>  Sat, 11 Jun 2022 15:31:19 +1000
+
+net-snmp (5.9.1+dfsg-2) unstable; urgency=medium
+
+  * Fix path for net-snmp-create-v3-user Closes: #997895
+  * Use pidof for net-snmp-create-v3-user so don't need procps
+  * Make snmpd.conf group readable Closes: #998152
+  * Reapplied perl callback patch Closes: #1011440
+
+ -- Craig Small <csmall@debian.org>  Wed, 25 May 2022 22:09:23 +1000
+
+net-snmp (5.9.1+dfsg-1) unstable; urgency=medium
+
+  [ Owen Evans ]
+  * Enable Blumenthal AES-192 and AES-256 encryption Closes: #972985
+
+  [ Ferenc Wágner ]
+  * Enable systemd integration and UDP socket activation
+    Closes: #983569
+
+  [ Sergio Durigan Junior ]
+  * d/libsnmp-dev.install: Don't install archive (.a) files.
+    The archive files are just temporary files generated in order to
+    create the final shared objects (.so), and we don't need to ship them
+    in the package.
+
+  [ Debian Janitor ]
+  * Trim trailing whitespace.
+
+  [ Vagrant Cascadian ]
+  * Embed path to ps and uname. Closes: #978598
+
+  [ Craig Small ]
+  * Make the perl agent code more tolerant of perl types, thanks
+    to Guillem Jover for the patch Closes: #977573
+  * Make CI files use correct libmariadb-dev package names
+    Closes: #975477
+  * mib2c: Add recommends and fix error message Closes: #990706
+
+  * Add configuration directory for snmpd
+  * New upstream release
+  * Add Recommends: procps for snmpd Closes: #993997
+
+ -- Craig Small <csmall@debian.org>  Mon, 20 Sep 2021 21:35:58 +1000
 
 net-snmp (5.9+dfsg-3) unstable; urgency=medium
 

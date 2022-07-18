@@ -1,10 +1,10 @@
 Description: fix-request-id-0
 Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2019-02-07
+Last-Update: 2021-09-20
 --- a/snmplib/snmp_api.c
 +++ b/snmplib/snmp_api.c
-@@ -5409,6 +5409,9 @@
+@@ -5431,6 +5431,9 @@
          /*
           * No response expected...  
           */

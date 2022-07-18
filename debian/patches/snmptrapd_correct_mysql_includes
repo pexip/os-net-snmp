@@ -1,0 +1,21 @@
+Description: Correct snmptrapd MariaDB includes
+ Do not include my_sys.h
+Author: Craig Small <csmall@debian.org>
+Reviewed-by: Craig Small <csmall@debian.org
+Last-Update: 2022-07-03
+---
+--- a/apps/snmptrapd_sql.c
++++ b/apps/snmptrapd_sql.c
+@@ -23,12 +23,6 @@
+ #undef PACKAGE_STRING
+ #undef PACKAGE_TARNAME
+ #undef PACKAGE_VERSION
+-#ifdef HAVE_MY_GLOBAL_H
+-#include <my_global.h>
+-#endif
+-#ifdef HAVE_MY_SYS_H
+-#include <my_sys.h>
+-#endif
+ #include <mysql.h>
+ #include <errmsg.h>
+ 

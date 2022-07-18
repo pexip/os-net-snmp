@@ -4,7 +4,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -75,6 +75,10 @@
 #include <net-snmp/library/snmpusm.h>
 #include <net-snmp/library/transform_oids.h>
 #include <net-snmp/library/snmp_enum.h>
+
+#ifdef HAVE_OPENSSL_DH_H
+#include <openssl/dh.h>
+#endif
 
 netsnmp_feature_child_of(usm_all, libnetsnmp);
 netsnmp_feature_child_of(usm_support, usm_all);
@@ -153,7 +157,7 @@ typedef struct usm_alg_type_s {
     int         value;
 } usm_alg_type_t;
 
-static usm_alg_type_t usm_auth_type[] = {
+static const usm_alg_type_t usm_auth_type[] = {
     { "NOAUTH", NETSNMP_USMAUTH_NOAUTH },
     { "SHA", NETSNMP_USMAUTH_HMACSHA1 },
     { "SHA-1", NETSNMP_USMAUTH_HMACSHA1 },
@@ -176,7 +180,7 @@ static usm_alg_type_t usm_auth_type[] = {
     { NULL, -1 }
 };
 
-static usm_alg_type_t usm_priv_type[] = {
+static const usm_alg_type_t usm_priv_type[] = {
     { "NOPRIV", USM_CREATE_USER_PRIV_NONE },
 #ifndef NETSNMP_DISABLE_DES
     { "DES", USM_CREATE_USER_PRIV_DES },
@@ -762,14 +766,27 @@ usm_free_user(struct usmUser *user)
         SNMP_FREE(user->privKeyKu);
     }
 
+#ifdef NETSNMP_USE_OPENSSL
+    if (user->usmDHUserAuthKeyChange)
+    {
+        DH_free(user->usmDHUserAuthKeyChange);
+        user->usmDHUserAuthKeyChange = NULL;
+    }
+
+    if (user->usmDHUserPrivKeyChange)
+    {
+        DH_free(user->usmDHUserPrivKeyChange);
+        user->usmDHUserPrivKeyChange = NULL;
+    }
+#endif
 
     /*
      * FIX  Why not put this check *first?*
      */
-    if (user->prev != NULL) {   /* ack, this shouldn't happen */
+    if (user->prev != NULL && user->prev != (struct usmUser *)-1) {   /* ack, this shouldn't happen */
         user->prev->next = user->next;
     }
-    if (user->next != NULL) {
+    if (user->next != NULL && user->next != (struct usmUser *)-1) {
         user->next->prev = user->prev;
         if (user->prev != NULL) /* ack this is really bad, because it means
                                  * * we'll loose the head of some structure tree */
@@ -3270,7 +3287,7 @@ usm_handle_report(struct session_list *slp,
 int
 usm_extend_user_kul(struct usmUser *user, u_int privKeyBufSize)
 {
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     DEBUGMSGTL(("usm", "extending key\n"));
 
@@ -3741,7 +3758,7 @@ static int usm_discover_engineid(struct session_list *slp,
 }
 
 static int
-usm_lookup_alg_type(const char *str, usm_alg_type_t *types)
+usm_lookup_alg_type(const char *str, const usm_alg_type_t *types)
 {
     int i, l;
     l = strlen(str);
@@ -3754,7 +3771,7 @@ usm_lookup_alg_type(const char *str, usm_alg_type_t *types)
 }
 
 static const char *
-usm_lookup_alg_str(int value, usm_alg_type_t *types)
+usm_lookup_alg_str(int value, const usm_alg_type_t *types)
 {
     int i;
     for (i = 0; types[i].label; ++i)
@@ -4392,7 +4409,7 @@ usm_create_usmUser_from_string(char *line, const char **errorMsg)
     int             ret2, properLen, properPrivKeyLen;
     const oid      *def_auth_prot, *def_priv_prot;
     size_t          def_auth_prot_len, def_priv_prot_len;
-    netsnmp_priv_alg_info *pai;
+    const netsnmp_priv_alg_info *pai;
 
     def_auth_prot = get_default_authtype(&def_auth_prot_len);
     def_priv_prot = get_default_privtype(&def_priv_prot_len);
