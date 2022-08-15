@@ -18,11 +18,9 @@ Reviewed-by: Craig Small <csmall@debian.org>
 Last-Update: 2022-08-10 <YYYY-MM-DD, last update of the meta-information, optional>
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: net-snmp-5.7.3+dfsg/agent/snmp_agent.c
-===================================================================
---- net-snmp-5.7.3+dfsg.orig/agent/snmp_agent.c	2022-08-27 01:25:34.129124110 +0200
-+++ net-snmp-5.7.3+dfsg/agent/snmp_agent.c	2022-08-27 01:25:34.125124108 +0200
-@@ -2629,7 +2629,7 @@
+--- a/agent/snmp_agent.c
++++ b/agent/snmp_agent.c
+@@ -2965,7 +2965,7 @@
          if (requests->status != SNMP_ERR_NOERROR &&
              (!look_for_specific || requests->status == look_for_specific)
              && (look_for_specific || asp->index == 0

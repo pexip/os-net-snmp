@@ -13,11 +13,9 @@ Reviewed-by: Craig Small <csmall@debian.org>
 Last-Update: 2022-08-10
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsLogging.c
-===================================================================
---- net-snmp-5.7.3+dfsg.orig/agent/mibgroup/agent/nsLogging.c	2022-08-27 01:25:18.389114166 +0200
-+++ net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsLogging.c	2022-08-27 01:25:18.385114164 +0200
-@@ -146,6 +146,8 @@
+--- a/agent/mibgroup/agent/nsLogging.c
++++ b/agent/mibgroup/agent/nsLogging.c
+@@ -147,6 +147,8 @@
                  continue;
              logh = (netsnmp_log_handler*)netsnmp_extract_iterator_context(request);
              table_info  =                netsnmp_extract_table_info(request);
@@ -26,7 +24,7 @@ Index: net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsLogging.c
  
              switch (table_info->colnum) {
              case NSLOGGING_TYPE:
-@@ -200,6 +202,8 @@
+@@ -201,6 +203,8 @@
              }
              logh = (netsnmp_log_handler*)netsnmp_extract_iterator_context(request);
              table_info  =                 netsnmp_extract_table_info(request);
@@ -35,7 +33,7 @@ Index: net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsLogging.c
  
              switch (table_info->colnum) {
              case NSLOGGING_TYPE:
-@@ -393,6 +397,8 @@
+@@ -394,6 +398,8 @@
                  continue;
              logh = (netsnmp_log_handler*)netsnmp_extract_iterator_context(request);
              table_info  =                 netsnmp_extract_table_info(request);
@@ -44,10 +42,8 @@ Index: net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsLogging.c
  
              switch (table_info->colnum) {
              case NSLOGGING_TYPE:
-Index: net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsVacmAccessTable.c
-===================================================================
---- net-snmp-5.7.3+dfsg.orig/agent/mibgroup/agent/nsVacmAccessTable.c	2022-08-27 01:25:18.389114166 +0200
-+++ net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsVacmAccessTable.c	2022-08-27 01:25:18.385114164 +0200
+--- a/agent/mibgroup/agent/nsVacmAccessTable.c
++++ b/agent/mibgroup/agent/nsVacmAccessTable.c
 @@ -170,9 +170,13 @@
              entry = (struct vacm_accessEntry *)
                  netsnmp_extract_iterator_context(request);
@@ -102,11 +98,9 @@ Index: net-snmp-5.7.3+dfsg/agent/mibgroup/agent/nsVacmAccessTable.c
              memset(atype, 0, sizeof(atype));
              memcpy(atype, (char *)idx->val.string, idx->val_len);
              viewIdx = se_find_value_in_slist(VACM_VIEW_ENUM_NAME, atype);
-Index: net-snmp-5.7.3+dfsg/agent/mibgroup/mibII/vacm_vars.c
-===================================================================
---- net-snmp-5.7.3+dfsg.orig/agent/mibgroup/mibII/vacm_vars.c	2022-08-27 01:25:18.389114166 +0200
-+++ net-snmp-5.7.3+dfsg/agent/mibgroup/mibII/vacm_vars.c	2022-08-27 01:25:18.385114164 +0200
-@@ -989,6 +989,9 @@
+--- a/agent/mibgroup/mibII/vacm_vars.c
++++ b/agent/mibgroup/mibII/vacm_vars.c
+@@ -997,6 +997,9 @@
          return 1;
      }
      groupNameL = oidIndex[0];
@@ -116,11 +110,9 @@ Index: net-snmp-5.7.3+dfsg/agent/mibgroup/mibII/vacm_vars.c
      contextPrefixL = oidIndex[groupNameL + 1];  /* the initial name length */
      if ((int) oidLen != groupNameL + contextPrefixL + 4) {
          return 1;
-Index: net-snmp-5.7.3+dfsg/agent/mibgroup/snmpv3/usmUser.c
-===================================================================
---- net-snmp-5.7.3+dfsg.orig/agent/mibgroup/snmpv3/usmUser.c	2022-08-27 01:25:18.389114166 +0200
-+++ net-snmp-5.7.3+dfsg/agent/mibgroup/snmpv3/usmUser.c	2022-08-27 01:25:18.389114166 +0200
-@@ -1447,8 +1447,6 @@
+--- a/agent/mibgroup/snmpv3/usmUser.c
++++ b/agent/mibgroup/snmpv3/usmUser.c
+@@ -1505,8 +1505,6 @@
                  if (usmStatusCheck(uptr)) {
                      uptr->userStatus = RS_ACTIVE;
                  } else {

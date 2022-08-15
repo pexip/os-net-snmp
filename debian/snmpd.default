@@ -6,7 +6,7 @@
 
 # Don't load any MIBs by default.
 # You might comment this lines once you have the MIBs downloaded.
-export MIBS=
+# export MIBS=
 
-# snmpd options (use syslog, close stdin/out/err).
-#SNMPDOPTS='-Lsd -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf -p /run/snmpd.pid'
+# snmpd options (use syslog priority warning, close stdin/out/err).
+#SNMPDOPTS='-LSwd -Lf /dev/null -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf -p /run/snmpd.pid'
