@@ -3,7 +3,6 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/hardware/fsys.h>
 #include "hardware/fsys/hw_fsys.h"
-#include "hardware/fsys/hw_fsys_private.h"
 
 #if HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -68,8 +67,6 @@ _fs_type( char *typename )
        return NETSNMP_FS_TYPE_NTFS;
     else if ( !strcmp(typename, MOUNT_ZFS) )
        return NETSNMP_FS_TYPE_OTHER;
-    else if ( !strcmp(typename, MOUNT_NVMFS) )
-       return NETSNMP_FS_TYPE_OTHER;
     else if ( !strcmp(typename, MOUNT_ACFS) )
        return NETSNMP_FS_TYPE_OTHER;
 
@@ -119,7 +116,7 @@ netsnmp_fsys_arch_load( void )
     /*
      * Retrieve information about the currently mounted filesystems...
      */
-    n = NSFS_GETFSSTAT( NULL, 0, MNT_NOWAIT );
+    n = NSFS_GETFSSTAT( NULL, 0, 0 );
     if ( n==0 )
         return;
     stats = (struct NSFS_STATFS *)malloc( n * sizeof( struct NSFS_STATFS ));

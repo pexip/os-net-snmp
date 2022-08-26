@@ -15,18 +15,18 @@
 
 #include "snmpTlstmParamsTable.h"
 
-netsnmp_feature_require(table_tdata);
-netsnmp_feature_require(tlstmparams_find);
-netsnmp_feature_require(tlstmparams_external);
-netsnmp_feature_require(cert_fingerprints);
-netsnmp_feature_require(table_tdata_delete_table);
-netsnmp_feature_require(table_tdata_extract_table);
-netsnmp_feature_require(table_tdata_remove_row);
+netsnmp_feature_require(table_tdata)
+netsnmp_feature_require(tlstmparams_find)
+netsnmp_feature_require(tlstmparams_external)
+netsnmp_feature_require(cert_fingerprints)
+netsnmp_feature_require(table_tdata_delete_table)
+netsnmp_feature_require(table_tdata_extract_table)
+netsnmp_feature_require(table_tdata_remove_row)
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(check_vb_storagetype);
-netsnmp_feature_require(check_vb_type_and_max_size);
-netsnmp_feature_require(check_vb_rowstatus_with_storagetype);
-netsnmp_feature_require(table_tdata_insert_row);
+netsnmp_feature_require(check_vb_storagetype)
+netsnmp_feature_require(check_vb_type_and_max_size)
+netsnmp_feature_require(check_vb_rowstatus_with_storagetype)
+netsnmp_feature_require(table_tdata_insert_row)
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /** XXX - move these to table_data header? */
@@ -336,7 +336,9 @@ _params_add(snmpTlstmParamsTable_entry *entry)
     if (entry->snmpTlstmParamsStorageType == ST_NONVOLATILE)
         params->flags |= TLSTM_PARAMS_NONVOLATILE;
 
-    netsnmp_tlstmParams_add(params);
+    if (netsnmp_tlstmParams_add(params) != 0) {
+        netsnmp_tlstmParams_free(params);
+    }
 }
 
 static void
@@ -951,7 +953,7 @@ snmpTlstmParamsTable_handler(
 
             /** release undo data for requests with no rowstatus */
             if (table_entry->undo &&
-                table_entry->undo->req[COLUMN_SNMPTLSTMPARAMSROWSTATUS] == NULL) {
+                !table_entry->undo->req[COLUMN_SNMPTLSTMPARAMSROWSTATUS] != 0) {
                 _freeUndo(table_entry);
                 
                 /** update active addrs */
@@ -1137,8 +1139,8 @@ _tlstmParamsTable_save(int majorID, int minorID, void *serverarg,
                 continue;
             _save_params(params, type);
         }
-        ITERATOR_RELEASE(params_itr);
     }
+    ITERATOR_RELEASE(params_itr);
 
     /*
      * save inactive rows from mib
@@ -1258,17 +1260,17 @@ _tlstmParamsTable_row_restore_mib(const char *token, char *buf)
     if (RS_ACTIVE == rowStatus) {
         params->flags = TLSTM_PARAMS_FROM_MIB | TLSTM_PARAMS_NONVOLATILE;
 
-        netsnmp_tlstmParams_add(params);
-    } else {
+        if (netsnmp_tlstmParams_add(params) != 0)
+            netsnmp_tlstmParams_free(params);
+    }
+    else {
         netsnmp_tdata_row     *row;
         snmpTlstmParamsTable_entry  *entry;
 
         row = snmpTlstmParamsTable_createEntry(_table_data, params->name,
                                                strlen(params->name));
-        if (!row) {
-            netsnmp_tlstmParams_free(params);
+        if (!row)
             return;
-        }
 
         entry = row->data;
         

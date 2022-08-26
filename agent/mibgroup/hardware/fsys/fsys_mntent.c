@@ -2,8 +2,6 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/hardware/fsys.h>
-#include "hw_fsys.h"
-#include "hardware/fsys/hw_fsys_private.h"
 
 #include <stdio.h>
 #if HAVE_MNTENT_H
@@ -59,7 +57,7 @@
 
 #endif
 
-static int
+int
 _fsys_remote( char *device, int type )
 {
     if (( type == NETSNMP_FS_TYPE_NFS) ||
@@ -69,7 +67,7 @@ _fsys_remote( char *device, int type )
         return 0;
 }
 
-static int
+int
 _fsys_type( char *typename )
 {
     DEBUGMSGTL(("fsys:type", "Classifying %s\n", typename));
@@ -105,9 +103,7 @@ _fsys_type( char *typename )
               !strcmp(typename, MNTTYPE_NFS3) ||
               !strcmp(typename, MNTTYPE_NFS4) ||
               !strcmp(typename, MNTTYPE_CIFS) ||  /* i.e. SMB - ?? */
-              !strcmp(typename, MNTTYPE_SMBFS) || /* ?? */
-              /* mvfs (IBM ClearCase) is nfs-like in nature */
-              !strcmp(typename, MNTTYPE_MVFS))
+              !strcmp(typename, MNTTYPE_SMBFS)    /* ?? */ )
        return NETSNMP_FS_TYPE_NFS;
     else if ( !strcmp(typename, MNTTYPE_NCPFS) )
        return NETSNMP_FS_TYPE_NETWARE;
@@ -133,11 +129,10 @@ _fsys_type( char *typename )
      *    (The systems listed are not fixed in stone,
      *     but are simply here to illustrate the principle!)
      */    
-    else if ( !strcmp(typename, MNTTYPE_TMPFS) ||
+    else if ( !strcmp(typename, MNTTYPE_MVFS) ||
+              !strcmp(typename, MNTTYPE_TMPFS) ||
               !strcmp(typename, MNTTYPE_GFS) ||
               !strcmp(typename, MNTTYPE_GFS2) ||
-              !strcmp(typename, MNTTYPE_GLUSTERFS) ||
-              !strcmp(typename, MNTTYPE_FUSEGLUSTERFS) ||    
               !strcmp(typename, MNTTYPE_XFS) ||
               !strcmp(typename, MNTTYPE_JFS) ||
               !strcmp(typename, MNTTYPE_VXFS) ||
@@ -147,19 +142,9 @@ _fsys_type( char *typename )
               !strcmp(typename, MNTTYPE_SIMFS) ||
               !strcmp(typename, MNTTYPE_BTRFS) ||
               !strcmp(typename, MNTTYPE_ZFS) ||
-              !strcmp(typename, MNTTYPE_NVMFS) ||
               !strcmp(typename, MNTTYPE_ACFS) ||
-              !strcmp(typename, MNTTYPE_NSS_VOL) ||
-              !strcmp(typename, MNTTYPE_NSS_POOL) ||
               !strcmp(typename, MNTTYPE_LOFS))
        return NETSNMP_FS_TYPE_OTHER;
-
-    /* Detection of AUTOFS.
-     * This file system will be ignored by default
-     */ 
-    else if (!strcmp(typename, MNTTYPE_AUTOFS))
-        return NETSNMP_FS_TYPE_AUTOFS;
-
 
     /*    
      *  All other types are silently skipped
@@ -186,16 +171,15 @@ netsnmp_fsys_arch_load( void )
 #endif
     struct NSFS_STATFS stat_buf;
     netsnmp_fsys_info *entry;
-    char              *tmpbuf = NULL;
+    char               tmpbuf[1024];
 
     /*
      * Retrieve information about the currently mounted filesystems...
      */
     fp = fopen( ETC_MNTTAB, "r" );   /* OR setmntent()?? */
     if ( !fp ) {
-        if (asprintf(&tmpbuf, "Cannot open %s", ETC_MNTTAB) >= 0)
-            snmp_log_perror(tmpbuf);
-        free(tmpbuf);
+        snprintf( tmpbuf, sizeof(tmpbuf), "Cannot open %s", ETC_MNTTAB );
+        snmp_log_perror( tmpbuf );
         return;
     }
 
@@ -225,8 +209,6 @@ netsnmp_fsys_arch_load( void )
 #if HAVE_HASMNTOPT
         if (hasmntopt( m, "ro" ))
             entry->flags |= NETSNMP_FS_FLAG_RONLY;
-        else
-            entry->flags &= ~NETSNMP_FS_FLAG_RONLY;
 #endif
         /*
          *  The root device is presumably bootable.
@@ -250,25 +232,15 @@ netsnmp_fsys_arch_load( void )
                                    NETSNMP_DS_AGENT_SKIPNFSINHOSTRESOURCES))
             continue;
 
-        /* Skip AUTOFS entries */
-        if (entry->type == NETSNMP_FS_TYPE_AUTOFS)
-            continue;
-
 #ifdef irix6
         if ( NSFS_STATFS( entry->path, &stat_buf, sizeof(struct statfs), 0) < 0 )
 #else
         if ( NSFS_STATFS( entry->path, &stat_buf ) < 0 )
 #endif
         {
-            static char logged = 0;
-
-            if (!logged &&
-                asprintf(&tmpbuf, "Cannot statfs %s", entry->path) >= 0) {
-                snmp_log_perror(tmpbuf);
-                free(tmpbuf);
-                logged = 1;
-            }
-            memset(&stat_buf, 0, sizeof(stat_buf));
+            snprintf( tmpbuf, sizeof(tmpbuf), "Cannot statfs %s", entry->path );
+            snmp_log_perror( tmpbuf );
+            continue;
         }
         entry->units =  stat_buf.NSFS_SIZE;
         entry->size  =  stat_buf.f_blocks;
@@ -287,3 +259,4 @@ netsnmp_fsys_arch_load( void )
     }
     fclose( fp );
 }
+

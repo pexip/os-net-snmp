@@ -30,6 +30,16 @@
  * SUCH DAMAGE.
  */
 
+#ifdef  INHERITED_CODE
+#ifndef lint
+#if 0
+static char sccsid[] = "from: @(#)route.c	8.3 (Berkeley) 3/9/94";
+#else
+static char *rcsid = "$OpenBSD: route.c,v 1.66 2004/11/17 01:47:20 itojun Exp $";
+#endif
+#endif /* not lint */
+#endif
+
 #include <net-snmp/net-snmp-config.h>
 
 #if HAVE_SYS_TYPES_H
@@ -58,7 +68,6 @@
 
 #include "main.h"
 #include "netstat.h"
-#include "ffs.h"
 #if HAVE_WINSOCK_H
 #include "winstub.h"
 #endif
@@ -83,6 +92,7 @@ struct route_entry {
 };
 
 void p_rtnode( struct route_entry *rp );
+extern int _ffs(int mask);
 
 /*
  * Print routing tables.
@@ -263,7 +273,6 @@ route4pr(int af)
         p_rtnode( rp );
         printed++;
     }
-    snmp_free_varbind(var);
     return printed;
 }
 
@@ -308,7 +317,6 @@ get_ifname(char *name, int ifIndex)
         memmove(ip->name, var->val.string, var->val_len);
         ip->name[var->val_len] = '\0';
 	strcpy(name, ip->name);
-	snmp_free_varbind(var);
 	return;
     }
 
@@ -320,7 +328,6 @@ get_ifname(char *name, int ifIndex)
             var->val_len  = sizeof(ip->name) - 1;
         memmove(ip->name, var->val.string, var->val_len);
         ip->name[var->val_len] = '\0';
-	snmp_free_varbind(var);
     } else {
         sprintf(ip->name, "if%d", ifIndex);
     }

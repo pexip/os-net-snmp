@@ -13,12 +13,15 @@ use constant false => 0;
 use constant true => 1;
 my $target_arch = $ENV{TARGET_CPU} ? $ENV{TARGET_CPU} : $ENV{Platform} ?
                   $ENV{Platform} : "x86";
-$target_arch = lc $target_arch;
 if ($target_arch ne "x86" && $target_arch ne "x64") {
     print "Error: unsupported target architecture $target_arch\n";
     die;
 }
 my @perl_arch = split(/-/, $Config{archname});
+if ($perl_arch[1] ne $target_arch) {
+    print "perl_arch = $perl_arch[1] does not match target_arch = $target_arch\n";
+    die;
+}
 my $openssl = false;
 my $default_openssldir = $target_arch eq "x64" ?
     "C:\\OpenSSL-Win64" : "C:\\OpenSSL-Win32";
@@ -37,15 +40,16 @@ my $perl = false;
 my $perl_install = false;
 my $logging = true;
 my $debug = false;
-my $configOpts;
+my $configOpts = "";
 my $link_dynamic = false;
 my $option;
 
 # Path of this script (source tree path + "win32").
 my $current_pwd = dirname(abs_path($0));
 
-if (!defined($ENV{MSVCDir}) && !defined($ENV{VCINSTALLDIR}) &&
-    !defined($ENV{TARGET_CPU})) {
+if ( -d $ENV{MSVCDir} || -d $ENV{VCINSTALLDIR} || defined($ENV{TARGET_CPU}) ) {
+}
+else {
   print "\nPlease run VCVARS32.BAT first to set up the Visual Studio build\n" .
         "environment.\n\n";
   system("pause");
@@ -147,19 +151,16 @@ while (1) {
   }
 }
 
-if ($perl && $perl_arch[1] ne $target_arch) {
-    print "perl_arch = $perl_arch[1] does not match target_arch = $target_arch\n";
-    die;
-}
-
 my $linktype = $link_dynamic ? "dynamic" : "static";
-$configOpts = (($openssl ? "--with-ssl --enable-blumenthal-aes" : "")	 . " " .
-               ($opensslincdir ? "--with-sslincdir=$opensslincdir" : "") . " " .
-               ($openssllibdir ? "--with-ssllibdir=$openssllibdir" : "") . " " .
-               ($sdk ? "--with-sdk" : "")		. " " .
-               ($b_ipv6 ? "--with-ipv6" : "")		. " " .
-               ($b_winextdll ? "--with-winextdll" : "") . " " .
-               ($debug ? "--config=debug" : "--config=release"));
+$configOpts .= $openssl ? "--with-ssl" : "";
+$configOpts .= " ";
+$configOpts .= $sdk ? "--with-sdk" : "";
+$configOpts .= " ";
+$configOpts .= $b_ipv6 ? "--with-ipv6" : "";
+$configOpts .= " ";
+$configOpts .= $b_winextdll ? "--with-winextdll" : "";
+$configOpts .= " ";
+$configOpts .= $debug ? "--config=debug" : "--config=release";
 
 # Set environment variables
 
@@ -167,10 +168,13 @@ $configOpts = (($openssl ? "--with-ssl --enable-blumenthal-aes" : "")	 . " " .
 $ENV{NO_EXTERNAL_DEPS}="1";
 
 # Set PATH environment variable so Perl make tests can locate the DLL
-$ENV{PATH} = File::Spec->catdir($current_pwd, "bin", $debug ? "debug" : "release") . ";$ENV{PATH}";
+$ENV{PATH} = "$current_pwd\\bin\\" . ($debug ? "debug" : "release" ) . ";$ENV{PATH}";
+
+$ENV{INCLUDE} .= ";$opensslincdir";
+$ENV{LIB}     .= ";$openssllibdir";
 
 # Set MIBDIRS environment variable so Perl make tests can locate the mibs
-$ENV{MIBDIRS} = File::Spec->catdir(dirname($current_pwd), "mibs");
+$ENV{MIBDIRS} = dirname($current_pwd) . "/mibs";
 
 # Set SNMPCONFPATH environment variable so Perl conf.t test can locate
 # the configuration files.
@@ -199,9 +203,6 @@ print "Building main package...\n";
 system("nmake /nologo" . ($logging ? " > make.out 2>&1" : "")) == 0 || die ($logging ? "Build error (see make.out)" : "Build error (see above)");
 
 if ($perl) {
-  if ($Config{'ccname'} =~ /^gcc/) {
-    die "The perl interpreter has been built with gcc instead of MSVC. Giving up.\n";
-  }
   if (!$link_dynamic) {
     print "Running Configure for DLL...\n";
     system("perl Configure $configOpts --linktype=dynamic --prefix=\"$install_base\"" . ($logging ? " > perlconfigure.out 2>&1" : "")) == 0 || die ($logging ? "Build error (see perlconfigure.out)" : "Build error (see above)");

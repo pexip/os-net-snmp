@@ -121,12 +121,6 @@
 #ifndef MNTTYPE_GFS2
 #define MNTTYPE_GFS2     "gfs2"
 #endif
-#ifndef MNTTYPE_GLUSTERFS
-#define MNTTYPE_GLUSTERFS         "glusterfs"
-#endif
-#ifndef MNTTYPE_FUSEGLUSTERFS
-#define MNTTYPE_FUSEGLUSTERFS     "fuse.glusterfs"
-#endif
 #ifndef MNTTYPE_XFS
 #define MNTTYPE_XFS      "xfs"
 #endif
@@ -157,17 +151,8 @@
 #ifndef MNTTYPE_ZFS
 #define MNTTYPE_ZFS       "zfs"
 #endif
-#ifndef MNTTYPE_NVMFS
-#define MNTTYPE_NVMFS     "nvmfs"
-#endif
 #ifndef MNTTYPE_ACFS
 #define MNTTYPE_ACFS      "acfs"
-#endif
-#ifndef MNTTYPE_NSS_VOL
-#define MNTTYPE_NSS_VOL   "nssvol"
-#endif
-#ifndef MNTTYPE_NSS_POOL
-#define MNTTYPE_NSS_POOL  "nsspool"
 #endif
 
 /*
@@ -176,9 +161,6 @@
  */
 #ifndef MNTTYPE_APP
 #define MNTTYPE_APP      "app"
-#endif
-#ifndef MNTTYPE_AUTOFS
-#define MNTTYPE_AUTOFS   "autofs"
 #endif
 #ifndef MNTTYPE_DEVPTS
 #define MNTTYPE_DEVPTS   "devpts"

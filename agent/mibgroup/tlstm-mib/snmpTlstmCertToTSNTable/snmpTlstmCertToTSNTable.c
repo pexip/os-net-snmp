@@ -13,17 +13,17 @@
 #include "tlstm-mib.h"
 #include "snmpTlstmCertToTSNTable.h"
 
-netsnmp_feature_require(table_tdata);
-netsnmp_feature_require(cert_fingerprints);
-netsnmp_feature_require(table_tdata_delete_table);
-netsnmp_feature_require(table_tdata_extract_table);
-netsnmp_feature_require(table_tdata_remove_row);
-netsnmp_feature_require(tls_fingerprint_build);
+netsnmp_feature_require(table_tdata)
+netsnmp_feature_require(cert_fingerprints)
+netsnmp_feature_require(table_tdata_delete_table)
+netsnmp_feature_require(table_tdata_extract_table)
+netsnmp_feature_require(table_tdata_remove_row)
+netsnmp_feature_require(tls_fingerprint_build)
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(check_vb_storagetype);
-netsnmp_feature_require(check_vb_type_and_max_size);
-netsnmp_feature_require(check_vb_rowstatus_with_storagetype);
-netsnmp_feature_require(table_tdata_insert_row);
+netsnmp_feature_require(check_vb_storagetype)
+netsnmp_feature_require(check_vb_type_and_max_size)
+netsnmp_feature_require(check_vb_rowstatus_with_storagetype)
+netsnmp_feature_require(table_tdata_insert_row)
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /** XXX - move these to table_data header? */
@@ -32,6 +32,9 @@ netsnmp_feature_require(table_tdata_insert_row);
 #define FATE_DELETE_ME        -1
 
 #define MAP_MIB_CONFIG_TOKEN "snmpTlstmCertToTSNEntry"
+
+extern netsnmp_cert_map *netsnmp_certToTSN_parse_common(char **line);
+
 
     /*
      * structure for undo storage and other vars for set processing 
@@ -199,7 +202,7 @@ init_snmpTlstmCertToTSNTable_context(const char *contextName)
         netsnmp_register_scalar(reg);
         if (cache) 
             netsnmp_inject_handler_before(reg, netsnmp_cache_handler_get(cache),
-                                          "snmpTlstmCertToTSNCount");
+                                          "table_container");
     }
     
     reg_oid[10] = 2;
@@ -379,7 +382,7 @@ tlstmCertToTSNTable_handler(netsnmp_mib_handler *handler,
                 /*
                  * build SnmpTLSFingerprint
                  */
-                u_char bin[EVP_MAX_MD_SIZE+1], *ptr = bin;
+                u_char bin[42], *ptr = bin;
                 size_t len = sizeof(bin);
                 int    rc;
                 rc = netsnmp_tls_fingerprint_build(entry->hashType,
@@ -956,7 +959,8 @@ _cert_map_add(certToTSN_entry *entry)
 
     map->priority = entry->tlstmCertToTSNID;
     map->mapType = entry->mapType;
-    map->data = strdup(entry->data);
+    if (entry->data)
+        map->data = strdup(entry->data);
     map->hashType = entry->hashType;
 
     map->flags = NSCM_FROM_MIB;
@@ -1199,7 +1203,7 @@ _parse_mib_maps(const char *token, char *line)
 static int
 _save_entry(certToTSN_entry *entry, void *app_type)
 {
-    char *buf = NULL, *hashType, *mapType, *data = NULL;
+    char buf[SNMP_MAXBUF_SMALL], *hashType, *mapType, *data = NULL;
 
     if (NULL == entry)
         return SNMP_ERR_GENERR;
@@ -1213,15 +1217,12 @@ _save_entry(certToTSN_entry *entry, void *app_type)
     mapType = se_find_label_in_slist("cert_map_type", entry->mapType);
     if (TSNM_tlstmCertSpecified == entry->mapType)
         data = entry->data;
-    if (asprintf(&buf, "%s %ld --%s %s --%s %s %d", MAP_MIB_CONFIG_TOKEN,
-                 entry->tlstmCertToTSNID, hashType, entry->fingerprint,
-                 mapType, data ? data : "", entry->rowStatus) < 0) {
-        return SNMP_ERR_GENERR;
-    }
+    snprintf(buf, sizeof(buf), "%s %ld --%s %s --%s %s %d",
+             MAP_MIB_CONFIG_TOKEN, entry->tlstmCertToTSNID, hashType,
+             entry->fingerprint, mapType, data ? data : "", entry->rowStatus);
 
     DEBUGMSGTL(("tlstmCertToTSNTable:save", "saving '%s'\n", buf));
     read_config_store(app_type, buf);
-    free(buf);
 
     return SNMP_ERR_NOERROR;
 }
@@ -1301,8 +1302,8 @@ _save_maps(int majorID, int minorID, void *serverarg, void *clientarg)
                 continue;
             _save_map(map, RS_ACTIVE, type);
         }
-        ITERATOR_RELEASE(map_itr);
     }
+    ITERATOR_RELEASE(map_itr);
 
     /*
      * save inactive rows from mib

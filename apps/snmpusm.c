@@ -17,11 +17,6 @@
  * distributed with the Net-SNMP package.
  */
 #include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/library/snmp_openssl.h>
-#if defined(HAVE_OPENSSL_DH_H) && defined(HAVE_LIBCRYPTO)
-#include <openssl/dh.h>
-#endif /* HAVE_OPENSSL_DH_H && HAVE_LIBCRYPTO */
 
 #if HAVE_STDLIB_H
 #include <stdlib.h>
@@ -59,6 +54,14 @@
 #if HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
+
+#if defined(HAVE_OPENSSL_DH_H) && defined(HAVE_LIBCRYPTO)
+#include <openssl/dh.h>
+#endif /* HAVE_OPENSSL_DH_H && HAVE_LIBCRYPTO */
+
+#include <net-snmp/net-snmp-includes.h>
+
+int             main(int, char **);
 
 #define CMD_PASSWD_NAME    "passwd"
 #define CMD_PASSWD         1
@@ -147,7 +150,7 @@ usage(void)
     fprintf(stderr, "\t\t\t(it won't be active until you active it)\n");
     fprintf(stderr, "\t-Cx\t\tChange the privacy key.\n");
     fprintf(stderr, "\t-Ca\t\tChange the authentication key.\n");
-    fprintf(stderr, "\t-Ck\t\tAllows one to use localized key (must start with 0x)\n");
+    fprintf(stderr, "\t-Ck\t\tAllows to use localized key (must start with 0x)\n");
     fprintf(stderr, "\t\t\tinstead of passphrase.\n");
 }
 
@@ -187,7 +190,6 @@ get_USM_DH_key(netsnmp_variable_list *vars, netsnmp_variable_list *dhvar,
                oid *keyoid, size_t keyoid_len) {
     u_char *dhkeychange;
     DH *dh;
-    const BIGNUM *p, *g, *pub_key;
     BIGNUM *other_pub;
     u_char *key;
     size_t key_len;
@@ -203,28 +205,25 @@ get_USM_DH_key(netsnmp_variable_list *vars, netsnmp_variable_list *dhvar,
         dh = d2i_DHparams(NULL, &cp, dhvar->val_len);
     }
 
-    if (dh)
-        DH_get0_pqg(dh, &p, NULL, &g);
-
-    if (!dh || !g || !p) {
+    if (!dh || !dh->g || !dh->p) {
         SNMP_FREE(dhkeychange);
         return SNMPERR_GENERR;
     }
 
-    if (!DH_generate_key(dh)) {
+    DH_generate_key(dh);
+    if (!dh->pub_key) {
         SNMP_FREE(dhkeychange);
         return SNMPERR_GENERR;
     }
-
-    DH_get0_key(dh, &pub_key, NULL);
-    if (vars->val_len != (unsigned int)BN_num_bytes(pub_key)) {
+            
+    if (vars->val_len != (unsigned int)BN_num_bytes(dh->pub_key)) {
         SNMP_FREE(dhkeychange);
         fprintf(stderr,"incorrect diffie-helman lengths (%lu != %d)\n",
-                (unsigned long)vars->val_len, BN_num_bytes(pub_key));
+                (unsigned long)vars->val_len, BN_num_bytes(dh->pub_key));
         return SNMPERR_GENERR;
     }
 
-    BN_bn2bin(pub_key, dhkeychange + vars->val_len);
+    BN_bn2bin(dh->pub_key, dhkeychange + vars->val_len);
 
     key_len = DH_size(dh);
     if (!key_len) {
@@ -353,7 +352,7 @@ main(int argc, char *argv[])
     size_t          name_length = USM_OID_LEN;
     size_t          name_length2 = USM_OID_LEN;
     int             status;
-    int             exitval = 1;
+    int             exitval = 0;
     int             rval;
     int             command = 0;
     long            longvar;
@@ -376,8 +375,6 @@ main(int argc, char *argv[])
         newkul[SNMP_MAXBUF_SMALL], keychange[SNMP_MAXBUF_SMALL],
         keychangepriv[SNMP_MAXBUF_SMALL];
 
-    SOCK_STARTUP;
-
     authKeyChange = authKeyOid;
     privKeyChange = privKeyOid;
 
@@ -386,13 +383,12 @@ main(int argc, char *argv[])
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
     case NETSNMP_PARSE_ARGS_ERROR:
-        goto out;
+        exit(1);
     case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
-        exitval = 0;
-        goto out;
+        exit(0);
     case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
-        goto out;
+        exit(1);
     default:
         break;
     }
@@ -400,8 +396,10 @@ main(int argc, char *argv[])
     if (arg >= argc) {
         fprintf(stderr, "Please specify an operation to perform.\n");
         usage();
-        goto out;
+        exit(1);
     }
+
+    SOCK_STARTUP;
 
     /*
      * open an SNMP session 
@@ -416,7 +414,7 @@ main(int argc, char *argv[])
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpusm", &session);
-        goto out;
+        exit(1);
     }
 
     /*
@@ -434,7 +432,7 @@ main(int argc, char *argv[])
     pdu = snmp_pdu_create(SNMP_MSG_SET);
     if (!pdu) {
         fprintf(stderr, "Failed to create request\n");
-        goto close_session;
+        exit(1);
     }
 
 
@@ -460,18 +458,15 @@ main(int argc, char *argv[])
             fprintf(stderr,
                     "New passphrase must be greater than %d characters in length.\n",
                     USM_LENGTH_P_MIN);
-            goto close_session;
+            exit(1);
         }
 
         if (oldpass == NULL || strlen(oldpass) < USM_LENGTH_P_MIN) {
             fprintf(stderr,
                     "Old passphrase must be greater than %d characters in length.\n",
                     USM_LENGTH_P_MIN);
-            goto close_session;
+            exit(1);
         }
-
-        DEBUGMSGTL(("9:usm:passwd", "oldpass len %" NETSNMP_PRIz "d, newpass len %" NETSNMP_PRIz "d\n",
-                    strlen(oldpass), strlen(newpass)));
 
         /* 
          * Change the user supplied on command line.
@@ -539,7 +534,7 @@ main(int argc, char *argv[])
 	    if (!snmp_hex_to_binary((u_char **) (&buf), &buf_len, &oldkul_len, 0, oldpass)) {
 	      snmp_perror(argv[0]);
 	      fprintf(stderr, "generating the old Kul from localized key failed\n");
-	      goto close_session;
+	      exit(1);
 	    }
 	    
 	    memcpy(oldkul, buf, oldkul_len);
@@ -557,7 +552,7 @@ main(int argc, char *argv[])
 	    if (rval != SNMPERR_SUCCESS) {
 	        snmp_perror(argv[0]);
 	        fprintf(stderr, "generating the old Ku failed\n");
-	        goto close_session;
+	        exit(1);
 	    }
 
 	    /*
@@ -571,9 +566,8 @@ main(int argc, char *argv[])
 	    if (rval != SNMPERR_SUCCESS) {
 	        snmp_perror(argv[0]);
 		fprintf(stderr, "generating the old Kul failed\n");
-		goto close_session;
+		exit(1);
 	    }
-            DEBUGMSGTL(("9:usm:passwd", "oldkul len %" NETSNMP_PRIz "d\n", oldkul_len));
 	}
 	if (uselocalizedkey && (strncmp(newpass, "0x", 2) == 0)) {
 	    /*
@@ -587,7 +581,7 @@ main(int argc, char *argv[])
 	    if (!snmp_hex_to_binary((u_char **) (&buf), &buf_len, &newkul_len, 0, newpass)) {
 	      snmp_perror(argv[0]);
 	      fprintf(stderr, "generating the new Kul from localized key failed\n");
-	      goto close_session;
+	      exit(1);
 	    }
 	    
 	    memcpy(newkul, buf, newkul_len);
@@ -601,7 +595,7 @@ main(int argc, char *argv[])
             if (rval != SNMPERR_SUCCESS) {
                 snmp_perror(argv[0]);
                 fprintf(stderr, "generating the new Ku failed\n");
-                goto close_session;
+                exit(1);
             }
 
 	    rval = generate_kul(session.securityAuthProto,
@@ -612,9 +606,8 @@ main(int argc, char *argv[])
 	    if (rval != SNMPERR_SUCCESS) {
 	        snmp_perror(argv[0]);
 		fprintf(stderr, "generating the new Kul failed\n");
-		goto close_session;
+		exit(1);
 	    }
-            DEBUGMSGTL(("9:usm:passwd", "newkul len %" NETSNMP_PRIz "d\n", newkul_len));
 	}
 
         /*
@@ -623,44 +616,26 @@ main(int argc, char *argv[])
          * they're the same lengths.
          */
         if (doprivkey) {
-            int privtype, properlength;
-            u_char *okp = oldkulpriv, *nkp = newkulpriv;
             if (!session.securityPrivProto) {
                 snmp_log(LOG_ERR, "no encryption type specified, which I need in order to know to change the key\n");
-                goto close_session;
+                exit(1);
             }
-
-            privtype = sc_get_privtype(session.securityPrivProto,
-                                       session.securityPrivProtoLen);
-            properlength = sc_get_proper_priv_length_bytype(privtype);
-            if (USM_CREATE_USER_PRIV_DES == privtype)
-                properlength *= 2; /* ?? we store salt with key */
-            DEBUGMSGTL(("9:usm:passwd", "proper len %d\n", properlength));
-            oldkulpriv_len = oldkul_len;
-            newkulpriv_len = newkul_len;
+                
+#ifndef NETSNMP_DISABLE_DES
+            if (ISTRANSFORM(session.securityPrivProto, DESPriv)) {
+                /* DES uses a 128 bit key, 64 bits of which is a salt */
+                oldkulpriv_len = newkulpriv_len = 16;
+            }
+#endif
+#ifdef HAVE_AES
+            if (ISTRANSFORM(session.securityPrivProto, AESPriv)) {
+                oldkulpriv_len = newkulpriv_len = 16;
+            }
+#endif
             memcpy(oldkulpriv, oldkul, oldkulpriv_len);
             memcpy(newkulpriv, newkul, newkulpriv_len);
-
-            if (oldkulpriv_len > properlength) {
-                oldkulpriv_len = newkulpriv_len = properlength;
-            }
-            else if (oldkulpriv_len < properlength) {
-                rval = netsnmp_extend_kul(properlength,
-                                          session.securityAuthProto,
-                                          session.securityAuthProtoLen,
-                                          privtype,
-                                          usmUserEngineID, usmUserEngineIDLen,
-                                          &okp, &oldkulpriv_len,
-                                          sizeof(oldkulpriv));
-                rval = netsnmp_extend_kul(properlength,
-                                          session.securityAuthProto,
-                                          session.securityAuthProtoLen,
-                                          privtype,
-                                          usmUserEngineID, usmUserEngineIDLen,
-                                          &nkp, &newkulpriv_len,
-                                          sizeof(newkulpriv));
-            }
         }
+            
 
         /*
          * create the keychange string 
@@ -676,28 +651,24 @@ main(int argc, char *argv[])
 	    snmp_perror(argv[0]);
             fprintf(stderr, "encoding the keychange failed\n");
             usage();
-            goto close_session;
+            exit(1);
 	  }
 	}
 
         /* which is slightly different for encryption if lengths are
            different */
 	if (doprivkey) {
-            DEBUGMSGTL(("9:usm:passwd:encode", "proper len %" NETSNMP_PRIz "d, old_len %" NETSNMP_PRIz "d, new_len %" NETSNMP_PRIz "d\n",
-                        oldkulpriv_len, oldkulpriv_len, newkulpriv_len));
 	  rval = encode_keychange(session.securityAuthProto,
                                 session.securityAuthProtoLen,
                                 oldkulpriv, oldkulpriv_len,
                                 newkulpriv, newkulpriv_len,
                                 keychangepriv, &keychangepriv_len);
 
-          DEBUGMSGTL(("9:usm:passwd:encode", "keychange len %" NETSNMP_PRIz "d\n",
-                      keychangepriv_len));
 	  if (rval != SNMPERR_SUCCESS) {
             snmp_perror(argv[0]);
             fprintf(stderr, "encoding the keychange failed\n");
             usage();
-            goto close_session;
+            exit(1);
 	  }
 	}
 
@@ -729,7 +700,7 @@ main(int argc, char *argv[])
         if (++arg >= argc) {
             fprintf(stderr, "You must specify the user name to create\n");
             usage();
-            goto close_session;
+            exit(1);
         }
 
         command = CMD_CREATE;
@@ -784,7 +755,7 @@ main(int argc, char *argv[])
             fprintf(stderr,
                     "You must specify the user name to operate on\n");
             usage();
-            goto close_session;
+            exit(1);
         }
 
         command = CMD_CLONEFROM;
@@ -802,7 +773,7 @@ main(int argc, char *argv[])
             fprintf(stderr,
                     "You must specify the user name to clone from\n");
             usage();
-            goto close_session;
+            exit(1);
         }
 
         setup_oid(usmUserSecurityName, &name_length2,
@@ -820,7 +791,7 @@ main(int argc, char *argv[])
          */
         if (++arg >= argc) {
             fprintf(stderr, "You must specify the user name to delete\n");
-            goto close_session;
+            exit(1);
         }
 
         command = CMD_DELETE;
@@ -838,7 +809,7 @@ main(int argc, char *argv[])
          */
         if (++arg >= argc) {
             fprintf(stderr, "You must specify the user name to activate\n");
-            goto close_session;
+            exit(1);
         }
 
         command = CMD_ACTIVATE;
@@ -856,7 +827,7 @@ main(int argc, char *argv[])
          */
         if (++arg >= argc) {
             fprintf(stderr, "You must specify the user name to deactivate\n");
-            goto close_session;
+            exit(1);
         }
 
         command = CMD_DEACTIVATE;
@@ -911,7 +882,7 @@ main(int argc, char *argv[])
         dhpdu = snmp_pdu_create(SNMP_MSG_GET);
         if (!dhpdu) {
             fprintf(stderr, "Failed to create DH request\n");
-            goto close_session;
+            exit(1);
         }
 
         /* get the current DH parameters */
@@ -964,12 +935,18 @@ main(int argc, char *argv[])
             vars = vars->next_variable;
         }
         if (doprivkey) {
-            size_t dhprivKeyLen = 0;
-            int privtype = sc_get_privtype(ss->securityPrivProto,
-                                           ss->securityPrivProtoLen);
-            dhprivKeyLen = sc_get_proper_priv_length_bytype(privtype);
-            if (USM_CREATE_USER_PRIV_DES == privtype)
-                dhprivKeyLen *= 2; /* ?? we store salt with key */
+	    size_t dhprivKeyLen = 0;
+#ifndef NETSNMP_DISABLE_DES
+	    if (ISTRANSFORM(ss->securityPrivProto, DESPriv)) {
+                /* DES uses a 128 bit key, 64 bits of which is a salt */
+	        dhprivKeyLen = 16;
+	    }
+#endif
+#ifdef HAVE_AES
+	    if (ISTRANSFORM(ss->securityPrivProto, AESPriv)) {
+	        dhprivKeyLen = 16;
+	    }
+#endif
             if (get_USM_DH_key(vars, dhvar,
                                dhprivKeyLen,
                                pdu, "priv",
@@ -983,7 +960,7 @@ main(int argc, char *argv[])
     } else {
         fprintf(stderr, "Unknown command\n");
         usage();
-        goto close_session;
+        exit(1);
     }
 
     /*
@@ -1035,17 +1012,12 @@ main(int argc, char *argv[])
         exitval = 1;
     }
 
-    exitval = 0;
 #if defined(HAVE_OPENSSL_DH_H) && defined(HAVE_LIBCRYPTO)
   begone:
 #endif /* HAVE_OPENSSL_DH_H && HAVE_LIBCRYPTO */
     if (response)
         snmp_free_pdu(response);
-
-close_session:
     snmp_close(ss);
-
-out:
     SOCK_CLEANUP;
     return exitval;
 }

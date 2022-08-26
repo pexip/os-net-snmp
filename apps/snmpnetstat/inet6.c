@@ -29,6 +29,17 @@
  * SUCH DAMAGE.
  */
 
+#ifdef  INHERITED_CODE
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)inet.c	8.4 (Berkeley) 4/20/94";
+#else
+/*__RCSID("$OpenBSD: inet6.c,v 1.31 2004/11/17 01:47:20 itojun Exp $");*/
+/*__RCSID("KAME Id: inet6.c,v 1.10 2000/02/09 10:49:31 itojun Exp");*/
+#endif
+#endif /* not lint */
+#endif
+
 #include <net-snmp/net-snmp-config.h>
 
 #if HAVE_UNISTD_H
@@ -68,7 +79,8 @@ struct stat_table {
     char            description[80];
 };
 
-static char *inet6name(const unsigned char *);
+char	*inet6name(const unsigned char *);
+void	inet6print(unsigned char *, int, const char *, int);
 
 /*
  * Print a summary of TCPv6 connections

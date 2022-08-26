@@ -273,8 +273,8 @@ struct statisticsV8_8 {
     /*
      * queue groups (strictly a sendmail 8.12+ thing 
      */
-struct QDir {
-    char           *dir;
+    struct QDir {
+    char            dir[FILENAMELEN + 1];
     struct QDir    *next;
 };
 
@@ -539,7 +539,7 @@ count_queuegroup(struct QGrp *qg)
 
     qg->last = current_time;
 
-    NETSNMP_IGNORE_RESULT(chdir(cwd));
+    chdir(cwd);
 }
 
 /** static void add_queuegroup(const char *name, const char *path)
@@ -586,7 +586,7 @@ add_queuegroup(const char *name, char *path)
          */
         *p = '\0';
 
-        strlcpy(parentdir, path, sizeof(parentdir));
+        strcpy(parentdir, path);
         /*
          * remove last directory component from parentdir 
          */
@@ -629,14 +629,11 @@ add_queuegroup(const char *name, char *path)
                 /*
                  * single queue directory 
                  */
-                if ((subdir = calloc(1, sizeof(*subdir))) != NULL &&
-                    asprintf(&subdir->dir, "%s/%s", parentdir, dirp->d_name) >=
-                    0) {
-                    subdir->next = new;
-                    new = subdir;
-                } else {
-                    free(subdir);
-                }
+                subdir = (struct QDir *) malloc(sizeof(struct QDir));
+                snprintf(subdir->dir, FILENAMELEN - 5, "%s/%s", parentdir,
+                         dirp->d_name);
+                subdir->next = new;
+                new = subdir;
             }
         }
 
@@ -645,8 +642,8 @@ add_queuegroup(const char *name, char *path)
         /*
          * single queue directory 
          */
-        new = malloc(sizeof(*new));
-        new->dir = strdup(path);
+        new = (struct QDir *) malloc(sizeof(struct QDir));
+        strcpy(new->dir, path);
         new->next = NULL;
     }
 
@@ -654,19 +651,16 @@ add_queuegroup(const char *name, char *path)
      * check 'new' for /qf directories 
      */
     for (subdir = new; subdir != NULL; subdir = subdir->next) {
-        char *qf = NULL;
+        char            qf[FILENAMELEN + 1];
 
-        if (asprintf(&qf, "%s/qf", subdir->dir) >= 0 &&
-            (dp = opendir(qf)) != NULL) {
+        snprintf(qf, FILENAMELEN, "%s/qf", subdir->dir);
+        if ((dp = opendir(qf)) != NULL) {
             /*
              * it exists ! 
              */
-            free(subdir->dir);
-            subdir->dir = qf;
-            qf = NULL;
+            strcpy(subdir->dir, qf);
             closedir(dp);
         }
-        free(qf);
     }
 
     /*
@@ -883,7 +877,7 @@ read_sendmailcf(BOOL config)
                                 linenr, sendmailcf_fn);
                     break;
                 }
-                strlcpy(sendmailst_fn, line + 2, sizeof(sendmailst_fn));
+                strcpy(sendmailst_fn, line + 2);
                 found_sendmailst = TRUE;
                 DEBUGMSGTL(("mibII/mta_sendmail.c:read_sendmailcf",
                             "found statatistics file \"%s\"\n",
@@ -1402,7 +1396,7 @@ var_mtaGroupEntry(struct variable *vp,
         *length = vp->namelen + 2;
     }
 
-    *write_method = NULL;
+    *write_method = 0;
     *var_len = sizeof(long);    /* default to 'long' results */
 
     if (vp->magic & NEEDS_STATS) {

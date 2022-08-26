@@ -1,17 +1,22 @@
-Description: Add base-lib-cflags option
- Add option "--base-lib-cflags" to net-snmp-config. This flag returns
- options needed to link against libnetsnmp. In particular, no perl
- specific options are provided.
- .
- It was reported in "libsnmp-base: forcing perl headers in net-snmp-config
- --cflags breaks perl builds"
- http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=502806
-Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
-Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2019-02-07
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: _add_lib_cflags
+
+Patch to add option "--base-lib-cflags" to net-snmp-config. This flag returns options needed to link
+against libnetsnmp. In particular, no perl specific options are provided.
+
+It was reported in
+"libsnmp-base: forcing perl headers in net-snmp-config --cflags breaks perl builds"
+http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=502806
+---
+ net-snmp-config.in | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/net-snmp-config.in b/net-snmp-config.in
+index d55872c..0831fa0 100644
 --- a/net-snmp-config.in
 +++ b/net-snmp-config.in
-@@ -145,6 +145,9 @@
+@@ -140,6 +140,9 @@ else
      --base-cflags)
        echo @CFLAGS@ @CPPFLAGS@ -I${NSC_INCLUDEDIR}
        ;;
@@ -21,7 +26,7 @@ Last-Update: 2019-02-07
      --cflags|--cf*)
        echo @CFLAGS@ @DEVFLAGS@ @CPPFLAGS@ -I. -I${NSC_INCLUDEDIR}
        ;;
-@@ -707,6 +710,8 @@
+@@ -643,6 +646,8 @@ if test "x$usage" = "xyes"; then
    echo "  These options produce the various compilation flags needed when"
    echo "  building external SNMP applications:"
    echo ""
@@ -30,17 +35,3 @@ Last-Update: 2019-02-07
    echo "    --base-cflags     lists additional compilation flags needed"
    echo "    --cflags          lists additional compilation flags needed"
    echo "                      (includes -I. and extra developer warning flags)"
---- a/configure.ac
-+++ b/configure.ac
-@@ -74,6 +74,11 @@
- m4_include([configure.d/config_os_misc1])
- m4_include([configure.d/config_os_libs2])
- AC_CACHE_SAVE
-+
-+# Save CFLAGS for net-snmp-config
-+LIBCFLAGS=$CFLAGS
-+AC_SUBST(LIBCFLAGS)
-+
- m4_include([configure.d/config_project_perl_python])
- m4_include([configure.d/config_os_misc2])
- m4_include([configure.d/config_project_types])

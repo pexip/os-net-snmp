@@ -30,6 +30,16 @@
  * SUCH DAMAGE.
  */
 
+#ifdef  INHERITED_CODE
+#ifndef lint
+#if 0
+static char sccsid[] = "from: @(#)route.c        8.3 (Berkeley) 3/9/94";
+#else
+static char *rcsid = "$OpenBSD: route.c,v 1.66 2004/11/17 01:47:20 itojun Exp $";
+#endif
+#endif /* not lint */
+#endif
+
 #include <net-snmp/net-snmp-config.h>
 
 #if HAVE_SYS_TYPES_H
@@ -229,7 +239,6 @@ routexpr(int af)
         p_rtnodex( rp );
         printed++;
     }
-    snmp_free_varbind(var);
     return printed;
 }
 
@@ -307,7 +316,6 @@ route6pr(int af)
                 cp = (unsigned char *)&sin6->sin6_addr;
                 for (i = 0; i < 16; i++) *cp++ = *cp1++;
                 rp->set_bits |= SET_HOP;
-		break;
             case 6:     /* ipv6RouteType     */
                 rp->type      = *vp->val.integer;
                 /* This enum maps to similar values in inetCidrRouteType */
@@ -343,7 +351,6 @@ route6pr(int af)
         p_rtnodex( rp );
         printed++;
     }
-    snmp_free_varbind(var);
     return printed;
 }
 

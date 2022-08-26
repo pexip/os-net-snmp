@@ -78,6 +78,13 @@
 #ifdef USING_IF_MIB_IFTABLE_IFTABLE_MODULE
 #include "if-mib/ifTable/ifTable.h"
 #include "if-mib/ifTable/ifTable_defs.h"
+#else
+/*
+ * This is used, because the TUNNEL-MIB augments ifTable. 
+ */
+extern unsigned char *var_ifEntry(struct variable *,
+                                  oid *, size_t *,
+                                  int, size_t *, WriteMethod **);
 #endif
 
 
@@ -90,6 +97,10 @@
 oid             tunnel_variables_oid[] =
     { 1, 3, 6, 1, 2, 1, 10, 131, 1, 1 };
 const int       tunnel_len = 10;
+
+oid             tunnel_ifEntry_oid[] =
+    { 1, 3, 6, 1, 2, 1, 10, 131, 1, 1, 1, 1 };
+const int       tunnel_ifEntry_len = 12;
 
 oid             tunnel_configEntry_oid[] =
     { 1, 3, 6, 1, 2, 1, 10, 131, 1, 1, 2, 1 };
@@ -280,7 +291,7 @@ getTunnelParm(char *ifname)
     }
 
     memset(&parm, 0, sizeof(struct ip_tunnel_parm));
-    strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
+    strcpy(ifrq.ifr_name, ifname);
     ifrq.ifr_ifru.ifru_data = (void *) &parm;
     if (ioctl(fd, SIOCGETTUNNEL, &ifrq) < 0) {
         /*
@@ -313,7 +324,7 @@ setTunnelParm(char *ifname, struct ip_tunnel_parm *parm)
         return -1;
     }
 
-    strlcpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
+    strcpy(ifrq.ifr_name, ifname);
     ifrq.ifr_ifru.ifru_data = (void *) parm;
     err = ioctl(fd, SIOCCHGTUNNEL, &ifrq);
     close(fd);
@@ -360,21 +371,21 @@ updateTunnel(struct tunnel *tunnel)
          * 4 bytes of sa_data. We don't use sa_data here, or we'd
          * need to memset it to 0 before the ioct.
          */
-        strlcpy(ifrq.ifr_name, tunnel->ifname, sizeof(ifrq.ifr_name));
+        strcpy(ifrq.ifr_name, tunnel->ifname);
         if (ioctl(fd, SIOCGIFHWADDR, &ifrq) == 0)
             switch (ifrq.ifr_hwaddr.sa_family) {
             case ARPHRD_TUNNEL:
                 tunnel->encaps = 2;
-                break;         /* direct */
+                break;;         /* direct */
             case ARPHRD_TUNNEL6:
                 tunnel->encaps = 2;
-                break;         /* direct */
+                break;;         /* direct */
             case ARPHRD_IPGRE:
                 tunnel->encaps = 3;
-                break;         /* gre */
+                break;;         /* gre */
             case ARPHRD_SIT:
                 tunnel->encaps = 2;
-                break;         /* direct */
+                break;;         /* direct */
             default:
                 tunnel->encaps = 1;     /* other */
             }
@@ -612,7 +623,6 @@ writeLocalAddress(int action, unsigned char *var_val,
         if (var_val_len != 4) {
             return SNMP_ERR_WRONGLENGTH;
         }
-	/* FALL THROUGH */
     case RESERVE2:
         tunnel = getTunnelByIfIndex((int) name[name_len - 1]);
         if (!tunnel) {
@@ -658,13 +668,11 @@ writeRemoteAddress(int action, unsigned char *var_val,
         if (var_val_len != 4) {
             return SNMP_ERR_WRONGLENGTH;
         }
-	/* FALL THROUGH */
     case RESERVE2:
         tunnel = getTunnelByIfIndex((int) name[name_len - 1]);
         if (!tunnel) {
             return SNMP_ERR_NOSUCHNAME;
         }
-	break;
     case FREE:
         break;
     case ACTION:
@@ -705,13 +713,11 @@ writeHopLimit(int action, unsigned char *var_val,
         if (var_val_len > sizeof(long)) {
             return SNMP_ERR_WRONGLENGTH;
         }
-	/* FALL THROUGH */
     case RESERVE2:
         tunnel = getTunnelByIfIndex((int) name[name_len - 1]);
         if (!tunnel) {
             return SNMP_ERR_NOSUCHNAME;
         }
-	break;
     case FREE:
         break;
     case ACTION:
@@ -752,13 +758,11 @@ writeTOS(int action, unsigned char *var_val,
         if (var_val_len > sizeof(long)) {
             return SNMP_ERR_WRONGLENGTH;
         }
-	/* FALL THROUGH */
     case RESERVE2:
         tunnel = getTunnelByIfIndex((int) name[name_len - 1]);
         if (!tunnel) {
             return SNMP_ERR_NOSUCHNAME;
         }
-	break;
     case FREE:
         break;
     case ACTION:
@@ -893,7 +897,7 @@ var_tunnelIfEntry(struct variable *vp,
         *write_method = writeTOS;
         return (u_char *) & ret_int;
     default:
-        return NULL;
+        return 0;
     }
 
     return NULL;
@@ -990,7 +994,7 @@ var_tunnelConfigEntry(struct variable *vp,
         vp->type = ASN_INTEGER;
         return (u_char *) & ret_int;
     default:
-        return NULL;
+        return 0;
     }
 
     return NULL;

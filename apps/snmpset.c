@@ -127,9 +127,7 @@ main(int argc, char *argv[])
     size_t          name_length;
     int             status;
     int             failures = 0;
-    int             exitval = 1;
-
-    SOCK_STARTUP;
+    int             exitval = 0;
 
     putenv(strdup("POSIXLY_CORRECT=1"));
 
@@ -138,13 +136,12 @@ main(int argc, char *argv[])
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
     case NETSNMP_PARSE_ARGS_ERROR:
-        goto out;
+        exit(1);
     case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
-        exitval = 0;
-        goto out;
+        exit(0);
     case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
-        goto out;
+        exit(1);
     default:
         break;
     }
@@ -152,13 +149,13 @@ main(int argc, char *argv[])
     if (arg >= argc) {
         fprintf(stderr, "Missing object name\n");
         usage();
-        goto out;
+        exit(1);
     }
     if ((argc - arg) > 3*SNMP_MAX_CMDLINE_OIDS) {
         fprintf(stderr, "Too many assignments specified. ");
         fprintf(stderr, "Only %d allowed in one request.\n", SNMP_MAX_CMDLINE_OIDS);
         usage();
-        goto out;
+        exit(1);
     }
 
     /*
@@ -166,8 +163,8 @@ main(int argc, char *argv[])
      */
     for (; arg < argc; arg++) {
         DEBUGMSGTL(("snmp_parse_args", "handling (#%d): %s %s %s\n",
-                    arg, argv[arg], arg+1 < argc ? argv[arg+1] : "",
-                    arg+2 < argc ? argv[arg+2] : ""));
+                    arg,argv[arg], arg+1 < argc ? argv[arg+1] : NULL,
+                    arg+2 < argc ? argv[arg+2] : NULL));
         names[current_name++] = argv[arg++];
         if (arg < argc) {
             switch (*argv[arg]) {
@@ -193,19 +190,21 @@ main(int argc, char *argv[])
             default:
                 fprintf(stderr, "%s: Bad object type: %c\n", argv[arg - 1],
                         *argv[arg]);
-                goto out;
+                exit(1);
             }
         } else {
             fprintf(stderr, "%s: Needs type and value\n", argv[arg - 1]);
-            goto out;
+            exit(1);
         }
         if (arg < argc)
             values[current_value++] = argv[arg];
         else {
             fprintf(stderr, "%s: Needs value\n", argv[arg - 2]);
-            goto out;
+            exit(1);
         }
     }
+
+    SOCK_STARTUP;
 
     /*
      * open an SNMP session 
@@ -216,7 +215,8 @@ main(int argc, char *argv[])
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpset", &session);
-        goto out;
+        SOCK_CLEANUP;
+        exit(1);
     }
 
     /*
@@ -236,10 +236,11 @@ main(int argc, char *argv[])
         }
     }
 
-    if (failures)
-        goto close_session;
-
-    exitval = 0;
+    if (failures) {
+        snmp_close(ss);
+        SOCK_CLEANUP;
+        exit(1);
+    }
 
     /*
      * do the request 
@@ -277,11 +278,7 @@ main(int argc, char *argv[])
 
     if (response)
         snmp_free_pdu(response);
-
-close_session:
     snmp_close(ss);
-
-out:
     SOCK_CLEANUP;
     return exitval;
 }

@@ -11,7 +11,6 @@
 #include <net-snmp/data_access/systemstats.h>
 
 #include "../ipSystemStatsTable/ipSystemStatsTable.h"
-#include "systemstats_private.h"
 
 #if defined(NETSNMP_IFNET_NEEDS_KERNEL) && !defined(_KERNEL)
 #define _KERNEL 1
@@ -35,14 +34,10 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
-#if HAVE_NETINET_ICMP6_H
-#include <netinet/icmp6.h>
-#endif
 #if HAVE_NETINET6_IP6_VAR_H
-#include <sys/queue.h>
 #include <netinet6/ip6_var.h>
 #endif
-#if !defined(freebsd7) && !defined(openbsd5)
+#ifndef freebsd7
 #include <netinet6/in6_var.h>
 #endif
 

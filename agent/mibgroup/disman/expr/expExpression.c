@@ -304,7 +304,7 @@ expExpression_getData( unsigned int reg, void *clientarg )
 void
 expExpression_enable( struct expExpression *entry )
 {
-    DEBUGMSGTL(("disman:expr:run", "Enabling %s\n", entry->expName));
+    DEBUGMSG(("disman:expr:run", "Enabling %s\n", entry->expName));
     if (!entry)
         return;
 

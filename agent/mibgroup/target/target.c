@@ -1,9 +1,3 @@
-/*
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
- */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 
@@ -32,9 +26,9 @@
 #include "snmpTargetParamsEntry.h"
 #include "target.h"
 
-netsnmp_feature_require(tdomain_support);
-netsnmp_feature_require(tdomain_transport_oid);
-netsnmp_feature_want(netsnmp_tlstmAddr_get_serverId);
+netsnmp_feature_require(tdomain_support)
+netsnmp_feature_require(tdomain_transport_oid)
+netsnmp_feature_want(netsnmp_tlstmAddr_get_serverId)
 
 #define MAX_TAGS 128
 
@@ -66,7 +60,8 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
         /*
          * legal row? 
          */
-        if (targaddrs->tAddress == NULL ||
+        if (targaddrs->tDomain == NULL ||
+            targaddrs->tAddress == NULL ||
             targaddrs->rowStatus != SNMP_ROW_ACTIVE) {
             DEBUGMSGTL(("target_sessions", "  which is not ready yet\n"));
             continue;
@@ -82,13 +77,13 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
         /*
          * check tag list to see if we match 
          */
-        if (targaddrs->tagListData) {
+        if (targaddrs->tagList) {
             int matched = 0;
 
             /*
              * loop through tag list looking for requested tags 
              */
-            for (cp = targaddrs->tagListData; cp && !matched;) {
+            for (cp = targaddrs->tagList; cp && !matched;) {
                 cp = copy_nword(cp, buf, sizeof(buf));
                 for (i = 0; i < numtags && !matched; i++) {
                     if (strcmp(buf, tags[i]) == 0) {
@@ -98,9 +93,8 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
                         DEBUGMSGTL(("target_sessions", "found one: %s\n",
                                     tags[i]));
 
-                        if (targaddrs->paramsData) {
-                            param = get_paramEntry2(targaddrs->paramsData,
-                                                    targaddrs->paramsLen);
+                        if (targaddrs->params) {
+                            param = get_paramEntry(targaddrs->params);
                             if (!param
                                 || param->rowStatus != SNMP_ROW_ACTIVE) {
                                 /*
@@ -204,15 +198,14 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
                                 netsnmp_cert *cert;
                                 char         *server_id = NULL;
                                 char	      buf[33];
-                                int           len;
 
                                 DEBUGMSGTL(("target_sessions",
                                             "  looking up our id: %s\n",
-                                            targaddrs->paramsData));
+                                            targaddrs->params));
                                 cert =
                                     netsnmp_cert_find(NS_CERT_IDENTITY,
                                                       NS_CERTKEY_TARGET_PARAM,
-                                                      targaddrs->paramsData);
+                                                      targaddrs->params);
                                 netsnmp_assert(t->f_config);
                                 if (cert) {
                                     DEBUGMSGTL(("target_sessions",
@@ -221,10 +214,9 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
                                     t->f_config(t, "localCert",
                                                 cert->fingerprint);
                                 }
-                                len = targaddrs->nameLen >= sizeof(buf) ?
-                                    sizeof(buf) - 1 : targaddrs->nameLen;
-                                memcpy(buf, targaddrs->nameData, len);
-                                buf[len] = '\0';
+                                memcpy(buf, targaddrs->nameData,
+                                       targaddrs->nameLen);
+                                buf[targaddrs->nameLen] = '\0';
                                 DEBUGMSGTL(("target_sessions",
                                             "  looking up their id: %s\n",
                                             buf));
@@ -250,7 +242,7 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
                                 }
                             }
 #endif
-                            snmp_sess_init(&thissess);
+                            memset(&thissess, 0, sizeof(thissess));
                             thissess.timeout = (targaddrs->timeout) * 10000;
                             thissess.retries = targaddrs->retryCount;
                             DEBUGMSGTL(("target_sessions",
@@ -271,23 +263,20 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
                                 netsnmp_transport_free(t);
                                 continue;
                             }
-                            thissess.paramName =
-                                netsnmp_memdup_nt(param->paramNameData,
-                                                  param->paramNameLen, NULL);
+                            thissess.paramName = strdup(param->paramName);
                             thissess.version = param->mpModel;
                             if (param->mpModel == SNMP_VERSION_3) {
-                                thissess.securityName =
-                                    netsnmp_memdup_nt(param->secNameData,
-                                                      param->secNameLen,
-                                                      &thissess.securityNameLen);
+                                thissess.securityName = strdup(param->secName);
+                                thissess.securityNameLen =
+                                    strlen(thissess.securityName);
                                 thissess.securityLevel = param->secLevel;
                                 thissess.securityModel = param->secModel;
 #if !defined(NETSNMP_DISABLE_SNMPV1) || !defined(NETSNMP_DISABLE_SNMPV2C)
                             } else {
                                 thissess.community =
-                                    netsnmp_memdup_nt(param->secNameData,
-                                                      param->secNameLen,
-                                                      &thissess.community_len);
+                                    (u_char *) strdup(param->secName);
+                                thissess.community_len =
+                                    strlen((char *) thissess.community);
 #endif
                             }
 
@@ -300,9 +289,7 @@ get_target_sessions(char *taglist, TargetFilterFunction * filterfunct,
                         if (targaddrs->sess) {
                             if (NULL == targaddrs->sess->paramName)
                                 targaddrs->sess->paramName =
-                                    netsnmp_memdup_nt(param->paramNameData,
-                                                      param->paramNameLen,
-                                                      NULL);
+                                    strdup(param->paramName);
 
                             targaddrs->sess->next = ret;
                             ret = targaddrs->sess;

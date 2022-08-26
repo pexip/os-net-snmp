@@ -7,11 +7,6 @@
  * Copyright (C) 2007 Apple, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 #ifndef NETSNMP_CONTAINER_H
 #define NETSNMP_CONTAINER_H
@@ -84,21 +79,6 @@ extern "C" {
                                        const void *data);
 
     /*
-     * function returning an int for an operation on an object at a given
-     * position in a container (for containers supporting direct access)
-     */
-    typedef int (netsnmp_container_da_op)(struct netsnmp_container_s *,
-                                          size_t pos, void *data);
-
-    /*
-     * function returning an int and an object at a given position in a
-     * container (for containers supporting direct access)
-     */
-    typedef int (netsnmp_container_da_op_rtn)(struct netsnmp_container_s *,
-                                          size_t pos,
-                                          void **data);
-
-    /*
      * function returning an oject for an operation on an object and a
      * container
      */
@@ -167,20 +147,9 @@ extern "C" {
        netsnmp_container_op    *insert;
 
        /*
-        * add an entry to the container at a given position
-        */
-       netsnmp_container_da_op *insert_before;
-       netsnmp_container_da_op *insert_after;
-
-       /*
         * remove an entry from the container
         */
        netsnmp_container_op    *remove;
-
-       /*
-        * remove an entry from the container at a given position
-        */
-       netsnmp_container_da_op_rtn *remove_at;
 
        /*
         * release memory for an entry from the container
@@ -203,11 +172,6 @@ extern "C" {
         * If the key is NULL, return the first item in the container.
         */
        netsnmp_container_rtn   *find_next;
-
-       /*
-        * get entry at the given index (for containers supporting direct access
-        */
-       netsnmp_container_da_op_rtn *get_at;
 
        /*
         * find all entries in the container which match the partial key
@@ -345,7 +309,6 @@ extern "C" {
     int netsnmp_ncompare_cstring(const void * lhs, const void * rhs);
 
     /** useful for octet strings */
-    NETSNMP_IMPORT
     int netsnmp_compare_mem(const char * lhs, size_t lhs_len,
                             const char * rhs, size_t rhs_len);
 
@@ -366,8 +329,6 @@ extern "C" {
  */
 #define CONTAINER_KEY_ALLOW_DUPLICATES             0x00000001
 #define CONTAINER_KEY_UNSORTED                     0x00000002
-    /* ... */
-#define CONTAINER_FLAG_INTERNAL_1                  0x80000000
 
 #define CONTAINER_SET_OPTIONS(x,o,rc)  do {                             \
         if (NULL==(x)->options)                                         \
@@ -414,28 +375,10 @@ extern "C" {
     int CONTAINER_INSERT(netsnmp_container *x, const void *k);
 
     /*
-     * insert item before given position
-     */
-    NETSNMP_IMPORT
-    int CONTAINER_INSERT_BEFORE(netsnmp_container *x, size_t pos, void *k);
-
-    /*
      * remove k from all containers
      */
     NETSNMP_IMPORT
     int CONTAINER_REMOVE(netsnmp_container *x, const void *k);
-
-    /*
-     * remove item at given position
-     */
-    NETSNMP_IMPORT
-    int CONTAINER_REMOVE_AT(netsnmp_container *x, size_t pos, void **k);
-
-    /*
-     * get item at given position
-     */
-    NETSNMP_IMPORT
-    int CONTAINER_GET_AT(netsnmp_container *x, size_t pos, void **k);
 
     /*
      * duplicate container

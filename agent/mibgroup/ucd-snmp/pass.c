@@ -37,8 +37,8 @@
 #include "extensible.h"
 #include "util_funcs.h"
 
-netsnmp_feature_require(get_exten_instance);
-netsnmp_feature_require(parse_miboid);
+netsnmp_feature_require(get_exten_instance)
+netsnmp_feature_require(parse_miboid)
 
 struct extensible *passthrus = NULL;
 int             numpassthrus = 0;
@@ -113,7 +113,7 @@ pass_parse_config(const char *token, char *cptr)
 
     while (*ppass != NULL)
         ppass = &((*ppass)->next);
-    *ppass = calloc(1, sizeof(**ppass));
+    (*ppass) = (struct extensible *) malloc(sizeof(struct extensible));
     if (*ppass == NULL)
         return;
     (*ppass)->type = PASSTHRU;
@@ -125,19 +125,14 @@ pass_parse_config(const char *token, char *cptr)
     /*
      * path
      */
-    free((*ppass)->command);
-    (*ppass)->command = NULL;
     cptr = skip_white(cptr);
     if (cptr == NULL) {
         config_perror("No command specified on pass line");
-        if (asprintf(&(*ppass)->command, "%s", "") < 0) {
-        }
+        (*ppass)->command[0] = 0;
     } else {
         for (tcptr = cptr; *tcptr != 0 && *tcptr != '#' && *tcptr != ';';
              tcptr++);
-        if (asprintf(&(*ppass)->command, "%.*s", (int) (tcptr - cptr), cptr)
-            < 0) {
-        }
+        sprintf((*ppass)->command, "%.*s", (int) (tcptr - cptr), cptr);
     }
     strlcpy((*ppass)->name, (*ppass)->command, sizeof((*ppass)->name));
     (*ppass)->next = NULL;
@@ -182,7 +177,6 @@ pass_free_config(void)
         etmp2 = etmp;
         etmp = etmp->next;
         unregister_mib_priority(etmp2->miboid, etmp2->miblen, etmp2->mibpriority);
-        free(etmp2->command);
         free(etmp2);
     }
     passthrus = NULL;
@@ -215,11 +209,13 @@ var_extensible_pass(struct variable *vp,
                 sprint_mib_oid(buf, passthru->miboid, passthru->miblen);
             else
                 sprint_mib_oid(buf, name, *length);
-            free(passthru->command);
-            passthru->command = NULL;
-            if (asprintf(&passthru->command, "%s %s %s", passthru->name,
-                         exact ? "-g" : "-n", buf) < 0) {
-            }
+            if (exact)
+                snprintf(passthru->command, sizeof(passthru->command),
+                         "%s -g %s", passthru->name, buf);
+            else
+                snprintf(passthru->command, sizeof(passthru->command),
+                         "%s -n %s", passthru->name, buf);
+            passthru->command[ sizeof(passthru->command)-1 ] = 0;
             DEBUGMSGTL(("ucd-snmp/pass", "pass-running:  %s\n",
                         passthru->command));
             /*
@@ -294,17 +290,15 @@ setPass(int action, u_char * var_val, u_char var_val_type,
             /*
              * setup args 
              */
-            free(passthru->command);
-            passthru->command = NULL;
             if (passthru->miblen >= name_len || rtest < 0)
                 sprint_mib_oid(buf, passthru->miboid, passthru->miblen);
             else
                 sprint_mib_oid(buf, name, name_len);
-            netsnmp_internal_pass_set_format(buf2, var_val, var_val_type,
-                                             var_val_len);
-            if (asprintf(&passthru->command, "%s -s %s %s", passthru->name, buf,
-                         buf2) < 0) {
-            }
+            snprintf(passthru->command, sizeof(passthru->command),
+                     "%s -s %s ", passthru->name, buf);
+            passthru->command[ sizeof(passthru->command)-1 ] = 0;
+            netsnmp_internal_pass_set_format(buf, var_val, var_val_type, var_val_len);
+            strlcat(passthru->command, buf, sizeof(passthru->command));
             DEBUGMSGTL(("ucd-snmp/pass", "pass-running:  %s",
                         passthru->command));
             exec_command(passthru);
@@ -323,9 +317,9 @@ setPass(int action, u_char * var_val, u_char var_val_type,
 int
 pass_compare(const void *a, const void *b)
 {
-    const struct extensible *const *ap = a;
-    const struct extensible *const *bp = b;
-
+    const struct extensible *const *ap, *const *bp;
+    ap = (const struct extensible * const *) a;
+    bp = (const struct extensible * const *) b;
     return snmp_oid_compare((*ap)->miboid, (*ap)->miblen, (*bp)->miboid,
                             (*bp)->miblen);
 }

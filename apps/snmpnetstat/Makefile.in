@@ -2,6 +2,7 @@
 # snmpnetstat Makefile
 #
 
+top_builddir=../..
 mysubdir=apps/snmpnetstat
 
 INSTALLBINPROGS=snmpnetstat$(EXEEXT)

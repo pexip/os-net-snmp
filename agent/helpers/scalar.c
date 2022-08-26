@@ -7,11 +7,6 @@
  * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 #include <net-snmp/net-snmp-config.h>
 
@@ -79,8 +74,6 @@ netsnmp_get_scalar_handler(void)
 int
 netsnmp_register_scalar(netsnmp_handler_registration *reginfo)
 {
-    netsnmp_mib_handler *h1, *h2;
-
     /*
      * Extend the registered OID with space for the instance subid
      * (but don't extend the length just yet!)
@@ -89,22 +82,9 @@ netsnmp_register_scalar(netsnmp_handler_registration *reginfo)
                                     (reginfo->rootoid_len+1) * sizeof(oid) );
     reginfo->rootoid[ reginfo->rootoid_len ] = 0;
 
-    h1 = netsnmp_get_instance_handler();
-    h2 = netsnmp_get_scalar_handler();
-    if (h1 && h2) {
-        if (netsnmp_inject_handler(reginfo, h1) == SNMPERR_SUCCESS) {
-            h1 = NULL;
-            if (netsnmp_inject_handler(reginfo, h2) == SNMPERR_SUCCESS)
-                return netsnmp_register_serialize(reginfo);
-        }
-    }
-
-    snmp_log(LOG_ERR, "register scalar failed\n");
-    netsnmp_handler_free(h1);
-    netsnmp_handler_free(h2);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    netsnmp_inject_handler(reginfo, netsnmp_get_instance_handler());
+    netsnmp_inject_handler(reginfo, netsnmp_get_scalar_handler());
+    return netsnmp_register_serialize(reginfo);
 }
 
 
@@ -119,7 +99,7 @@ netsnmp_register_scalar(netsnmp_handler_registration *reginfo)
  *                a read only scalar helper handler.
  *
  * @return  MIB_REGISTERED_OK is returned if the registration was a success.
- *  	Failures are MIB_REGISTRATION_FAILED and MIB_DUPLICATE_REGISTRATION.
+ *  	Failures are MIB_REGISTRATION_FAILURE and MIB_DUPLICATE_REGISTRATION.
  *
  * @see netsnmp_register_scalar
  * @see netsnmp_get_scalar_handler
@@ -129,7 +109,6 @@ netsnmp_register_scalar(netsnmp_handler_registration *reginfo)
 int
 netsnmp_register_read_only_scalar(netsnmp_handler_registration *reginfo)
 {
-    netsnmp_mib_handler *h1, *h2, *h3;
     /*
      * Extend the registered OID with space for the instance subid
      * (but don't extend the length just yet!)
@@ -138,27 +117,10 @@ netsnmp_register_read_only_scalar(netsnmp_handler_registration *reginfo)
                                     (reginfo->rootoid_len+1) * sizeof(oid) );
     reginfo->rootoid[ reginfo->rootoid_len ] = 0;
 
-    h1 = netsnmp_get_instance_handler();
-    h2 = netsnmp_get_scalar_handler();
-    h3 = netsnmp_get_read_only_handler();
-    if (h1 && h2 && h3) {
-        if (netsnmp_inject_handler(reginfo, h1) == SNMPERR_SUCCESS) {
-            h1 = NULL;
-            if (netsnmp_inject_handler(reginfo, h2) == SNMPERR_SUCCESS) {
-                h2 = NULL;
-                if (netsnmp_inject_handler(reginfo, h3) == SNMPERR_SUCCESS)
-                    return netsnmp_register_serialize(reginfo);
-            }
-        }
-    }
-
-    snmp_log(LOG_ERR, "register read only scalar failed\n");
-    netsnmp_handler_free(h1);
-    netsnmp_handler_free(h2);
-    netsnmp_handler_free(h3);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    netsnmp_inject_handler(reginfo, netsnmp_get_instance_handler());
+    netsnmp_inject_handler(reginfo, netsnmp_get_scalar_handler());
+    netsnmp_inject_handler(reginfo, netsnmp_get_read_only_handler());
+    return netsnmp_register_serialize(reginfo);
 }
 
 

@@ -37,11 +37,6 @@ SOFTWARE.
  * Copyright (C) 2007 Apple, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 /*
  * System dependent routines go here
@@ -52,9 +47,6 @@ SOFTWARE.
 #include <ctype.h>
 #include <errno.h>
 
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
 #if HAVE_IO_H
 #include <io.h>
 #endif
@@ -129,9 +121,8 @@ SOFTWARE.
 #include <strings.h>
 #endif
 
-#ifdef WIN32
-#include <wchar.h>   /* wcsncmp() */
-#include <winperf.h> /* PERF_DATA_BLOCK */
+#if HAVE_DMALLOC_H
+#include <dmalloc.h>
 #endif
 
 #ifdef HAVE_SYS_STAT_H
@@ -157,12 +148,8 @@ SOFTWARE.
 #include <sys/systeminfo.h>
 #endif
 
-#if HAVE_CRT_EXTERNS_H
+#if defined(darwin9)
 #include <crt_externs.h>        /* for _NSGetArgv() */
-#endif
-
-#ifdef HAVE_MACH_O_DYLD_H
-#include <mach-o/dyld.h>
 #endif
 
 #if HAVE_PWD_H
@@ -202,10 +189,10 @@ SOFTWARE.
 /* NetSNMP and DNSSEC-Tools both define FREE. We'll not use either here. */
 #undef FREE
 
-netsnmp_feature_child_of(system_all, libnetsnmp);
+netsnmp_feature_child_of(system_all, libnetsnmp)
 
-netsnmp_feature_child_of(user_information, system_all);
-netsnmp_feature_child_of(calculate_sectime_diff, system_all);
+netsnmp_feature_child_of(user_information, system_all)
+netsnmp_feature_child_of(calculate_sectime_diff, system_all)
 
 #ifndef IFF_LOOPBACK
 #	define IFF_LOOPBACK 0
@@ -225,33 +212,26 @@ netsnmp_feature_child_of(calculate_sectime_diff, system_all);
 static void
 _daemon_prep(int stderr_log)
 {
-    int fd;
-
     /* Avoid keeping any directory in use. */
-    NETSNMP_IGNORE_RESULT(chdir("/"));
+    chdir("/");
 
     if (stderr_log)
         return;
 
-    fd = open("/dev/null", O_RDWR);
-    
     /*
      * Close inherited file descriptors to avoid
      * keeping unnecessary references.
      */
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    close(0);
+    close(1);
+    close(2);
 
     /*
      * Redirect std{in,out,err} to /dev/null, just in case.
      */
-    if (fd >= 0) {
-        dup2(fd, STDIN_FILENO);
-        dup2(fd, STDOUT_FILENO);
-        dup2(fd, STDERR_FILENO);
-        close(fd);
-    }
+    open("/dev/null", O_RDWR);
+    dup(0);
+    dup(0);
 }
 #endif
 
@@ -283,7 +263,7 @@ netsnmp_daemonize(int quit_immediately, int stderr_log)
     int i = 0;
     DEBUGMSGT(("daemonize","deamonizing...\n"));
 #if HAVE_FORK
-#if HAVE__NSGETEXECUTABLEPATH
+#if defined(darwin9)
      char            path [PATH_MAX] = "";
      uint32_t        size = sizeof (path);
 
@@ -303,11 +283,7 @@ netsnmp_daemonize(int quit_immediately, int stderr_log)
      * Fork to return control to the invoking process and to
      * guarantee that we aren't a process group leader.
      */
-#if HAVE_FORKALL
-    i = forkall();
-#else
     i = fork();
-#endif
     if (i != 0) {
         /* Parent. */
         DEBUGMSGT(("daemonize","first fork returned %d.\n", i));
@@ -329,12 +305,7 @@ netsnmp_daemonize(int quit_immediately, int stderr_log)
         /*
          * Fork to let the process/session group leader exit.
          */
-#if HAVE_FORKALL
-	i = forkall();
-#else
-	i = fork();
-#endif
-        if (i != 0) {
+        if ((i = fork()) != 0) {
             DEBUGMSGT(("daemonize","second fork returned %d.\n", i));
             if(i == -1) {
                 snmp_log(LOG_ERR,"second fork failed (errno %d) in "
@@ -349,7 +320,7 @@ netsnmp_daemonize(int quit_immediately, int stderr_log)
             
             DEBUGMSGT(("daemonize","child continuing\n"));
 
-#if !defined(HAVE__NSGETARGV)
+#if ! defined(darwin9)
             _daemon_prep(stderr_log);
 #else
              /*
@@ -953,18 +924,9 @@ netsnmp_gethostbyname(const char *name)
     if (hp == NULL) {
         DEBUGMSGTL(("dns:gethostbyname",
                     "couldn't resolve %s\n", name));
-    } else if (hp->h_addrtype != AF_INET
-#ifdef AF_INET6
-               && hp->h_addrtype != AF_INET6
-#endif
-        ) {
-#ifdef AF_INET6
-        DEBUGMSGTL(("dns:gethostbyname",
-                    "warning: response for %s not AF_INET/AF_INET6!\n", name));
-#else
+    } else if (hp->h_addrtype != AF_INET) {
         DEBUGMSGTL(("dns:gethostbyname",
                     "warning: response for %s not AF_INET!\n", name));
-#endif
     } else {
         DEBUGMSGTL(("dns:gethostbyname",
                     "%s resolved okay\n", name));
@@ -1037,7 +999,7 @@ netsnmp_gethostbyaddr(const void *addr, socklen_t len, int type)
 
 /*******************************************************************/
 
-#if !defined(HAVE_STRNCASECMP) && !defined(strncasecmp)
+#ifndef HAVE_STRNCASECMP
 
 /*
  * test for NULL pointers before and NULL characters after
@@ -1086,7 +1048,7 @@ strcasecmp(const char *s1, const char *s2)
     return strncasecmp(s1, s2, 1000000);
 }
 
-#endif                /* !defined(HAVE_STRNCASECMP) && !defined(strncasecmp) */
+#endif                          /* HAVE_STRNCASECMP */
 
 
 #ifndef HAVE_STRDUP
@@ -1127,7 +1089,7 @@ setenv(const char *name, const char *value, int overwrite)
 }
 #endif                          /* HAVE_SETENV */
 
-netsnmp_feature_child_of(calculate_time_diff, netsnmp_unused);
+netsnmp_feature_child_of(calculate_time_diff, netsnmp_unused)
 #ifndef NETSNMP_FEATURE_REMOVE_CALCULATE_TIME_DIFF
 /**
  * Compute (*now - *then) in centiseconds.
@@ -1150,7 +1112,7 @@ calculate_sectime_diff(const struct timeval *now, const struct timeval *then)
     struct timeval  diff;
 
     NETSNMP_TIMERSUB(now, then, &diff);
-    return (u_int)(diff.tv_sec + (diff.tv_usec >= 500000L));
+    return diff.tv_sec + (diff.tv_usec >= 500000L);
 }
 #endif /* NETSNMP_FEATURE_REMOVE_CALCULATE_SECTIME_DIFF */
 
@@ -1408,7 +1370,7 @@ netsnmp_os_kernel_width(void)
 #endif
 }
 
-netsnmp_feature_child_of(str_to_uid, user_information);
+netsnmp_feature_child_of(str_to_uid, user_information)
 #ifndef NETSNMP_FEATURE_REMOVE_STR_TO_UID
 /**
  * Convert a user name or number into numeric form.
@@ -1441,7 +1403,7 @@ int netsnmp_str_to_uid(const char *useroruid) {
 }
 #endif /* NETSNMP_FEATURE_REMOVE_STR_TO_UID */
 
-netsnmp_feature_child_of(str_to_gid, user_information);
+netsnmp_feature_child_of(str_to_gid, user_information)
 #ifndef NETSNMP_FEATURE_REMOVE_STR_TO_GID
 /**
  * Convert a group name or number into numeric form.

@@ -33,17 +33,21 @@
 
 #include <errno.h>
 
+#if HAVE_DMALLOC_H
+#  include <dmalloc.h>
+#endif
+
 #include <net-snmp/types.h>
 #include <net-snmp/library/snmp_debug.h>
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/file_utils.h>
 #include <net-snmp/library/text_utils.h>
 
-netsnmp_feature_child_of(text_utils, libnetsnmp);
+netsnmp_feature_child_of(text_utils, libnetsnmp)
 
-netsnmp_feature_provide(text_utils);
+netsnmp_feature_provide(text_utils)
 #ifdef NETSNMP_FEATURE_REQUIRE_TEXT_UTILS
-netsnmp_feature_require(file_utils);
+netsnmp_feature_require(file_utils)
 #endif /* NETSNMP_FEATURE_REQUIRE_TEXT_UTILS */
 
 #ifndef NETSNMP_FEATURE_REMOVE_TEXT_UTILS
@@ -55,13 +59,12 @@ netsnmp_feature_require(file_utils);
 /*
  * parse methods
  */
-static void
+void
 _pm_save_index_string_string(FILE *f, netsnmp_container *cin,
                              int flags);
-static void
+void
 _pm_save_everything(FILE *f, netsnmp_container *cin, int flags);
-
-static void
+void
 _pm_user_function(FILE *f, netsnmp_container *cin,
                   netsnmp_line_process_info *lpi, int flags);
 
@@ -69,9 +72,8 @@ _pm_user_function(FILE *f, netsnmp_container *cin,
 /*
  * line processors
  */
-static int
-_process_line_tvi(netsnmp_line_info *line_info, void *mem,
-                  struct netsnmp_line_process_info_s* lpi);
+int _process_line_tvi(netsnmp_line_info *line_info, void *mem,
+                      struct netsnmp_line_process_info_s* lpi);
 
 
 
@@ -153,7 +155,7 @@ netsnmp_file_text_parse(netsnmp_file *f, netsnmp_container *cin,
     return c;
 }
 
-netsnmp_feature_child_of(text_token_container_from_file, netsnmp_unused);
+netsnmp_feature_child_of(text_token_container_from_file, netsnmp_unused)
 #ifndef NETSNMP_FEATURE_REMOVE_TEXT_TOKEN_CONTAINER_FROM_FILE
 netsnmp_container *
 netsnmp_text_token_container_from_file(const char *file, u_int flags,
@@ -220,7 +222,7 @@ netsnmp_text_token_container_from_file(const char *file, u_int flags,
  * @internal
  * parse mode: save everything
  */
-static void
+void
 _pm_save_everything(FILE *f, netsnmp_container *cin, int flags)
 {
     char               line[STRINGMAX], *ptr;
@@ -256,9 +258,9 @@ _pm_save_everything(FILE *f, netsnmp_container *cin, int flags)
 
 /**
  * @internal
- * parse mode:
+ * parse mode: 
  */
-static void
+void
 _pm_save_index_string_string(FILE *f, netsnmp_container *cin,
                              int flags)
 {
@@ -313,9 +315,9 @@ _pm_save_index_string_string(FILE *f, netsnmp_container *cin,
 
 /**
  * @internal
- * parse mode:
+ * parse mode: 
  */
-static void
+void
 _pm_user_function(FILE *f, netsnmp_container *cin,
                   netsnmp_line_process_info *lpi, int flags)
 {
@@ -439,7 +441,7 @@ _pm_user_function(FILE *f, netsnmp_container *cin,
  * @internal
  * process token value index line
  */
-static int
+int
 _process_line_tvi(netsnmp_line_info *line_info, void *mem,
                   struct netsnmp_line_process_info_s* lpi)
 {

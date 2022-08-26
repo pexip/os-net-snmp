@@ -1,14 +1,3 @@
-/*
- * Portions of this file are subject to the following copyright(s).  See
- * the Net-SNMP's COPYING file for more details and other copyrights
- * that may apply:
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
- */
-
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 
@@ -31,18 +20,18 @@ static void free_wrapper(void * p)
 #define free_wrapper free
 #endif
 
-netsnmp_feature_provide(watcher_all);
-netsnmp_feature_child_of(watcher_all, mib_helpers);
-netsnmp_feature_child_of(watcher_create_info6, watcher_all);
-netsnmp_feature_child_of(watcher_register_timestamp, watcher_all);
-netsnmp_feature_child_of(watcher_ulong_scalar, watcher_all);
-netsnmp_feature_child_of(watcher_read_only_ulong_scalar, watcher_all);
-netsnmp_feature_child_of(watcher_read_only_int_scalar, watcher_all);
-netsnmp_feature_child_of(watcher_long_scalar, watcher_all);
-netsnmp_feature_child_of(watcher_read_only_long_scalar, watcher_all);
-netsnmp_feature_child_of(watcher_int_scalar, watcher_all);
-netsnmp_feature_child_of(read_only_counter32_scalar, watcher_all);
-netsnmp_feature_child_of(watcher_spinlock, watcher_all);
+netsnmp_feature_provide(watcher_all)
+netsnmp_feature_child_of(watcher_all, mib_helpers)
+netsnmp_feature_child_of(watcher_create_info6, watcher_all)
+netsnmp_feature_child_of(watcher_register_timestamp, watcher_all)
+netsnmp_feature_child_of(watcher_ulong_scalar, watcher_all)
+netsnmp_feature_child_of(watcher_read_only_ulong_scalar, watcher_all)
+netsnmp_feature_child_of(watcher_read_only_int_scalar, watcher_all)
+netsnmp_feature_child_of(watcher_long_scalar, watcher_all)
+netsnmp_feature_child_of(watcher_read_only_long_scalar, watcher_all)
+netsnmp_feature_child_of(watcher_int_scalar, watcher_all)
+netsnmp_feature_child_of(read_only_counter32_scalar, watcher_all)
+netsnmp_feature_child_of(watcher_spinlock, watcher_all)
 
 /** @defgroup watcher watcher
  *  Watch a specified variable and process it as an instance or scalar object
@@ -118,22 +107,13 @@ int
 netsnmp_register_watched_instance(netsnmp_handler_registration *reginfo,
                                   netsnmp_watcher_info         *watchinfo)
 {
-    netsnmp_mib_handler *whandler = NULL;
+    netsnmp_mib_handler *whandler;
 
-    if (reginfo && watchinfo) {
-        whandler = netsnmp_get_watcher_handler();
-        if (whandler) {
-            whandler->myvoid = (void *)watchinfo;
-            if (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS)
-                return netsnmp_register_instance(reginfo);
-        }
-    }
+    whandler         = netsnmp_get_watcher_handler();
+    whandler->myvoid = (void *)watchinfo;
 
-    snmp_log(LOG_ERR, "could not create watched instance handler\n");
-    netsnmp_handler_free(whandler);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    netsnmp_inject_handler(reginfo, whandler);
+    return netsnmp_register_instance(reginfo);
 }
 
 /**
@@ -145,23 +125,14 @@ int
 netsnmp_register_watched_instance2(netsnmp_handler_registration *reginfo,
 				   netsnmp_watcher_info         *watchinfo)
 {
-    netsnmp_mib_handler *whandler = NULL;
+    netsnmp_mib_handler *whandler;
 
-    if (reginfo && watchinfo) {
-        whandler = netsnmp_get_watcher_handler();
-        if (whandler) {
-            whandler->myvoid = (void *)watchinfo;
-            netsnmp_owns_watcher_info(whandler);
-            if (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS)
-                return netsnmp_register_instance(reginfo);
-        }
-    }
+    whandler         = netsnmp_get_watcher_handler();
+    whandler->myvoid = (void *)watchinfo;
+    netsnmp_owns_watcher_info(whandler);
 
-    snmp_log(LOG_ERR, "could not create watched instance2 handler\n");
-    netsnmp_handler_free(whandler);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    netsnmp_inject_handler(reginfo, whandler);
+    return netsnmp_register_instance(reginfo);
 }
 
 /**
@@ -173,22 +144,13 @@ int
 netsnmp_register_watched_scalar(netsnmp_handler_registration *reginfo,
                                   netsnmp_watcher_info         *watchinfo)
 {
-    netsnmp_mib_handler *whandler = NULL;
+    netsnmp_mib_handler *whandler;
 
-    if (reginfo && watchinfo) {
-        whandler = netsnmp_get_watcher_handler();
-        if (whandler) {
-            whandler->myvoid = (void *)watchinfo;
-            if (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS)
-                return netsnmp_register_scalar(reginfo);
-        }
-    }
+    whandler         = netsnmp_get_watcher_handler();
+    whandler->myvoid = (void *)watchinfo;
 
-    snmp_log(LOG_ERR, "could not create watched scalar handler\n");
-    netsnmp_handler_free(whandler);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    netsnmp_inject_handler(reginfo, whandler);
+    return netsnmp_register_scalar(reginfo);
 }
 
 /**
@@ -200,23 +162,14 @@ int
 netsnmp_register_watched_scalar2(netsnmp_handler_registration *reginfo,
                                   netsnmp_watcher_info         *watchinfo)
 {
-    netsnmp_mib_handler *whandler = NULL;
+    netsnmp_mib_handler *whandler;
 
-    if (reginfo && watchinfo) {
-        whandler = netsnmp_get_watcher_handler();
-        if (whandler) {
-            whandler->myvoid = (void *)watchinfo;
-            netsnmp_owns_watcher_info(whandler);
-            if (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS)
-                return netsnmp_register_scalar(reginfo);
-        }
-    }
+    whandler         = netsnmp_get_watcher_handler();
+    whandler->myvoid = (void *)watchinfo;
+    netsnmp_owns_watcher_info(whandler);
 
-    snmp_log(LOG_ERR, "could not create watched scalar2 handler\n");
-    netsnmp_handler_free(whandler);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    netsnmp_inject_handler(reginfo, whandler);
+    return netsnmp_register_scalar(reginfo);
 }
 
 void
@@ -289,9 +242,7 @@ netsnmp_watcher_helper_handler(netsnmp_mib_handler *handler,
                                netsnmp_request_info *requests)
 {
     netsnmp_watcher_info  *winfo = (netsnmp_watcher_info *) handler->myvoid;
-#ifndef NETSNMP_NO_WRITE_SUPPORT
     netsnmp_watcher_cache *old_data;
-#endif /* NETSNMP_NO_WRITE_SUPPORT */
 
     DEBUGMSGTL(("helper:watcher", "Got request:  %d\n", reqinfo->mode));
     DEBUGMSGTL(( "helper:watcher", "  oid:"));
@@ -408,16 +359,9 @@ netsnmp_watched_timestamp_register(netsnmp_mib_handler *whandler,
                                    netsnmp_handler_registration *reginfo,
                                    marker_t timestamp)
 {
-    if (reginfo && whandler && timestamp) {
-        whandler->myvoid = (void *)timestamp;
-        if (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS)
-            return netsnmp_register_scalar(reginfo);   /* XXX - or instance? */
-    }
-
-    snmp_log(LOG_ERR, "could not create watched timestamp handler\n");
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    whandler->myvoid = (void *)timestamp;
+    netsnmp_inject_handler(reginfo, whandler);
+    return netsnmp_register_scalar(reginfo);   /* XXX - or instance? */
 }
 
 #ifndef NETSNMP_FEATURE_REMOVE_WATCHER_REGISTER_TIMESTAMP
@@ -508,28 +452,15 @@ int
 netsnmp_register_watched_spinlock(netsnmp_handler_registration *reginfo,
                                    int *spinlock)
 {
-    netsnmp_mib_handler  *whandler = NULL;
-    netsnmp_watcher_info *winfo = NULL;
+    netsnmp_mib_handler  *whandler;
+    netsnmp_watcher_info *winfo;
 
-    if (reginfo && spinlock) {
-        whandler = netsnmp_get_watched_spinlock_handler();
-        if (whandler) {
-            whandler->myvoid = (void *)spinlock;
-            winfo = netsnmp_create_watcher_info((void *)spinlock, sizeof(int),
-                                                ASN_INTEGER,
-                                                WATCHER_FIXED_SIZE);
-            if (winfo &&
-                (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS))
-                return netsnmp_register_watched_scalar2(reginfo, winfo);
-        }
-    }
-
-    snmp_log(LOG_ERR, "could not create watched spinlock handler\n");
-    SNMP_FREE(winfo);
-    netsnmp_handler_free(whandler);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    whandler         = netsnmp_get_watched_spinlock_handler();
+    whandler->myvoid = (void *)spinlock;
+    winfo            = netsnmp_create_watcher_info((void *)spinlock,
+		           sizeof(int), ASN_INTEGER, WATCHER_FIXED_SIZE);
+    netsnmp_inject_handler(reginfo, whandler);
+    return netsnmp_register_watched_scalar2(reginfo, winfo);
 }
 
 
@@ -539,10 +470,8 @@ netsnmp_watched_spinlock_handler(netsnmp_mib_handler *handler,
                                netsnmp_agent_request_info *reqinfo,
                                netsnmp_request_info *requests)
 {
-#ifndef NETSNMP_NO_WRITE_SUPPORT
     int     *spinlock = (int *) handler->myvoid;
     netsnmp_request_info *request;
-#endif /* NETSNMP_NO_WRITE_SUPPORT */
 
     DEBUGMSGTL(("helper:watcher:spinlock",
                                "Got request:  %d\n", reqinfo->mode));
@@ -608,34 +537,26 @@ register_scalar_watcher(const char* name,
 {
     netsnmp_handler_registration *reginfo = NULL;
     netsnmp_mib_handler *whandler = NULL;
-    netsnmp_watcher_info* watchinfo;
-
-    if (!name || !reg_oid || !data)
-        return MIB_REGISTRATION_FAILED;
-
-    watchinfo = netsnmp_create_watcher_info(data, size, type,
-                                            WATCHER_FIXED_SIZE);
-    if (watchinfo) {
+    netsnmp_watcher_info* watchinfo =
+        netsnmp_create_watcher_info(data, size, type, WATCHER_FIXED_SIZE);
+    if (watchinfo)
         whandler = netsnmp_get_watcher_handler();
-        if (whandler) {
-            whandler->myvoid = watchinfo;
-            netsnmp_owns_watcher_info(whandler);
-            reginfo =
-                netsnmp_create_handler_registration(name, subhandler,
-                                                    reg_oid, reg_oid_len,
-                                                    mode);
-            if (reginfo &&
-                (netsnmp_inject_handler(reginfo, whandler) == SNMPERR_SUCCESS))
-                return netsnmp_register_scalar(reginfo);
-        }
+    if (watchinfo && whandler) {
+        whandler->myvoid = watchinfo;
+	netsnmp_owns_watcher_info(whandler);
+        reginfo =
+            netsnmp_create_handler_registration(
+                name, subhandler, reg_oid, reg_oid_len, mode);
     }
-
-    snmp_log(LOG_ERR, "failed to register scalar watcher\n");
-    netsnmp_handler_free(whandler);
-    SNMP_FREE(watchinfo);
-    netsnmp_handler_registration_free(reginfo);
-
-    return MIB_REGISTRATION_FAILED;
+    if (watchinfo && whandler && reginfo) {
+        netsnmp_inject_handler(reginfo, whandler);
+        return netsnmp_register_scalar(reginfo);
+    }
+    if (whandler)
+        netsnmp_handler_free(whandler);
+    else if (watchinfo)
+        free(watchinfo);
+    return SNMP_ERR_RESOURCEUNAVAILABLE;
 }
 
 #ifndef NETSNMP_FEATURE_REMOVE_WATCHER_ULONG_SCALAR

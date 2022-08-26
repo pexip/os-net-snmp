@@ -6,7 +6,7 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-netsnmp_feature_require(watcher_spinlock);
+netsnmp_feature_require(watcher_spinlock)
 
 
 #include "setSerialNo.h"
@@ -49,7 +49,11 @@ init_setSerialNo(void)
      *  then it should be initialised to a pseudo-random value.  So set it
      *  as such, before registering the config handlers to override this.
      */
-    setserialno = netsnmp_random();
+#ifdef SVR4
+    setserialno = lrand48();
+#else
+    setserialno = random();
+#endif
     DEBUGMSGTL(("snmpSetSerialNo",
                 "Initalizing SnmpSetSerialNo to %d\n", setserialno));
     snmpd_register_config_handler("setserialno", setserial_parse_config,

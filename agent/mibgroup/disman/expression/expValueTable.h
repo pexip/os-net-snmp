@@ -25,9 +25,9 @@ config_require(header_complex)
 #ifndef _MIBGROUP_EXPVALUETABLE_H
 #define _MIBGROUP_EXPVALUETABLE_H
      struct expValueTable_data {
-         const char     *expExpressionOwner;
+         char           *expExpressionOwner;
          size_t          expExpressionOwnerLen;
-         const char     *expExpressionName;
+         char           *expExpressionName;
          size_t          expExpressionNameLen;
          oid            *expValueInstance;
          size_t          expValueInstanceLen;
@@ -35,17 +35,16 @@ config_require(header_complex)
          unsigned long   expValueUnsigned32Val;
          unsigned long   expValueTimeTicksVal;
          long            expValueInteger32Val;
-         const u_long   *expValueIpAddressVal;
-         const char     *expValueOctetStringVal;
+         u_long         *expValueIpAddressVal;
+         char           *expValueOctetStringVal;
          size_t          expValueOctetStringValLen;
-         const oid      *expValueOidVal;
+         oid            *expValueOidVal;
          size_t          expValueOidValLen;
          long            expValueCounter64Val;
 
          /* internal var */
          struct expExpressionTable_data *expression_data;
          char           *valuestr;
-         int             set;
      };
 
 
@@ -53,5 +52,12 @@ config_require(header_complex)
      * function prototypes 
      */
      void            init_expValueTable(void);
+     unsigned long   get_result(char *expr);
+     FindVarMethod   var_expValueTable;
+     int             expValueTable_add(struct expExpressionTable_data
+                                       *expression_data, char *owner,
+                                       size_t owner_len, char *name,
+                                       size_t name_len, oid * index,
+                                       size_t index_len);
 
 #endif                          /* _MIBGROUP_EXPVALUETABLE_H */

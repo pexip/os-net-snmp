@@ -1,10 +1,17 @@
-Description: snmptranslate.1 groff errors
+From: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
+Date: Thu, 18 Jun 2015 06:12:05 +0900
+Subject: snmptranslate.1
+
 Author: Hideki Yamane <henrich@debian.org>
-Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2019-02-07
+---
+ man/snmptranslate.1.def | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/man/snmptranslate.1.def b/man/snmptranslate.1.def
+index 721af99..13da01f 100644
 --- a/man/snmptranslate.1.def
 +++ b/man/snmptranslate.1.def
-@@ -179,22 +179,22 @@
+@@ -166,22 +166,22 @@ will print the following tree:
  .nf
  +--system(1)
     |
@@ -35,7 +42,7 @@ Last-Update: 2019-02-07
     |        Textual Convention: TimeStamp
     |
     +--sysORTable(9)
-@@ -202,11 +202,11 @@
+@@ -189,11 +189,11 @@ will print the following tree:
        +--sysOREntry(1)
           |
           +-- ---- Integer   sysORIndex(1)

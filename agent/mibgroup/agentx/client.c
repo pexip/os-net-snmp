@@ -37,13 +37,12 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/agent_index.h>
-#include "agent_global_vars.h"
 
 #include "agentx/protocol.h"
 #include "agentx/client.h"
 #include "agentx/subagent.h"
 
-netsnmp_feature_require(set_agent_uptime);
+netsnmp_feature_require(set_agent_uptime)
 
         /*
          * AgentX handling utility routines
@@ -52,7 +51,7 @@ netsnmp_feature_require(set_agent_uptime);
          *   the SNMP equivalents
          */
 
-static int
+int
 agentx_synch_input(int op,
                    netsnmp_session * session,
                    int reqid, netsnmp_pdu *pdu, void *magic)
@@ -89,7 +88,7 @@ agentx_synch_input(int op,
 
 
 
-static int
+int
 agentx_synch_response(netsnmp_session * ss, netsnmp_pdu *pdu,
                       netsnmp_pdu **response)
 {
@@ -105,6 +104,8 @@ int
 agentx_open_session(netsnmp_session * ss)
 {
     netsnmp_pdu    *pdu, *response;
+    extern oid      version_sysoid[];
+    extern int      version_sysoid_len;
     u_long 	    timeout;
 
     DEBUGMSGTL(("agentx/subagent", "opening session \n"));

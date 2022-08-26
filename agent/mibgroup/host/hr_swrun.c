@@ -283,23 +283,33 @@ void
 init_hr_swrun(void)
 {
 #ifdef cygwin
+    OSVERSIONINFO   ver;
     HMODULE         h;
 
-    if ((h = LoadLibrary("psapi.dll")) != NULL) {
-        myEnumProcessModules =
-            (ENUMPROCESSMODULES) GetProcAddress(h,
-                                                "EnumProcessModules");
-        myGetModuleFileNameEx =
-            (GETMODULEFILENAME) GetProcAddress(h,
-                                               "GetModuleFileNameExA");
-        myGetProcessMemoryInfo =
-            (GETPROCESSMEMORYINFO) GetProcAddress(h,
-                                                  "GetProcessMemoryInfo");
-        if (myEnumProcessModules && myGetModuleFileNameEx)
-            query = CW_GETPINFO_FULL;
-        else
-            snmp_log(LOG_ERR, "hr_swrun failed NT init\n");
-    } elif ((h = GetModuleHandle("KERNEL32.DLL")) != NULL) {
+    memset(&ver, 0, sizeof ver);
+    ver.dwOSVersionInfoSize = sizeof ver;
+    GetVersionEx(&ver);
+
+    if (ver.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+        h = LoadLibrary("psapi.dll");
+        if (h) {
+            myEnumProcessModules =
+                (ENUMPROCESSMODULES) GetProcAddress(h,
+                                                    "EnumProcessModules");
+            myGetModuleFileNameEx =
+                (GETMODULEFILENAME) GetProcAddress(h,
+                                                   "GetModuleFileNameExA");
+            myGetProcessMemoryInfo =
+                (GETPROCESSMEMORYINFO) GetProcAddress(h,
+                                                      "GetProcessMemoryInfo");
+            if (myEnumProcessModules && myGetModuleFileNameEx)
+                query = CW_GETPINFO_FULL;
+            else
+                snmp_log(LOG_ERR, "hr_swrun failed NT init\n");
+        } else
+            snmp_log(LOG_ERR, "hr_swrun failed to load psapi.dll\n");
+    } else {
+        h = GetModuleHandle("KERNEL32.DLL");
         myCreateToolhelp32Snapshot =
             (CREATESNAPSHOT) GetProcAddress(h, "CreateToolhelp32Snapshot");
         myProcess32First =
@@ -311,7 +321,7 @@ init_hr_swrun(void)
             && myProcess32Next)
 #if 0
             /*
-             * This doesn't work at all on Win98 SE
+             * This doesn't work after all on Win98 SE 
              */
             query = CW_GETPINFO_FULL;
 #else
@@ -688,13 +698,13 @@ var_hrswrun(struct variable * vp,
             *cp = '\0';
 #elif HAVE_KVM_GETPROCS
     #if defined(freebsd5) && __FreeBSD_version >= 500014
-        strlcpy(string, proc_table[LowProcIndex].ki_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].ki_comm);
     #elif defined(dragonfly) && __DragonFly_version >= 190000
-        strlcpy(string, proc_table[LowProcIndex].kp_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].kp_comm);
     #elif defined(openbsd5)
-        strlcpy(string, proc_table[LowProcIndex].p_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].p_comm);
     #else
-        strlcpy(string, proc_table[LowProcIndex].kp_proc.p_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].kp_proc.p_comm);
     #endif
 #elif defined(linux)
 	if( (cp=get_proc_name_from_status(pid,buf,sizeof(buf))) == NULL ) {
@@ -702,7 +712,7 @@ var_hrswrun(struct variable * vp,
             *var_len = strlen(string);
             return (u_char *) string;
         }
-        strlcpy(string, cp, sizeof(string));
+        strcpy(string, cp);
 #elif defined(cygwin)
         /* if (lowproc.process_state & (PID_ZOMBIE | PID_EXITED)) */
         if (lowproc.process_state & PID_EXITED || (lowproc.exitcode & ~0xffff))
@@ -711,7 +721,7 @@ var_hrswrun(struct variable * vp,
             cygwin_conv_to_posix_path(lowproc.progname, string);
             cp = strrchr(string, '/');
             if (cp)
-                strlcpy(string, cp + 1, sizeof(string));
+                strcpy(string, cp + 1);
         } else if (query == CW_GETPINFO_FULL) {
             DWORD           n = lowproc.dwProcessId & 0xffff;
             HANDLE          h =
@@ -729,7 +739,7 @@ var_hrswrun(struct variable * vp,
                                              sizeof string)) {
                     cp = strrchr(string, '\\');
                     if (cp)
-                        strlcpy(string, cp + 1, sizeof(string));
+                        strcpy(string, cp + 1);
                 } else
                     strcpy(string, "*** unknown");
                 CloseHandle(h);
@@ -785,7 +795,7 @@ var_hrswrun(struct variable * vp,
 #elif defined(solaris2)
 #ifdef _SLASH_PROC_METHOD_
         if (proc_buf)
-            strlcpy(string, proc_buf->pr_psargs, sizeof(string));
+            strcpy(string, proc_buf->pr_psargs);
         else
             sprintf(string, "<exited>");
         cp = strchr(string, ' ');
@@ -811,18 +821,18 @@ var_hrswrun(struct variable * vp,
             *cp = '\0';
 #elif HAVE_KVM_GETPROCS
     #if defined(freebsd5) && __FreeBSD_version >= 500014
-        strlcpy(string, proc_table[LowProcIndex].ki_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].ki_comm);
     #elif defined(dragonfly) && __DragonFly_version >= 190000
-        strlcpy(string, proc_table[LowProcIndex].kp_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].kp_comm);
     #elif defined(openbsd5)
-        strlcpy(string, proc_table[LowProcIndex].p_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].p_comm);
     #else
-        strlcpy(string, proc_table[LowProcIndex].kp_proc.p_comm, sizeof(string));
+        strcpy(string, proc_table[LowProcIndex].kp_proc.p_comm);
     #endif
 #elif defined(linux)
         cp = get_proc_name_from_cmdline(pid,buf,sizeof(buf)-1);
         if (cp != NULL && *cp)    /* argv[0] '\0' argv[1] '\0' .... */
-            strlcpy(string, cp, sizeof(string));
+            strcpy(string, cp);
         else {
             /*
              * swapped out - no cmdline 
@@ -832,7 +842,7 @@ var_hrswrun(struct variable * vp,
 		*var_len = strlen(string);
 		return (u_char *) string;
 	    }
-            strlcpy(string, cp, sizeof(string));
+            strcpy(string, cp);
         }
 #elif defined(cygwin)
         /* if (lowproc.process_state & (PID_ZOMBIE | PID_EXITED)) */
@@ -890,7 +900,7 @@ var_hrswrun(struct variable * vp,
         if (proc_buf) {
             cp = strchr(proc_buf->pr_psargs, ' ');
             if (cp)
-                strlcpy(string, cp + 1, sizeof(string));
+                strcpy(string, cp + 1);
             else
                 string[0] = 0;
         } else
@@ -901,7 +911,7 @@ var_hrswrun(struct variable * vp,
             cp++;
         if (*cp == ' ')
             cp++;
-        strlcpy(string, cp, sizeof(string));
+        strcpy(string, cp);
 #endif
 #elif defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
         cp = strchr(proc_table[LowProcIndex].pi_comm, ' ');
@@ -962,7 +972,7 @@ var_hrswrun(struct variable * vp,
         while (*cp)
             ++cp;
         ++cp;
-        strlcpy(string, cp, sizeof(string));
+        strcpy(string, cp);
 #elif defined(cygwin)
         string[0] = 0;
 #else

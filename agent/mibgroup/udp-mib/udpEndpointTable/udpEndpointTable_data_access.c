@@ -286,8 +286,7 @@ udpEndpointTable_container_load(netsnmp_container *container)
         /*
          * insert into table container
          */
-        if (CONTAINER_INSERT(container, rowreq_ctx))
-	    udpEndpointTable_release_rowreq_ctx(rowreq_ctx);
+        CONTAINER_INSERT(container, rowreq_ctx);
     }
 
     ITERATOR_RELEASE(ep_it);

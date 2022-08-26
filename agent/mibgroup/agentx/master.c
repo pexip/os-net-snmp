@@ -51,9 +51,9 @@
 #include "agentx/protocol.h"
 #include "agentx/master_admin.h"
 
-netsnmp_feature_require(handler_mark_requests_as_delegated);
-netsnmp_feature_require(unix_socket_paths);
-netsnmp_feature_require(free_agent_snmp_session_by_session);
+netsnmp_feature_require(handler_mark_requests_as_delegated)
+netsnmp_feature_require(unix_socket_paths)
+netsnmp_feature_require(free_agent_snmp_session_by_session)
 
 void
 real_init_master(void)
@@ -123,6 +123,7 @@ real_init_master(void)
          *  Let 'snmp_open' interpret the descriptor.
          */
         sess.local_port = AGENTX_PORT;      /* Indicate server & set default port */
+        sess.remote_port = 0;
         sess.callback = handle_master_agentx_packet;
         errno = 0;
         t = netsnmp_transport_open_server("agentx", sess.peername);
@@ -178,17 +179,13 @@ real_init_master(void)
                         agentx_sock_user = -1;
                     if (agentx_sock_group == 0 )
                         agentx_sock_group = -1;
-                    NETSNMP_IGNORE_RESULT(chown(name, agentx_sock_user,
-                                                agentx_sock_group));
+                    chown(name, agentx_sock_user, agentx_sock_group);
                 }
             }
 #endif
             session =
                 snmp_add_full(&sess, t, NULL, agentx_parse, NULL, NULL,
                               agentx_realloc_build, agentx_check_packet, NULL);
-            /* snmp_add_full() frees 't' upon failure. */
-            if (!session)
-                t = NULL;
         }
         if (session == NULL) {
             netsnmp_transport_free(t);
@@ -222,10 +219,7 @@ agentx_got_response(int operation,
     if (!cache) {
         DEBUGMSGTL(("agentx/master", "response too late on session %8p\n",
                     session));
-        /* response is too late, free the cache */
-        if (magic)
-            netsnmp_free_delegated_cache((netsnmp_delegated_cache*) magic);
-        return 1;
+        return 0;
     }
     requests = cache->requests;
 
@@ -282,11 +276,6 @@ agentx_got_response(int operation,
         netsnmp_set_request_error(cache->reqinfo, requests,     /* XXXWWW: should be index=0 */
                                   SNMP_ERR_GENERR);
         netsnmp_free_delegated_cache(cache);
-        return 0;
-
-    case NETSNMP_CALLBACK_OP_RESEND:
-        DEBUGMSGTL(("agentx/master", "resend on session %8p req=0x%x\n",
-                    session, (unsigned)reqid));
         return 0;
 
     case NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE:
@@ -542,7 +531,7 @@ agentx_master_handler(netsnmp_mib_handler *handler,
 
             if (snmp_oid_compare(nptr, nlen, request->subtree->start_a,
                                  request->subtree->start_len) < 0) {
-                DEBUGMSGTL(("agentx/master","inexact request preceding region ("));
+                DEBUGMSGTL(("agentx/master","inexact request preceeding region ("));
                 DEBUGMSGOID(("agentx/master", request->subtree->start_a,
                              request->subtree->start_len));
                 DEBUGMSG(("agentx/master", ")\n"));

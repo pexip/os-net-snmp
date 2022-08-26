@@ -7,11 +7,6 @@
  * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 /*
  * @file netsnmp_data_list.h
@@ -103,9 +98,6 @@ extern          "C" {
                           Netsnmp_Save_List_Data * data_list_save_ptr);
     SNMPCallback netsnmp_save_all_data_callback;
     void netsnmp_read_data_callback(const char *token, char *line);
-
-    void shutdown_data_list(void);
-
 #ifdef __cplusplus
 }
 #endif

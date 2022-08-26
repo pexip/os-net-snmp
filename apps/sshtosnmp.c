@@ -28,7 +28,7 @@
 #include <stdio.h>
 
 #ifndef MAXPATHLEN
-#warning no system max path length detected
+#warn no system max path length detected
 #define MAXPATHLEN 2048
 #endif
 
@@ -44,10 +44,10 @@
 
 #undef DEBUGGING
 
-#define DEBUG(x) deb(x)
 #ifdef DEBUGGING
+#define DEBUG(x) deb(x)
 FILE *debf = NULL;
-static void
+void
 deb(const char *string) {
     if (NULL == debf) {
         debf = fopen("/tmp/sshtosnmp.log", "a");
@@ -58,8 +58,7 @@ deb(const char *string) {
     }
 }
 #else  /* !DEBUGGING */
-NETSNMP_STATIC_INLINE void
-deb(const char *string) { }
+#define DEBUG(x)
 #endif /* DEBUGGING code */
 
 int
@@ -78,8 +77,11 @@ main(int argc, char **argv) {
     /* Open a connection to the UNIX domain socket or fail */
 
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s",
-             argc > 1 ? argv[1] : DEFAULT_SOCK_PATH);
+    if (argc > 1) {
+        strcpy(addr.sun_path, argv[1]);
+    } else {
+        strcpy(addr.sun_path, DEFAULT_SOCK_PATH);
+    }
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
     DEBUG("created socket");
@@ -123,29 +125,24 @@ main(int argc, char **argv) {
     /* send the prelim message and the credentials together using sendmsg() */
     {
         struct msghdr m;
-        /*
-         * Ancillary data buffer, wrapped in a union in order to ensure it is
-         * suitably aligned.
-         */
-        union {
-            char buf[CMSG_SPACE(sizeof(struct ucred))];
-            struct cmsghdr cm;
+        struct {
+           struct cmsghdr cm;
+           struct ucred ouruser;
         } cmsg;
-        struct ucred *const ouruser = (void *)CMSG_DATA(&cmsg.cm);
         struct iovec iov = { buf, buf_len };
 
         /* Make sure that even padding fields get initialized.*/
         memset(&cmsg, 0, sizeof(cmsg));
         memset(&m, 0, sizeof(m));
 
-        /* set up the message header */
-        cmsg.cm.cmsg_len = sizeof(cmsg);
+        /* set up the basic message */
+        cmsg.cm.cmsg_len = sizeof(struct cmsghdr) + sizeof(struct ucred);
         cmsg.cm.cmsg_level = SOL_SOCKET;
         cmsg.cm.cmsg_type = SCM_CREDENTIALS;
 
-        ouruser->uid = getuid();
-        ouruser->gid = getgid();
-        ouruser->pid = getpid();
+        cmsg.ouruser.uid = getuid();
+        cmsg.ouruser.gid = getgid();
+        cmsg.ouruser.pid = getpid();
 
         m.msg_iov               = &iov;
         m.msg_iovlen            = 1;
@@ -168,7 +165,6 @@ main(int argc, char **argv) {
 
     while(1) {
         /* read from stdin and the socket */
-        FD_ZERO(&read_set);
         FD_SET(sock, &read_set);
         FD_SET(STDIN_FILENO, &read_set);
 

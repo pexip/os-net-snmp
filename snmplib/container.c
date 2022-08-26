@@ -7,11 +7,6 @@
  * Copyright (C) 2007 Apple, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
@@ -21,25 +16,23 @@
 #include <net-snmp/library/container_list_ssll.h>
 #include <net-snmp/library/container_null.h>
 
-#include <stdint.h>
+netsnmp_feature_child_of(container_all, libnetsnmp)
 
-netsnmp_feature_child_of(container_all, libnetsnmp);
+netsnmp_feature_child_of(container_factories, container_all)
+netsnmp_feature_child_of(container_types, container_all)
+netsnmp_feature_child_of(container_compare, container_all)
+netsnmp_feature_child_of(container_dup, container_all)
+netsnmp_feature_child_of(container_free_all, container_all)
+netsnmp_feature_child_of(subcontainer_find, container_all)
 
-netsnmp_feature_child_of(container_factories, container_all);
-netsnmp_feature_child_of(container_types, container_all);
-netsnmp_feature_child_of(container_compare, container_all);
-netsnmp_feature_child_of(container_dup, container_all);
-netsnmp_feature_child_of(container_free_all, container_all);
-netsnmp_feature_child_of(subcontainer_find, container_all);
+netsnmp_feature_child_of(container_ncompare_cstring, container_compare)
+netsnmp_feature_child_of(container_compare_mem, container_compare)
+netsnmp_feature_child_of(container_compare_long, container_compare)
+netsnmp_feature_child_of(container_compare_ulong, container_compare)
+netsnmp_feature_child_of(container_compare_int32, container_compare)
+netsnmp_feature_child_of(container_compare_uint32, container_compare)
 
-netsnmp_feature_child_of(container_ncompare_cstring, container_compare);
-netsnmp_feature_child_of(container_compare_mem, container_compare);
-netsnmp_feature_child_of(container_compare_long, container_compare);
-netsnmp_feature_child_of(container_compare_ulong, container_compare);
-netsnmp_feature_child_of(container_compare_int32, container_compare);
-netsnmp_feature_child_of(container_compare_uint32, container_compare);
-
-netsnmp_feature_child_of(container_find_factory, container_factories);
+netsnmp_feature_child_of(container_find_factory, container_factories)
 
 /** @defgroup container container
  */
@@ -211,10 +204,8 @@ netsnmp_container_find_factory(const char *type_list)
         return NULL;
 
     list = strdup(type_list);
-    if (!list)
-        return NULL;
     entry = strtok_r(list, ":", &st);
-    while (entry) {
+    while(entry) {
         f = netsnmp_container_get_factory(entry);
         if (NULL != f)
             break;
@@ -251,10 +242,8 @@ netsnmp_container_find_ct(const char *type_list)
         return NULL;
 
     list = strdup(type_list);
-    if (!list)
-        return NULL;
     entry = strtok_r(list, ":", &st);
-    while (entry) {
+    while(entry) {
         ct = netsnmp_container_get_ct(entry);
         if (NULL != ct)
             break;
@@ -325,6 +314,10 @@ netsnmp_container_add_index(netsnmp_container *primary,
     new_index->prev = curr;
 }
 
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the inline version in
+ * container.h. If you change one, change them both.
+ */
 int CONTAINER_INSERT_HELPER(netsnmp_container* x, const void* k)
 {
     while(x && x->insert_filter && x->insert_filter(x,k) == 1)
@@ -344,6 +337,10 @@ int CONTAINER_INSERT_HELPER(netsnmp_container* x, const void* k)
     return 0;
 }
 
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the inline version in
+ * container.h. If you change one, change them both.
+ */
 int CONTAINER_INSERT(netsnmp_container* x, const void* k)
 {
     /** start at first container */
@@ -352,24 +349,10 @@ int CONTAINER_INSERT(netsnmp_container* x, const void* k)
     return CONTAINER_INSERT_HELPER(x, k);
 }
 
-int CONTAINER_INSERT_BEFORE(netsnmp_container *x, size_t pos, void *k)
-{
-    int rc = 0;
-
-    if (NULL == x || NULL == x->insert_before) {
-        snmp_log(LOG_ERR, "container '%s' does not support insert_before\n",
-                 x && x->container_name ? x->container_name : "");
-        return -1;
-    }
-
-    rc = x->insert_before(x, pos, k);
-    if (rc < 0)
-        snmp_log(LOG_ERR, "error on container '%s' insert_before %" NETSNMP_PRIz "d (%d)\n",
-                 x->container_name ? x->container_name : "", pos, rc);
-
-    return rc;
-}
-
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the inline version in
+ * container.h. If you change one, change them both.
+ */
 int CONTAINER_REMOVE(netsnmp_container *x, const void *k)
 {
     int rc2, rc = 0;
@@ -391,56 +374,10 @@ int CONTAINER_REMOVE(netsnmp_container *x, const void *k)
     return rc;
 }
 
-int CONTAINER_REMOVE_AT(netsnmp_container *x, size_t pos, void **k)
-{
-    int rc = 0;
-    netsnmp_container *orig = x;
-
-    if (NULL == x || NULL == x->remove_at) {
-        snmp_log(LOG_ERR, "container '%s' does not support REMOVE_AT\n",
-                 x && x->container_name ? x->container_name : "");
-        return -1;
-    }
-
-    /** start at given container */
-    rc = x->remove_at(x, pos, k);
-    if (rc < 0) {
-        snmp_log(LOG_ERR, "error on container '%s' remove_at %" NETSNMP_PRIz "d (%d)\n",
-                 x->container_name ? x->container_name : "", pos, rc);
-        return rc;
-    } else if (NULL == k || NULL == *k)
-        return rc;
-
-    /** remove k from any other containers */
-    while(x->prev)
-        x = x->prev;
-    for(; x; x = x->next) {
-        if (x == orig)
-            continue;
-        x->remove(x,*k); /** ignore remove errors in other containers */
-    }
-    return rc;
-}
-
-int CONTAINER_GET_AT(netsnmp_container *x, size_t pos, void **k)
-{
-    int rc = 0;
-
-    if (NULL == x || NULL == x->get_at) {
-        snmp_log(LOG_ERR, "container '%s' does not support GET_AT\n",
-                 x && x->container_name ? x->container_name : "");
-        return -1;
-    }
-
-    /** start at given container */
-    rc = x->get_at(x, pos, k);
-    if (rc < 0)
-        snmp_log(LOG_ERR, "error on container '%s' get_at %" NETSNMP_PRIz "d (%d)\n",
-                 x->container_name ? x->container_name : "", pos, rc);
-
-    return rc;
-}
-
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the function version in
+ * container.c. If you change one, change them both.
+ */
 #ifndef NETSNMP_FEATURE_REMOVE_CONTAINER_DUP
 netsnmp_container *CONTAINER_DUP(netsnmp_container *x, void *ctx, u_int flags)
 {
@@ -453,13 +390,14 @@ netsnmp_container *CONTAINER_DUP(netsnmp_container *x, void *ctx, u_int flags)
 }
 #endif /* NETSNMP_FEATURE_REMOVE_CONTAINER_DUP */
 
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the inline version in
+ * container.h. If you change one, change them both.
+ */
 int CONTAINER_FREE(netsnmp_container *x)
 {
     int  rc2, rc = 0;
-
-    if (!x)
-        return rc;
-
+        
     /** start at last container */
     while(x->next)
         x = x->next;
@@ -481,6 +419,10 @@ int CONTAINER_FREE(netsnmp_container *x)
     return rc;
 }
 
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the function version in
+ * container.c. If you change one, change them both.
+ */
 /*
  * clear all containers. When clearing the *first* container, and
  * *only* the first container, call the function f for each item.
@@ -512,6 +454,10 @@ void CONTAINER_FREE_ALL(netsnmp_container *x, void *c)
 #endif /* NETSNMP_FEATURE_REMOVE_CONTAINER_FREE_ALL */
 
 #ifndef NETSNMP_FEATURE_REMOVE_SUBCONTAINER_FIND
+/*------------------------------------------------------------------
+ * These functions should EXACTLY match the function version in
+ * container.c. If you change one, change them both.
+ */
 /*
  * Find a sub-container with the given name
  */

@@ -146,11 +146,6 @@ add(netsnmp_pdu *pdu, const char *mibnodename,
         exit(1);
     }
 
-    if (base_length + indexlen > sizeof(base) / sizeof(base[0])) {
-        fprintf(stderr, "internal error for %s, giving up\n", mibnodename);
-        exit(1);
-    }
-
     if (index && indexlen) {
         memcpy(&(base[base_length]), index, indexlen * sizeof(oid));
         base_length += indexlen;
@@ -260,30 +255,29 @@ main(int argc, char *argv[])
     size_t          base_length;
     int             status;
     netsnmp_variable_list *saved = NULL, *vlp = saved, *vlp2;
-    int             count = 0, exit_code = 1;
-
-    SOCK_STARTUP;
+    int             count = 0;
 
     /*
      * get the common command line arguments 
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
     case NETSNMP_PARSE_ARGS_ERROR:
-        goto out;
+        exit(1);
     case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
-        exit_code = 0;
-        goto out;
+        exit(0);
     case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
-        goto out;
+        exit(1);
     default:
         break;
     }
 
     if (arg != argc) {
 	fprintf(stderr, "snmpdf: extra argument: %s\n", argv[arg]);
-	goto out;
+	exit(1);
     }
+
+    SOCK_STARTUP;
 
     /*
      * Open an SNMP session.
@@ -294,7 +288,8 @@ main(int argc, char *argv[])
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpdf", &session);
-        goto out;
+        SOCK_CLEANUP;
+        exit(1);
     }
 
     if (human_units) {
@@ -337,7 +332,7 @@ main(int argc, char *argv[])
             status = snmp_synch_response(ss, pdu, &response);
             if (status != STAT_SUCCESS || !response) {
                 snmp_sess_perror("snmpdf", ss);
-                goto close_session;
+                exit(1);
             }
 
             vlp2 = response->variables;
@@ -416,7 +411,7 @@ main(int argc, char *argv[])
             status = snmp_synch_response(ss, pdu, &response);
             if (status != STAT_SUCCESS || !response) {
                 snmp_sess_perror("snmpdf", ss);
-                goto close_session;
+                exit(1);
             }
 
             vlp2 = response->variables;
@@ -457,15 +452,11 @@ main(int argc, char *argv[])
 
     if (count == 0) {
         fprintf(stderr, "Failed to locate any partitions.\n");
-        goto close_session;
+        exit(1);
     }
 
-    exit_code = 0;
-
-close_session:
     snmp_close(ss);
-
-out:
     SOCK_CLEANUP;
-    return exit_code;
+    return 0;
+
 }                               /* end main() */

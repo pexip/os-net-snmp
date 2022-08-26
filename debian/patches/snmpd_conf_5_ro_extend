@@ -7,7 +7,7 @@ Reviewed-by: Craig Small <csmall@debian.org>
 Last-Update: 2020-07-31
 --- a/man/snmpd.conf.5.def
 +++ b/man/snmpd.conf.5.def
-@@ -1398,9 +1398,6 @@
+@@ -1308,9 +1308,6 @@
  \fIrun-command(3)\fR.  Unlike the equivalent \fIexecfix\fR,
  this directive does not need to be paired with a corresponding
  \fIextend\fR entry, and can appear on its own.

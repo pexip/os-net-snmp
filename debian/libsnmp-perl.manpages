@@ -1,1 +1,1 @@
-usr/share/man/man3/*.3pm
+perl/blib/man3/*

@@ -17,11 +17,6 @@
 
 config_require(header_complex);
 
-extern struct header_complex_index *traceRouteCtlTableStorage;
-extern struct header_complex_index *traceRouteResultsTableStorage;
-extern struct header_complex_index *traceRouteProbeHistoryTableStorage;
-extern struct header_complex_index *traceRouteHopsTableStorage;
-
 /*
  * function declarations 
  */

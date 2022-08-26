@@ -21,25 +21,7 @@
 #include <netinet/udp_var.h>
 #endif
 
-#if HAVE_KVM_GETFILES
-#if defined(HAVE_KVM_GETFILE2) || !defined(openbsd5)
-#undef HAVE_KVM_GETFILES
-#endif
-#endif
-
-#if HAVE_KVM_GETFILES
-#include <kvm.h>
-#include <sys/sysctl.h>
-#define _KERNEL /* for DTYPE_SOCKET */
-#include <sys/file.h>
-#undef _KERNEL
-#endif
-
-#ifdef HAVE_KVM_GETFILES
-static int _kvmload(netsnmp_container *container, u_int flags);
-#else
 static int _load(netsnmp_container *container, u_int flags);
-#endif
 
 /*
  * initialize arch specific storage
@@ -109,79 +91,10 @@ netsnmp_arch_udp_endpoint_container_load(netsnmp_container *container,
         return -1;
     }
 
-#ifdef HAVE_KVM_GETFILES
-    rc = _kvmload(container, load_flags);
-#else
     rc = _load(container, load_flags);
-#endif
 
     return rc;
 }
-
-#ifdef HAVE_KVM_GETFILES
-/**
- *
- * @retval  0 no errors
- * @retval !0 errors
- */
-static int
-_kvmload(netsnmp_container *container, u_int load_flags)
-{
-    netsnmp_udp_endpoint_entry  *entry;
-    struct   kinfo_file *kf;
-    int      count;
-    int      rc = 0;
-
-    kf = kvm_getfiles(kd, KERN_FILE_BYFILE, DTYPE_SOCKET, sizeof(struct kinfo_file), &count);
-
-    while (count--) {
-	if (kf->so_protocol != IPPROTO_UDP)
-	    goto skip;
-#if !defined(NETSNMP_ENABLE_IPV6)
-        if (kf->so_family == AF_INET6)
-	    goto skip;
-#endif
-
-        entry = netsnmp_access_udp_endpoint_entry_create();
-        if(NULL == entry) {
-            rc = -3;
-            break;
-        }
-
-        /** oddly enough, these appear to already be in network order */
-        entry->loc_port = ntohs(kf->inp_lport);
-        entry->rmt_port = ntohs(kf->inp_fport);
-        entry->pid = kf->p_pid;
-        
-        /** the addr string may need work */
-	if (kf->so_family == AF_INET6) {
-	    entry->loc_addr_len = entry->rmt_addr_len = 16;
-	    memcpy(entry->loc_addr, &kf->inp_laddru, 16);
-	    memcpy(entry->rmt_addr, &kf->inp_faddru, 16);
-	}
-	else {
-	    entry->loc_addr_len = entry->rmt_addr_len = 4;
-	    memcpy(entry->loc_addr, &kf->inp_laddru[0], 4);
-	    memcpy(entry->rmt_addr, &kf->inp_faddru[0], 4);
-	}
-	DEBUGMSGTL(("udp-mib/data_access", "udp %d %d %d\n",
-	    entry->loc_addr_len, entry->loc_port, entry->rmt_port));
-
-        /*
-         * add entry to container
-         */
-        entry->index = CONTAINER_SIZE(container) + 1;
-        CONTAINER_INSERT(container, entry);
-skip:
-	kf++;
-    }
-
-    if (rc < 0)
-    return rc;
-    return 0;
-}
-
-#else /* HAVE_KVM_GETFILES */
 
 /**
  *
@@ -192,8 +105,8 @@ static int
 _load(netsnmp_container *container, u_int load_flags)
 {
     struct inpcbtable table;
-    struct inpcb   *next, *prev;
-    struct inpcb   inpcb, previnpcb;
+    struct inpcb   *head, *next, *prev;
+    struct inpcb   inpcb;
     netsnmp_udp_endpoint_entry  *entry;
     int      rc = 0;
 
@@ -205,29 +118,22 @@ _load(netsnmp_container *container, u_int load_flags)
 	return -1;
     }
 
-    next = (struct inpcb *)&TAILQ_FIRST(&table.inpt_queue);
+    prev = (struct inpcb *)&CIRCLEQ_FIRST(&table.inpt_queue);
     prev = NULL;
+    head = next = CIRCLEQ_FIRST(&table.inpt_queue);
 
     while (next) {
 	NETSNMP_KLOOKUP(next, (char *)&inpcb, sizeof(inpcb));
-	if (prev != NULL) {
-		if (!NETSNMP_KLOOKUP(prev, (char *)&previnpcb,
-		    sizeof(previnpcb))) {
-			DEBUGMSGTL(("udp-mib/data_access/udpConn",
-			    "klookup previnpcb failed\n"));
-			break;
-		}
-		if (TAILQ_NEXT(&previnpcb, inp_queue) != next) {
-		    snmp_log(LOG_ERR,"udptable link error\n");
-		    break;
-		}
+	if (prev && CIRCLEQ_PREV(&inpcb, inp_queue) != prev) {
+	    snmp_log(LOG_ERR,"udbtable link error\n");
+	    break;
 	}
 	prev = next;
-	next = TAILQ_NEXT(&inpcb, inp_queue);
+	next = CIRCLEQ_NEXT(&inpcb, inp_queue);
 
 #if !defined(NETSNMP_ENABLE_IPV6)
         if (inpcb.inp_flags & INP_IPV6)
-            continue;
+            goto skip;
 #endif
         entry = netsnmp_access_udp_endpoint_entry_create();
         if (NULL == entry) {
@@ -257,6 +163,11 @@ _load(netsnmp_container *container, u_int load_flags)
          */
         entry->index = CONTAINER_SIZE(container) + 1;
         CONTAINER_INSERT(container, entry);
+#if !defined(NETSNMP_ENABLE_IPV6)
+    skip:
+#endif
+	if (next == head)
+	    break;
     }
 
     if (rc < 0)
@@ -264,4 +175,3 @@ _load(netsnmp_container *container, u_int load_flags)
 
     return 0;
 }
-#endif /* HAVE_KVM_GETFILES */

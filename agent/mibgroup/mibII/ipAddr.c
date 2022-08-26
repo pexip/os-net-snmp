@@ -115,15 +115,13 @@
 #include <net-snmp/data_access/interface.h>
 
 #include "ip.h"
-#include "ipAddr.h"
 #include "interfaces.h"
 
-#if defined(cygwin) || defined(mingw32)
+#ifdef cygwin
 #include <windows.h>
-#include <winerror.h>
 #endif
 
-netsnmp_feature_require(interface_legacy);
+netsnmp_feature_require(interface_legacy)
 
         /*********************
 	 *
@@ -533,6 +531,7 @@ Address_Scan_Init(void)
     while (ifc.ifc_len >= (sizeof(struct ifreq) * num_interfaces));
     
     ifr = ifc.ifc_req;
+    close(fd);
 }
 
 /*
@@ -700,10 +699,16 @@ var_ipAddrEntry(struct variable * vp,
         addr_ret = Lowentry.ipAdEntAddr;
         return (u_char *) & addr_ret;
     case IPADIFINDEX:
+#ifdef NETSNMP_INCLUDE_IFTABLE_REWRITES
         Lowentry.ipAdEntIfIndex.o_bytes[Lowentry.ipAdEntIfIndex.o_length] = '\0';
         long_return =
             netsnmp_access_interface_index_find(Lowentry.
                                                 ipAdEntIfIndex.o_bytes);
+#else
+        long_return =
+           Interface_Index_By_Name(Lowentry.ipAdEntIfIndex.o_bytes,
+                                   Lowentry.ipAdEntIfIndex.o_length);
+#endif
         return (u_char *) & long_return;
     case IPADNETMASK:
 	*var_len = sizeof(addr_ret);

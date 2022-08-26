@@ -59,6 +59,9 @@ perfstat_id_t ps_name;
 	 *
 	 *********************/
 
+extern void     init_routes(void);
+
+
 /*
  * define the structure we're going to ask the agent to register our
  * information at 
@@ -883,7 +886,7 @@ ip_load(netsnmp_cache *cache, void *vmagic)
     int             i;
     static int      sname[4] = { CTL_NET, PF_INET, IPPROTO_IP, 0 };
     size_t          len;
-    int             magic = (uintptr_t) vmagic;
+    int             magic = (int) vmagic;
 
     switch (magic) {
     case IPFORWARDING:

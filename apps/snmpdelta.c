@@ -100,7 +100,7 @@ int             keepSeconds = 0, peaks = 0;
 int             tableForm = 0;
 int             varbindsPerPacket = 60;
 
-static void     processFileArgs(char *fileName);
+void            processFileArgs(char *fileName);
 
 void
 usage(void)
@@ -398,19 +398,16 @@ main(int argc, char *argv[])
     int             status;
     int             begin, end, last_end;
     int             print = 1;
-    int             exit_code = 1;
-
-    SOCK_STARTUP;
+    int             exit_code = 0;
 
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", &optProc)) {
     case NETSNMP_PARSE_ARGS_ERROR:
-        goto out;
+        exit(1);
     case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
-        exit_code = 0;
-        goto out;
+        exit(0);
     case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
-        goto out;
+        exit(1);
     default:
         break;
     }
@@ -421,24 +418,26 @@ main(int argc, char *argv[])
 	if (current_name >= MAX_ARGS) {
 	    fprintf(stderr, "%s: Too many variables specified (max %d)\n",
 	    	argv[optind], MAX_ARGS);
-	    goto out;
+	    exit(1);
 	}
         varinfo[current_name++].name = argv[optind];
     }
 
     if (current_name == 0) {
         usage();
-        goto out;
+        exit(1);
     }
 
     if (dosum) {
 	if (current_name >= MAX_ARGS) {
 	    fprintf(stderr, "Too many variables specified (max %d)\n",
 	    	MAX_ARGS);
-	    goto out;
+	    exit(1);
 	}
         varinfo[current_name++].name = NULL;
     }
+
+    SOCK_STARTUP;
 
     /*
      * open an SNMP session 
@@ -449,7 +448,8 @@ main(int argc, char *argv[])
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpdelta", &session);
-        goto out;
+        SOCK_CLEANUP;
+        exit(1);
     }
 
     if (tableForm && timestamp) {
@@ -463,7 +463,8 @@ main(int argc, char *argv[])
             if (snmp_parse_oid(vip->name, vip->info_oid, &vip->oidlen) ==
                 NULL) {
                 snmp_perror(vip->name);
-                goto close_session;
+                SOCK_CLEANUP;
+                exit(1);
             }
             sprint_descriptor(vip->descriptor, vip);
             if (tableForm)
@@ -590,7 +591,7 @@ main(int argc, char *argv[])
                         if (vip->type == ASN_COUNTER64) {
                             fprintf(stderr,
                                     "time delta and table form not supported for counter64s\n");
-                            goto close_session;
+                            exit(1);
                         } else {
                             printvalue =
                                 ((float) value * 100) / delta_time;
@@ -741,13 +742,7 @@ main(int argc, char *argv[])
             wait_for_period(period);
         }
     }
-
-    exit_code = 0;
-
-close_session:
     snmp_close(ss);
-
-out:
     SOCK_CLEANUP;
     return (exit_code);
 }

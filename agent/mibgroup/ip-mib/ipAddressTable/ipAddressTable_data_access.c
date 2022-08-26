@@ -23,8 +23,8 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
-netsnmp_feature_require(container_lifo);
-netsnmp_feature_require(ipaddress_entry_update);
+netsnmp_feature_require(container_lifo)
+netsnmp_feature_require(ipaddress_entry_update)
 
 /** @ingroup interface 
  * @addtogroup data_access data_access: Routines to access data
@@ -137,12 +137,6 @@ ipAddressTable_container_init(netsnmp_container **container_ptr_ptr,
     *container_ptr_ptr =
         netsnmp_container_find("ipAddressTable:table_container");
     if (NULL != *container_ptr_ptr) {
-        /*
-         * The container has ALLOW_DUPLICATES flag to speed up CONTAINER_INSERT
-         * operations (it does not need to check for duplicates), however we
-         * (manually) ensure that we won't insert any duplicates there.
-         */
-        (*container_ptr_ptr)->flags = CONTAINER_KEY_ALLOW_DUPLICATES;
         (*container_ptr_ptr)->container_name = strdup("ipAddressTable");
         ipAddressTable_container_load(*container_ptr_ptr);
         CONTAINER_FOR_EACH(*container_ptr_ptr,
@@ -213,7 +207,6 @@ _check_entry_for_updates(ipAddressTable_rowreq_ctx * rowreq_ctx,
 {
     netsnmp_container *ipaddress_container = (netsnmp_container*)magic[0];
     netsnmp_container *to_delete           = (netsnmp_container*)magic[1];
-    netsnmp_container *to_ignore           = (netsnmp_container*)magic[2];
 
     /*
      * check for matching entry using secondary index.
@@ -241,20 +234,10 @@ _check_entry_for_updates(ipAddressTable_rowreq_ctx * rowreq_ctx,
             rowreq_ctx->ipAddressLastChanged = netsnmp_get_agent_uptime();
 
         /*
-         * Remember not to add this entry from 'ipaddress_container' to 'container' later.
-         * Simple CONTAINER_REMOVE(ipaddress_container, ..) would be slow.
+         * remove entry from ifcontainer
          */
-        if (NULL == to_ignore) {
-            magic[2] = to_ignore = netsnmp_container_find("access_ipaddress:table_container");
-            if (NULL == to_ignore) {
-                snmp_log(LOG_ERR, "couldn't create ignore container\n");
-            } else {
-                /* to speed up insertion */
-                to_ignore->flags = CONTAINER_KEY_ALLOW_DUPLICATES;
-            }
-        }
-        if (NULL != to_ignore)
-            CONTAINER_INSERT(to_ignore, ipaddress_entry);
+        CONTAINER_REMOVE(ipaddress_container, ipaddress_entry);
+        netsnmp_access_ipaddress_entry_free(ipaddress_entry);
     }
 }
 
@@ -263,11 +246,8 @@ _check_entry_for_updates(ipAddressTable_rowreq_ctx * rowreq_ctx,
  */
 static void
 _add_new_entry(netsnmp_ipaddress_entry *ipaddress_entry,
-               void **magic)
+               netsnmp_container *container)
 {
-	netsnmp_container *container = magic[0];
-	netsnmp_container *to_ignore = magic[2];
-
     ipAddressTable_rowreq_ctx *rowreq_ctx;
 
     DEBUGMSGTL(("ipAddressTable:access", "creating new entry\n"));
@@ -275,10 +255,6 @@ _add_new_entry(netsnmp_ipaddress_entry *ipaddress_entry,
     netsnmp_assert(NULL != ipaddress_entry);
     netsnmp_assert(NULL != container);
 
-    if (to_ignore && CONTAINER_FIND(to_ignore, ipaddress_entry)) {
-        /* this entry already is in 'container', skip it */
-        return;
-    }
     /*
      * allocate an row context and set the index(es)
      */
@@ -353,20 +329,16 @@ int
 ipAddressTable_container_load(netsnmp_container *container)
 {
     netsnmp_container *ipaddress_container;
-    void           *tmp_ptr[3];
+    void           *tmp_ptr[2];
 
     DEBUGMSGTL(("verbose:ipAddressTable:ipAddressTable_cache_load",
                 "called\n"));
 
     /*
-     * Load/update data in the ipAddressTable container.
+     * TODO:351:M: |-> Load/update data in the ipAddressTable container.
      * loop over your ipAddressTable data, allocate a rowreq context,
      * set the index(es) [and data, optionally] and insert into
      * the container.
-     */
-    /*
-     * netsnmp_access_ipaddress_container_load makes sure that
-     * ipaddress_container does not contain any duplicate entries,
      */
     ipaddress_container =
         netsnmp_access_ipaddress_container_load(NULL,
@@ -374,22 +346,19 @@ ipAddressTable_container_load(netsnmp_container *container)
     /*
      * we just got a fresh copy of interface data. compare it to
      * what we've already got, and make any adjustments, saving
-     * missing addresses to be deleted. Also, prune interfaces in
-     * ipaddress_container, so only the new interfaces remain.
+     * missing addresses to be deleted.
      */
     tmp_ptr[0] = ipaddress_container->next;
-    tmp_ptr[1] = NULL; /* list of interfaces to be removed from 'container' */
-    tmp_ptr[2] = NULL; /* list of interfaces to be ignored in ipaddress_container */
+    tmp_ptr[1] = NULL;
     CONTAINER_FOR_EACH(container, (netsnmp_container_obj_func *)
                        _check_entry_for_updates, tmp_ptr);
 
     /*
      * now add any new interfaces
      */
-    tmp_ptr[0] = container;
     CONTAINER_FOR_EACH(ipaddress_container,
                        (netsnmp_container_obj_func *) _add_new_entry,
-                       tmp_ptr);
+                       container);
 
     /*
      * free the container. we've either claimed each entry, or released it,
@@ -427,19 +396,6 @@ ipAddressTable_container_load(netsnmp_container *container)
              */
             CONTAINER_REMOVE(tmp_container, NULL);
         }
-        CONTAINER_FREE(tmp_container);
-    }
-
-    if (NULL != tmp_ptr[2]) {
-        /* list of interfaces to be ignored in ipaddress_container - free it */
-        netsnmp_container *to_ignore = (netsnmp_container *) tmp_ptr[2];
-        netsnmp_ipaddress_entry *ipaddress_entry;
-        while (CONTAINER_SIZE(to_ignore)) {
-            ipaddress_entry = (netsnmp_ipaddress_entry*)CONTAINER_FIRST(to_ignore);
-            CONTAINER_REMOVE(to_ignore, ipaddress_entry);
-            netsnmp_access_ipaddress_entry_free(ipaddress_entry);
-        }
-        CONTAINER_FREE(to_ignore);
     }
 
     DEBUGMSGT(("verbose:ipAddressTable:ipAddressTable_cache_load",

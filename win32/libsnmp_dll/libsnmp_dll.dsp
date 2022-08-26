@@ -208,10 +208,6 @@ SOURCE=..\..\snmplib\scapi.c
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\snmplib\sd-daemon.c"
-# End Source File
-# Begin Source File
-
 SOURCE="..\..\snmplib\snmp-tc.c"
 # End Source File
 # Begin Source File

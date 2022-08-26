@@ -21,7 +21,6 @@
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/snmp_debug.h>
 #include <net-snmp/data_access/swrun.h>
-#include "swrun_private.h"
 
 /* ---------------------------------------------------------------------
  */
@@ -38,7 +37,7 @@ int
 netsnmp_arch_swrun_container_load( netsnmp_container *container, u_int flags)
 {
     /* Nothing to do */
-    DEBUGMSGTL(("swrun:load:arch"," loaded %" NETSNMP_PRIz "u entries\n",
+    DEBUGMSGTL(("swrun:load:arch"," loaded %d entries\n",
                 CONTAINER_SIZE(container)));
 
     return 0;

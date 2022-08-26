@@ -113,9 +113,6 @@
 #include <netdb.h>
 #endif
 #include <errno.h>
-#if HAVE_IO_H
-#include <io.h>
-#endif
 
 #if HAVE_DIRENT_H
 # include <dirent.h>
@@ -134,6 +131,10 @@
 # endif
 #endif
 
+#if HAVE_DMALLOC_H
+#include <dmalloc.h>
+#endif
+
 #include <net-snmp/types.h>
 #include <net-snmp/output_api.h>
 #include <net-snmp/config_api.h>
@@ -145,10 +146,11 @@
 #include <net-snmp/library/snmp_api.h>
 #include <net-snmp/library/callback.h>
 
-netsnmp_feature_child_of(read_config_all, libnetsnmp);
+netsnmp_feature_child_of(read_config_all, libnetsnmp)
 
-netsnmp_feature_child_of(unregister_app_config_handler, read_config_all);
-netsnmp_feature_child_of(read_config_register_app_prenetsnmp_mib_handler, netsnmp_unused);
+netsnmp_feature_child_of(unregister_app_config_handler, read_config_all)
+netsnmp_feature_child_of(read_config_register_app_prenetsnmp_mib_handler, netsnmp_unused)
+netsnmp_feature_child_of(read_config_register_const_config_handler, netsnmp_unused)
 
 static int      config_errors;
 
@@ -312,6 +314,7 @@ register_config_handler(const char *type,
 					    help, NORMAL_CONFIG);
 }
 
+#ifndef NETSNMP_FEATURE_REMOVE_READ_CONFIG_REGISTER_CONST_CONFIG_HANDLER
 struct config_line *
 register_const_config_handler(const char *type,
                               const char *token,
@@ -323,6 +326,7 @@ register_const_config_handler(const char *type,
                                             parser, releaser,
 					    help, NORMAL_CONFIG);
 }
+#endif /* NETSNMP_FEATURE_REMOVE_READ_CONFIG_REGISTER_CONST_CONFIG_HANDLER */
 
 struct config_line *
 register_app_config_handler(const char *token,
@@ -1016,8 +1020,6 @@ read_configs_optional(const char *optional_config, int when)
                 "reading optional configuration tokens for %s\n", type));
     
     newp = strdup(optional_config);      /* strtok_r messes it up */
-    if (!newp)
-        return ret;
     cp = strtok_r(newp, ",", &st);
     while (cp) {
         struct stat     statbuf;
@@ -1536,35 +1538,9 @@ read_config_store(const char *type, const char *line)
         if (line[strlen(line)] != '\n')
             fprintf(fout, "\n");
         DEBUGMSGTL(("read_config:store", "storing: %s\n", line));
-        fflush(fout);
-#if defined(HAVE_FSYNC)
-        fsync(fileno(fout));
-#elif defined(HAVE__GET_OSFHANDLE)
-        {
-            int fd;
-            HANDLE h;
-
-            fd = fileno(fout);
-            netsnmp_assert(fd != -1);
-            /*
-             * Use size_t instead of uintptr_t because not all supported
-             * Windows compilers support uintptr_t.
-             */
-            h = (HANDLE)(size_t)_get_osfhandle(fd);
-            netsnmp_assert(h != INVALID_HANDLE_VALUE);
-            FlushFileBuffers(h);
-        }
-#endif
         fclose(fout);
     } else {
-        if (strcmp(NETSNMP_APPLICATION_CONFIG_TYPE, type) != 0) {
-            /*
-             * Ignore this error in client utilities, they can run with random
-             * UID/GID and typically cannot write to /var. Error message just
-             * confuses people.
-             */
-            snmp_log(LOG_ERR, "read_config_store open failure on %s\n", filep);
-        }
+        snmp_log(LOG_ERR, "read_config_store open failure on %s\n", filep);
     }
 #ifdef NETSNMP_PERSISTENT_MASK
     umask(oldmask);
@@ -2294,10 +2270,10 @@ read_config_read_memory(int type, char *readfrom,
         return readfrom;
 
     case ASN_COUNTER64:
-        if (*len < sizeof(struct counter64))
+        if (*len < sizeof(U64))
             return NULL;
-        *len = sizeof(struct counter64);
-        read64((struct counter64 *) dataptr, readfrom);
+        *len = sizeof(U64);
+        read64((U64 *) dataptr, readfrom);
         readfrom = skip_token(readfrom);
         return readfrom;
     }

@@ -39,10 +39,12 @@
   char output[sizeof(input)] = "";
   char* run = copy_nword(input, output, sizeof(output));
   ASSERT2(strcmp(output, "\"The") == 0, ("output = >%s<\n", output));
-  ASSERT2(run == input + 6, ("run = input + %d\n", (int)(run - input)));
+  ASSERT2(run == input + 6,
+          ("run = input + %" NETSNMP_PRIz "d\n", run - input));
   run = copy_nword(run, output, sizeof(output));
   ASSERT2(strcmp(output, "red") == 0, ("output = >%s<\n", output));
-  ASSERT2(run == input + 10, ("run = input + %d\n", (int)(run - input)));
+  ASSERT2(run == input + 10,
+          ("run = input + %" NETSNMP_PRIz "d\n", run - input));
   run = copy_nword(run, output, sizeof(output));
   ASSERT2(strcmp(output, "rose\"") == 0, ("output = >%s<\n", output));
   ASSERT1(run == NULL);
@@ -88,7 +90,8 @@
   char output[10] = "";
   char* run = copy_nword(input, output, sizeof(output));
   ASSERT2(strcmp(output, "Very long") == 0, ("output = >%s<\n", output));
-  ASSERT2(run == input + 44, ("run = input + %d\n", (int)(run - input)));
+  ASSERT2(run == input + 44,
+          ("run = input + %" NETSNMP_PRIz "d\n", run - input));
 }
 
 {
@@ -124,7 +127,8 @@
   char output[sizeof(input)] = "";
   char* run = copy_nword(input, output, sizeof(output));
   ASSERT2(strcmp(output, "The") == 0, ("output = >%s<\n", output));
-  ASSERT2(run == input + 5, ("run = input + %d\n", (int)(run - input)));
+  ASSERT2(run == input + 5,
+          ("run = input + %" NETSNMP_PRIz "d\n", run - input));
 }
 
 {
@@ -133,5 +137,6 @@
   char output[sizeof(input)] = "";
   char* run = copy_nword(input, output, sizeof(output));
   ASSERT2(strcmp(output, "The\"red\"") == 0, ("output = >%s<\n", output));
-  ASSERT2(run == input + 9, ("run = input + %d\n", (int)(run - input)));
+  ASSERT2(run == input + 9,
+          ("run = input + %" NETSNMP_PRIz "d\n", run - input));
 }

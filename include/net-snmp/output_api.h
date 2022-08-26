@@ -6,9 +6,8 @@
      *    (including error handling and debugging).
      */
 
-#include <stdarg.h>	/* for va_list */
 #include <net-snmp/types.h>
-#include <net-snmp/library/netsnmp-attribute-format.h>
+#include <stdarg.h>	/* for va_list */
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,9 +38,14 @@ extern "C" {
 
     /* Logging messages */
 
+#if !defined(__GNUC__) || __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 8)
+#define _LOG_ATTR
+#else
+#define _LOG_ATTR   __attribute__ ((__format__ (__printf__, 2, 3)))
+#endif
+
     NETSNMP_IMPORT
-    int  snmp_log( int priority, const char *format, ...)
-        NETSNMP_ATTRIBUTE_FORMAT(printf, 2, 3);
+    int  snmp_log( int priority, const char *format, ...) _LOG_ATTR;
     NETSNMP_IMPORT
     int  snmp_vlog(int priority, const char *format, va_list ap);
     NETSNMP_IMPORT
@@ -86,38 +90,15 @@ extern "C" {
 
 #else        /* NETSNMP_NO_DEBUGGING := enable streamlining of the code */
 
-NETSNMP_STATIC_INLINE void
-netsnmp_debug_no_msg(const char *token, const char *fmt, ...)
-{ }
-
-NETSNMP_STATIC_INLINE void
-netsnmp_debug_no_tracetok(const char *token)
-{ }
-
-NETSNMP_STATIC_INLINE void
-netsnmp_debug_no_oid(const char *token, const oid *oid, size_t oid_len)
-{ }
-
-struct variable_list;
-
-NETSNMP_STATIC_INLINE void
-netsnmp_debug_no_var(const char *token, const struct variable_list *var)
-{ }
-
-NETSNMP_STATIC_INLINE void
-netsnmp_debug_no_dumpsetup(const char *token, const void *buf, size_t len)
-{ }
-
-#define DEBUGMSG(x)			do { netsnmp_debug_no_msg x; } while (0)
-#define DEBUGMSGT(x)			do { netsnmp_debug_no_msg x; } while (0)
-#define DEBUGTRACE			do { } while (0)
-#define DEBUGTRACETOK(x)                                \
-    do { netsnmp_debug_no_tracetok(x); } while (0)
-#define DEBUGMSGL(x)			do { netsnmp_debug_no_msg x; } while (0)
-#define DEBUGMSGTL(x)			do { netsnmp_debug_no_msg x; } while (0)
-#define DEBUGMSGOID(x)			do { netsnmp_debug_no_oid x; } while (0)
-#define DEBUGMSGSUBOID(x)		do { netsnmp_debug_no_oid x; } while (0)
-#define DEBUGMSGVAR(x)			do { netsnmp_debug_no_var x; } while (0)
+#define DEBUGMSG(x)
+#define DEBUGMSGT(x)
+#define DEBUGTRACE
+#define DEBUGTRACETOK(x)
+#define DEBUGMSGL(x)
+#define DEBUGMSGTL(x)
+#define DEBUGMSGOID(x)
+#define DEBUGMSGSUBOID(x)
+#define DEBUGMSGVAR(x)
 #define DEBUGMSGOIDRANGE(x)
 #define DEBUGMSGHEX(x)
 #define DEBUGIF(x)        if(0)
@@ -129,32 +110,21 @@ netsnmp_debug_no_dumpsetup(const char *token, const void *buf, size_t len)
 #define DEBUGPRINTINDENT(token)
 #define DEBUGDUMPHEADER(token,x)
 #define DEBUGDUMPSECTION(token,x)
-#define DEBUGDUMPSETUP(token, buf, len)                                 \
-    do { netsnmp_debug_no_dumpsetup(token, buf, len); } while (0)
+#define DEBUGDUMPSETUP(token, buf, len)
 
-#define DEBUGMSG_NC(x)			do { netsnmp_debug_no_msg x; } while (0)
-#define DEBUGMSGT_NC(x)			do { netsnmp_debug_no_msg x; } while (0)
+#define DEBUGMSG_NC(x)
+#define DEBUGMSGT_NC(x)
 
 #endif    /* NETSNMP_NO_DEBUGGING */
 
     NETSNMP_IMPORT
     void            debug_register_tokens(const char *tokens);
     NETSNMP_IMPORT
-    int             debug_enable_token_logs (const char *token);
-    NETSNMP_IMPORT
-    int             debug_disable_token_logs (const char *token);
-    NETSNMP_IMPORT
     int             debug_is_token_registered(const char *token);
     NETSNMP_IMPORT
     void            snmp_set_do_debugging(int);
     NETSNMP_IMPORT
     int             snmp_get_do_debugging(void);
-#ifndef NETSNMP_DISABLE_DYNAMIC_LOG_LEVEL
-    NETSNMP_IMPORT
-    void            netsnmp_set_debug_log_level(int val);
-    NETSNMP_IMPORT
-    int             netsnmp_get_debug_log_level(void);
-#endif /* NETSNMP_DISABLE_DYNAMIC_LOG_LEVEL */
 
     /*
      *    Having extracted the main ("public API") calls relevant

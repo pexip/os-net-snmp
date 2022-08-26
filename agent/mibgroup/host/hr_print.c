@@ -28,6 +28,7 @@
 
 void            Init_HR_Print(void);
 int             Get_Next_HR_Print(void);
+void            Save_HR_Print(void);
 const char     *describe_printer(int);
 int             printer_status(int);
 int             printer_detail_status(int);
@@ -361,9 +362,10 @@ run_lpstat(int *fd)
     struct extensible ex;
 
     memset(&ex, 0, sizeof(ex));
-    ex.command = strdup(LPSTAT_PATH " -v");
-    *fd = get_exec_output(&ex);
-    free(ex.command);
-    return *fd >= 0 ? fdopen(*fd, "r") : NULL;
+    strcpy(ex.command, LPSTAT_PATH " -v");
+    if ((*fd = get_exec_output(&ex)) < 0)
+        return NULL;
+
+    return fdopen(*fd, "r");
 }
 #endif

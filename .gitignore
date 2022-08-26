@@ -1,3 +1,4 @@
+*~
 *.bak
 *.bs
 *.ft
@@ -12,8 +13,6 @@
 *.out
 *.pdb
 *.rej
-*.swp
-*~
 .libs/
 agent/*.exe
 agent/mibgroup/agent_module_dot_conf.h
@@ -36,9 +35,6 @@ apps/snmpget
 apps/snmpgetnext
 apps/snmpnetstat/*.exe
 apps/snmpnetstat/snmpnetstat
-apps/snmppcap
-apps/snmpping
-apps/snmpps
 apps/snmpset
 apps/snmpstatus
 apps/snmptable
@@ -75,6 +71,7 @@ Makefile
 man/*.[1358]
 man/default_store.3.h
 man/manaliases
+mibs/.index
 mk/
 module_tmp_header.h
 net-snmp-5*
@@ -82,15 +79,10 @@ net-snmp-6*
 net-snmp-config
 net-snmp-config-x
 net-snmp-create-v3-user
-netsnmp-agent.pc
-netsnmp.pc
 NEWS.new*
-perl/*.json
 perl/*.yml
 perl/*/*.def
-perl/*/*.json
 perl/*/*.yml
-perl/*/*/*.json
 perl/*/*/*.yml
 perl/agent/agent.c
 perl/agent/default_store/default_store.c

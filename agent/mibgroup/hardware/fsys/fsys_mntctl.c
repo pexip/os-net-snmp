@@ -18,7 +18,7 @@
 #endif
 
 
-static int
+int
 _fsys_remote( char *device, int type, char *host )
 {
     if (( type == NETSNMP_FS_TYPE_NFS) ||
@@ -28,7 +28,7 @@ _fsys_remote( char *device, int type, char *host )
         return 0;
 }
 
-static int
+int
 _fsys_type( int type)
 {
     DEBUGMSGTL(("fsys:type", "Classifying %d\n", type));
@@ -43,9 +43,8 @@ _fsys_type( int type)
 
         case  MNT_NFS:
         case  MNT_NFS3:
-            return NETSNMP_FS_TYPE_NFS;
         case  MNT_AUTOFS:
-            return NETSNMP_FS_TYPE_AUTOFS;
+            return NETSNMP_FS_TYPE_NFS;
 
     /*
      *  The following code covers selected filesystems
@@ -156,14 +155,11 @@ netsnmp_fsys_arch_load( void )
          */
 
         /*
-         *  Skip retrieving statistics for AUTOFS and optionally for remote
-         *  mounts.
+         *  Optionally skip retrieving statistics for remote mounts
          */
         if ( (entry->flags & NETSNMP_FS_FLAG_REMOTE) &&
             netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                                    NETSNMP_DS_AGENT_SKIPNFSINHOSTRESOURCES))
-            continue;
-        if (entry->type == NETSNMP_FS_TYPE_AUTOFS)
             continue;
 
         if ( statfs( entry->path, &stat_buf ) < 0 ) {

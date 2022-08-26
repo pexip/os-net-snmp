@@ -24,7 +24,6 @@
 
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include <net-snmp/data_access/swrun.h>
 
 #include "host.h"
 #include "host_res.h"
@@ -45,7 +44,7 @@
 #include <signal.h>
 #include <errno.h>
 
-#if HAVE_LM_H
+#ifdef WIN32
 #include <lm.h>
 #endif
 
@@ -79,7 +78,7 @@
 #include <sys/sysctl.h>
 #endif
 
-netsnmp_feature_require(date_n_time);
+netsnmp_feature_require(date_n_time)
 
 #if !defined(UTMP_FILE) && defined(_PATH_UTMP)
 #define UTMP_FILE _PATH_UTMP
@@ -115,14 +114,7 @@ static long     get_max_solaris_processes(void);
 static int      get_load_dev(void);
 static int      count_users(void);
 extern int      count_processes(void);
-#if USING_HOST_DATA_ACCESS_SWRUN_MODULE
-static int      count_kthreads = 1;
-
-static void parse_count_kthreads(const char *token, const char *line)
-{
-    count_kthreads = atoi(line);
-}
-#endif
+extern int      swrun_count_processes(void);
 
         /*********************
 	 *
@@ -201,11 +193,6 @@ init_hr_system(void)
 {
 #ifdef NPROC_SYMBOL
     auto_nlist(NPROC_SYMBOL, 0, 0);
-#endif
-#if USING_HOST_DATA_ACCESS_SWRUN_MODULE
-    snmpd_register_const_config_handler("count_kthreads",
-                                        parse_count_kthreads, NULL,
-					"0|1    0 to exclude kernel threads from hrSystemProcesses.0");
 #endif
 
     REGISTER_MIB("host/hr_system", hrsystem_variables, variable2,
@@ -303,7 +290,7 @@ var_hrsys(struct variable * vp,
     case HRSYS_LOAD_PARAM:
 #ifdef linux
         if((fp = fopen("/proc/cmdline", "r")) != NULL) {
-            NETSNMP_IGNORE_RESULT(fgets(string, sizeof(string), fp));
+            fgets(string, sizeof(string), fp);
             fclose(fp);
         } else {
             return NULL;
@@ -330,7 +317,7 @@ var_hrsys(struct variable * vp,
         return (u_char *) & long_return;
     case HRSYS_PROCS:
 #if USING_HOST_DATA_ACCESS_SWRUN_MODULE
-        long_return = swrun_count_processes(count_kthreads);
+        long_return = swrun_count_processes();
 #elif USING_HOST_HR_SWRUN_MODULE
         long_return = count_processes();
 #else
@@ -598,7 +585,7 @@ ns_set_time(int action,
                 minutes_from_utc=(int)var_val[10];
             }
 
-            newtimetm.tm_sec=(int)var_val[6];
+            newtimetm.tm_sec=(int)var_val[6];;
             newtimetm.tm_min=(int)var_val[5];
             newtimetm.tm_hour=(int)var_val[4];
 
@@ -607,8 +594,7 @@ ns_set_time(int action,
             newtimetm.tm_mday=(int)var_val[3];
 
             /* determine if day light savings time in effect DST */
-            if (hours_from_utc*60*60+minutes_from_utc*60 ==
-                (timezone >= 0 ? timezone : -timezone)) {
+            if ( ( hours_from_utc*60*60+minutes_from_utc*60 ) == abs(timezone) ) {
                 newtimetm.tm_isdst=0;
             } else {
                 newtimetm.tm_isdst=1;
@@ -622,11 +608,7 @@ ns_set_time(int action,
                 snmp_log(LOG_ERR, "Unable to convert time value\n");
                 return SNMP_ERR_GENERR;
             }
-#ifdef HAVE_STIME
             status=stime(&seconds);
-#else
-            status=-1;
-#endif
             if(status!=0) {
                 snmp_log(LOG_ERR, "Unable to set time\n");
                 return SNMP_ERR_GENERR;
@@ -637,11 +619,7 @@ ns_set_time(int action,
             /* revert to old value */
             int status=0;
             if(oldtime != 0) {
-#ifdef HAVE_STIME
                 status=stime(&oldtime);
-#else
-                status=-1;
-#endif
                 oldtime=0;    
                 if(status!=0) {
                     snmp_log(LOG_ERR, "Unable to set time\n");
@@ -693,11 +671,12 @@ count_users(void)
             continue;
 #endif
 #ifndef UTMP_HAS_NO_PID
-            /* This block of code skips zombie user PIDs in the
+            /* This block of code fixes zombie user PIDs in the
                utmp/utmpx file that would otherwise be counted as a
-               current user, but leaves updating the actual
-               utmp/utmpx file to the system. */
+               current user */
             if (kill(utmp_p->ut_pid, 0) == -1 && errno == ESRCH) {
+                utmp_p->ut_type = DEAD_PROCESS;
+                pututline(utmp_p);
                 continue;
             }
 #endif

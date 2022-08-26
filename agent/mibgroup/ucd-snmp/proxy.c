@@ -7,11 +7,6 @@
  * Copyright @ 2009 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
@@ -19,9 +14,6 @@
 #include <sys/types.h>
 #if HAVE_STRING_H
 #include <string.h>
-#endif
-#if HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -32,10 +24,12 @@
 
 #include "proxy.h"
 
-netsnmp_feature_require(handler_mark_requests_as_delegated);
-netsnmp_feature_require(request_set_error_idx);
+netsnmp_feature_require(handler_mark_requests_as_delegated)
+netsnmp_feature_require(request_set_error_idx)
 
 static struct simple_proxy *proxies = NULL;
+
+oid             testoid[] = { 1, 3, 6, 1, 4, 1, 2021, 8888, 1 };
 
 /*
  * this must be standardized somewhere, right? 
@@ -86,48 +80,24 @@ proxy_parse_config(const char *token, char *line)
 
     netsnmp_session session, *ss;
     struct simple_proxy *newp, **listpp;
-    char           *argv[MAX_ARGS];
+    char            args[MAX_ARGS][SPRINT_MAX_LEN], *argv[MAX_ARGS];
     int             argn, arg;
     char           *cp;
-    char           *buff;
     netsnmp_handler_registration *reg;
 
     context_string = NULL;
 
     DEBUGMSGTL(("proxy_config", "entering\n"));
 
-    /* Put the first string into the array */
-    argv[0] = strdup("snmpd-proxy");
-    if (!argv[0]) {
-        config_perror("could not allocate memory for argv[0]");
-        return;
-    }
     /*
      * create the argv[] like array 
      */
-    /* Allocates memory to store the parameters value */     
-    buff = (char *) malloc (strlen(line)+1);
-    if (!buff) {
-        config_perror("could not allocate memory for buff");
-         /* Free the memory allocated */
-        SNMP_FREE(argv[0]);
-        return;
-    }
-
+    strcpy(argv[0] = args[0], "snmpd-proxy");   /* bogus entry for getopt() */
     for (argn = 1, cp = line; cp && argn < MAX_ARGS;) {
-        /* Copy a parameter into the buff */
-        cp = copy_nword(cp, buff, strlen(cp)+1);
-        argv[argn] = strdup(buff);
-        if (!argv[argn]) {
-            config_perror("could not allocate memory for argv[n]");
-            while(argn--)
-                SNMP_FREE(argv[argn]);
-            SNMP_FREE(buff);
-            return;
-        }
+	argv[argn] = args[argn];
+        cp = copy_nword(cp, argv[argn], SPRINT_MAX_LEN);
 	argn++;
     }
-    SNMP_FREE(buff);
 
     for (arg = 0; arg < argn; arg++) {
         DEBUGMSGTL(("proxy_args", "final args: %d = %s\n", arg,
@@ -146,18 +116,12 @@ proxy_parse_config(const char *token, char *line)
     
     if (arg < 0) {
         config_perror("failed to parse proxy args");
-        /* Free the memory allocated */
-        while(argn--)
-            SNMP_FREE(argv[argn]);
         return;
     }
     DEBUGMSGTL(("proxy_config", "done parsing args\n"));
 
     if (arg >= argn) {
         config_perror("missing base oid");
-        /* Free the memory allocated */
-        while(argn--)
-            SNMP_FREE(argv[argn]);   
         return;
     }
 
@@ -181,37 +145,27 @@ proxy_parse_config(const char *token, char *line)
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpget", &session);
-        /* Free the memory allocated */
-        while(argn--)
-            SNMP_FREE(argv[argn]);
+        SOCK_CLEANUP;
         return;
     }
 
     newp = (struct simple_proxy *) calloc(1, sizeof(struct simple_proxy));
 
     newp->sess = ss;
-    DEBUGMSGTL(("proxy_init", "name = %s\n", argv[arg]));
+    DEBUGMSGTL(("proxy_init", "name = %s\n", args[arg]));
     newp->name_len = MAX_OID_LEN;
-    if (!snmp_parse_oid(argv[arg++], newp->name, &newp->name_len)) {
+    if (!snmp_parse_oid(args[arg++], newp->name, &newp->name_len)) {
         snmp_perror("proxy");
         config_perror("illegal proxy oid specified\n");
-        /*deallocate the memory previously allocated*/
-        SNMP_FREE(newp);
-        while(argn--)
-            SNMP_FREE(argv[argn]);
         return;
     }
 
     if (arg < argn) {
-        DEBUGMSGTL(("proxy_init", "base = %s\n", argv[arg]));
+        DEBUGMSGTL(("proxy_init", "base = %s\n", args[arg]));
         newp->base_len = MAX_OID_LEN;
-        if (!snmp_parse_oid(argv[arg++], newp->base, &newp->base_len)) {
+        if (!snmp_parse_oid(args[arg++], newp->base, &newp->base_len)) {
             snmp_perror("proxy");
             config_perror("illegal variable name specified (base oid)\n");
-            SNMP_FREE(newp);
-            /* Free the memory allocated */
-            while(argn--)
-                SNMP_FREE(argv[argn]);
             return;
         }
     }
@@ -259,9 +213,6 @@ proxy_parse_config(const char *token, char *line)
         reg->contextName = strdup(context_string);
 
     netsnmp_register_handler(reg);
-    /* Free the memory allocated */
-    while(argn--)
-        SNMP_FREE(argv[argn]);
 }
 
 void
@@ -311,18 +262,16 @@ proxy_fill_in_session(netsnmp_mib_handler *handler,
     }
 
 #if !defined(NETSNMP_DISABLE_SNMPV1) || !defined(NETSNMP_DISABLE_SNMPV2C)
-    if (
-#ifndef NETSNMP_DISABLE_SNMPV1
-        ((session->version == SNMP_VERSION_1) &&
-         !netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
-                                 NETSNMP_DS_LIB_DISABLE_V1)) ||
+#if defined(NETSNMP_DISABLE_SNMPV1)
+    if (session->version == SNMP_VERSION_2c) {
+#else
+#if defined(NETSNMP_DISABLE_SNMPV2C)
+    if (session->version == SNMP_VERSION_1) {
+#else
+    if (session->version == SNMP_VERSION_1 ||
+        session->version == SNMP_VERSION_2c) {
 #endif
-#ifndef NETSNMP_DISABLE_SNMPV2C
-        ((session->version == SNMP_VERSION_2c) &&
-         !netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
-                                 NETSNMP_DS_LIB_DISABLE_V2c)) ||
 #endif
-        0 ) { /* 0 to terminate '||' above */
 
         /*
          * Check if session has community string defined for it.
@@ -339,10 +288,10 @@ proxy_fill_in_session(netsnmp_mib_handler *handler,
             *configured = strdup("-c");
             DEBUGMSGTL(("proxy", "pdu has community string\n"));
             session->community_len = reqinfo->asp->pdu->community_len;
-            if (asprintf((char **)&session->community, "%.*s",
-                         (int)session->community_len,
-                         (const char *)reqinfo->asp->pdu->community) < 0)
-                session->community = NULL;
+            session->community = malloc(session->community_len + 1);
+            sprintf((char *)session->community, "%.*s",
+                    (int) session->community_len,
+                    (const char *)reqinfo->asp->pdu->community);
         }
     }
 #endif
@@ -572,17 +521,6 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
     }
 
     switch (operation) {
-    case NETSNMP_CALLBACK_OP_RESEND:
-         /*
-         * Issue#147: Net-SNMP not responding when proxy requests times out
-         *
-         * When snmp_api issue a resend, the default case was hit and the 
-         * delagated cache was freed.
-         * As a result, the NETSNMP_CALLBACK_OP_TIMED_OUT never came in.
-         */
-        DEBUGMSGTL(("proxy", "pdu has been resent for request = %8p\n", requests));
-        return SNMP_ERR_NOERROR;
-
     case NETSNMP_CALLBACK_OP_TIMED_OUT:
         /*
          * WWWXXX: don't leave requests delayed if operation is
@@ -712,6 +650,8 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
                                  "proxy OID return length too long.\n");
                         netsnmp_set_request_error(cache->reqinfo, requests,
                                                   SNMP_ERR_GENERR);
+                        if (pdu)
+                            snmp_free_pdu(pdu);
                         netsnmp_free_delegated_cache(cache);
                         return 1;
                     }
@@ -735,6 +675,8 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
              * ack, this is bad.  The # of varbinds don't match and
              * there is no way to fix the problem 
              */
+            if (pdu)
+                snmp_free_pdu(pdu);
             snmp_log(LOG_ERR,
                      "response to proxy request illegal.  We're screwed.\n");
             netsnmp_set_request_error(cache->reqinfo, requests,
@@ -745,6 +687,11 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
         if (cache->reqinfo->mode == MODE_GETBULK)
             netsnmp_bulk_to_next_fix_requests(requests);
         
+        /*
+         * free the response 
+         */
+        if (pdu && 0)
+            snmp_free_pdu(pdu);
 	break;
 
     default:

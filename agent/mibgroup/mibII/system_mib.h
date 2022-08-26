@@ -7,10 +7,6 @@ extern "C" {
 
 config_require(util_funcs mibII/updates)
 
-extern oid system_module_oid[];
-extern int system_module_oid_len;
-extern int system_module_count;
-
 void init_system_mib(void);
 
 #ifdef __cplusplus

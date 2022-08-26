@@ -33,7 +33,8 @@ OID_LENGTH(ipv4InterfaceTable_oid);
 ipv4InterfaceTable_registration ipv4InterfaceTable_user_context;
 static ipv4InterfaceTable_registration *ipv4InterfaceTable_user_context_p;
 
-static void     shutdown_table_ipv4InterfaceTable(void);
+void            initialize_table_ipv4InterfaceTable(void);
+void            shutdown_table_ipv4InterfaceTable(void);
 
 
 /**

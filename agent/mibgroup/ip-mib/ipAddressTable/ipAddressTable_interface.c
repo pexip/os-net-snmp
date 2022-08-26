@@ -47,18 +47,18 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(ipAddressTable_external_access, libnetsnmpmibs);
+netsnmp_feature_child_of(ipAddressTable_external_access, libnetsnmpmibs)
 
-netsnmp_feature_require(row_merge);
-netsnmp_feature_require(baby_steps);
-netsnmp_feature_require(table_container_row_insert);
-netsnmp_feature_require(check_all_requests_error);
+netsnmp_feature_require(row_merge)
+netsnmp_feature_require(baby_steps)
+netsnmp_feature_require(table_container_row_insert)
+netsnmp_feature_require(check_all_requests_error)
 
 
-netsnmp_feature_child_of(ipAddressTable_container_size, ipAddressTable_external_access);
-netsnmp_feature_child_of(ipAddressTable_registration_set, ipAddressTable_external_access);
-netsnmp_feature_child_of(ipAddressTable_registration_get, ipAddressTable_external_access);
-netsnmp_feature_child_of(ipAddressTable_container_get, ipAddressTable_external_access);
+netsnmp_feature_child_of(ipAddressTable_container_size, ipAddressTable_external_access)
+netsnmp_feature_child_of(ipAddressTable_registration_set, ipAddressTable_external_access)
+netsnmp_feature_child_of(ipAddressTable_registration_get, ipAddressTable_external_access)
+netsnmp_feature_child_of(ipAddressTable_container_get, ipAddressTable_external_access)
 
 /**********************************************************************
  **********************************************************************
@@ -281,12 +281,10 @@ _ipAddressTable_initialize_interface(ipAddressTable_registration * reg_ptr,
         netsnmp_handler_registration_create("ipAddressTable", handler,
                                             ipAddressTable_oid,
                                             ipAddressTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP |
+                                            HANDLER_CAN_BABY_STEP
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                            HANDLER_CAN_RWRITE
-#else
-                                            HANDLER_CAN_RONLY
-#endif /* NETSNMP_DISABLE_SET_SUPPORT */
+                                          | HANDLER_CAN_RWRITE
+#endif
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table ipAddressTable\n");

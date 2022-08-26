@@ -47,21 +47,21 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(snmpNotifyFilterTable_external_access, libnetsnmpmibs);
+netsnmp_feature_child_of(snmpNotifyFilterTable_external_access, libnetsnmpmibs)
 
-netsnmp_feature_require(row_merge);
-netsnmp_feature_require(baby_steps);
-netsnmp_feature_require(table_container_row_insert);
-netsnmp_feature_require(check_all_requests_error);
+netsnmp_feature_require(row_merge)
+netsnmp_feature_require(baby_steps)
+netsnmp_feature_require(table_container_row_insert)
+netsnmp_feature_require(check_all_requests_error)
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(check_vb_type_and_max_size);
+netsnmp_feature_require(check_vb_type_and_max_size)
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 
-netsnmp_feature_child_of(snmpNotifyFilterTable_container_size, snmpNotifyFilterTable_external_access);
-netsnmp_feature_child_of(snmpNotifyFilterTable_registration_set, snmpNotifyFilterTable_external_access);
-netsnmp_feature_child_of(snmpNotifyFilterTable_registration_get, snmpNotifyFilterTable_external_access);
-netsnmp_feature_child_of(snmpNotifyFilterTable_container_get, snmpNotifyFilterTable_external_access);
+netsnmp_feature_child_of(snmpNotifyFilterTable_container_size, snmpNotifyFilterTable_external_access)
+netsnmp_feature_child_of(snmpNotifyFilterTable_registration_set, snmpNotifyFilterTable_external_access)
+netsnmp_feature_child_of(snmpNotifyFilterTable_registration_get, snmpNotifyFilterTable_external_access)
+netsnmp_feature_child_of(snmpNotifyFilterTable_container_get, snmpNotifyFilterTable_external_access)
 
 /**********************************************************************
  **********************************************************************
@@ -201,9 +201,23 @@ snmpNotifyFilterTable_data *snmpNotifyFilterTable_allocate_data(void);
  *    (Define its contents and how it's structured)
  */
 void
-_snmpNotifyFilterTable_initialize_interface
-    (snmpNotifyFilterTable_registration *reg_ptr, u_long flags)
-{
+ 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    _snmpNotifyFilterTable_initialize_interface
+    (snmpNotifyFilterTable_registration * reg_ptr, u_long flags) {
     netsnmp_baby_steps_access_methods *access_multiplexer =
         &snmpNotifyFilterTable_if_ctx.access_multiplexer;
     netsnmp_table_registration_info *tbl_info =
@@ -312,12 +326,10 @@ _snmpNotifyFilterTable_initialize_interface
                                             handler,
                                             snmpNotifyFilterTable_oid,
                                             snmpNotifyFilterTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP |
+                                            HANDLER_CAN_BABY_STEP
 #if !(defined(NETSNMP_NO_WRITE_SUPPORT) || defined(NETSNMP_DISABLE_SET_SUPPORT))
-                                            HANDLER_CAN_RWRITE
-#else
-                                            HANDLER_CAN_RONLY
-#endif /* NETSNMP_NO_WRITE_SUPPORT || NETSNMP_DISABLE_SET_SUPPORT  */
+                                            | HANDLER_CAN_RWRITE
+#endif
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR,
@@ -401,9 +413,23 @@ _snmpNotifyFilterTable_initialize_interface
  * Shutdown the table snmpNotifyFilterTable
  */
 void
-_snmpNotifyFilterTable_shutdown_interface
-    (snmpNotifyFilterTable_registration *reg_ptr)
-{
+ 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    _snmpNotifyFilterTable_shutdown_interface
+    (snmpNotifyFilterTable_registration * reg_ptr) {
     /*
      * shutdown the container
      */
@@ -422,8 +448,9 @@ snmpNotifyFilterTable_valid_columns_set(netsnmp_column_info *vc)
  * convert the index component stored in the context to an oid
  */
 int
-snmpNotifyFilterTable_index_to_oid(netsnmp_index *oid_idx,
-                                   snmpNotifyFilterTable_mib_index *mib_idx)
+snmpNotifyFilterTable_index_to_oid(netsnmp_index * oid_idx,
+                                   snmpNotifyFilterTable_mib_index *
+                                   mib_idx)
 {
     int             err = SNMP_ERR_NOERROR;
 
@@ -496,8 +523,9 @@ snmpNotifyFilterTable_index_to_oid(netsnmp_index *oid_idx,
  * @retval SNMP_ERR_GENERR   : error
  */
 int
-snmpNotifyFilterTable_index_from_oid(netsnmp_index *oid_idx,
-                                     snmpNotifyFilterTable_mib_index *mib_idx)
+snmpNotifyFilterTable_index_from_oid(netsnmp_index * oid_idx,
+                                     snmpNotifyFilterTable_mib_index *
+                                     mib_idx)
 {
     int             err = SNMP_ERR_NOERROR;
 
@@ -1956,7 +1984,9 @@ static int      _snmpNotifyFilterTable_container_save_rows(int majorID,
 static void     _snmpNotifyFilterTable_container_row_restore(const char
                                                              *token,
                                                              char *buf);
-static void     _snmpNotifyFilterTable_container_row_save(void *data,
+static int
+                _snmpNotifyFilterTable_container_row_save(snmpNotifyFilterTable_rowreq_ctx
+                                                          * rowreq_ctx,
                                                           void *type);
 static char
  
@@ -2049,7 +2079,8 @@ _snmpNotifyFilterTable_container_save_rows(int majorID, int minorID,
     /*
      * save all rows
      */
-    CONTAINER_FOR_EACH(c, _snmpNotifyFilterTable_container_row_save, type);
+    CONTAINER_FOR_EACH(c, (netsnmp_container_obj_func *)
+                       _snmpNotifyFilterTable_container_row_save, type);
 
     read_config_store((char *) type, sep);
     read_config_store((char *) type, "\n");
@@ -2065,11 +2096,10 @@ _snmpNotifyFilterTable_container_save_rows(int majorID, int minorID,
 /************************************************************
  * _snmpNotifyFilterTable_container_row_save
  */
-static void
-_snmpNotifyFilterTable_container_row_save(void *data, void *type)
+static int
+_snmpNotifyFilterTable_container_row_save(snmpNotifyFilterTable_rowreq_ctx
+                                          * rowreq_ctx, void *type)
 {
-    snmpNotifyFilterTable_rowreq_ctx *rowreq_ctx = data;
-
     /*
      * Allocate space for a line with all data for a row. An
      * attempt is made to come up with a default maximum size, but
@@ -2115,7 +2145,7 @@ _snmpNotifyFilterTable_container_row_save(void *data, void *type)
     int             i;
 
     if (snmpNotifyFilterTable_container_should_save(rowreq_ctx) == 0) {
-        return;
+        return SNMP_ERR_NOERROR;
     }
 
     /*
@@ -2127,13 +2157,13 @@ _snmpNotifyFilterTable_container_row_save(void *data, void *type)
     if (NULL == pos) {
         snmp_log(LOG_ERR, "error saving snmpNotifyFilterTable row "
                  "to persistent file\n");
-        return;
+        return SNMP_ERR_GENERR;
     }
     *pos++ = ' ';
     if (pos > max) {
         snmp_log(LOG_ERR, "error saving snmpNotifyFilterTable row "
                  "to persistent file (too long)\n");
-        return;
+        return SNMP_ERR_GENERR;
     }
 
     /*
@@ -2155,7 +2185,7 @@ _snmpNotifyFilterTable_container_row_save(void *data, void *type)
         if (pos > max) {
             snmp_log(LOG_ERR, "error saving snmpNotifyFilterTable row "
                      "to persistent file (too long)\n");
-            return;
+            return SNMP_ERR_GENERR;
         }
     }
 
@@ -2171,11 +2201,13 @@ _snmpNotifyFilterTable_container_row_save(void *data, void *type)
     if (pos > max) {
         snmp_log(LOG_ERR, "error saving snmpNotifyFilterTable row "
                  "to persistent file (too long)\n");
-        return;
+        return SNMP_ERR_GENERR;
     }
     read_config_store((char *) type, buf);
 
     DEBUGMSGTL(("internal:snmpNotifyFilterTable:_snmpNotifyFilterTable_container_row_save", "saving line '%s'\n", buf));
+
+    return SNMP_ERR_NOERROR;
 }
 
 static void

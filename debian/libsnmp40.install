@@ -1,5 +1,0 @@
-usr/lib/*/libnetsnmp.so.*
-usr/lib/*/libnetsnmpagent.so.*
-usr/lib/*/libnetsnmphelpers.so.*
-usr/lib/*/libnetsnmpmibs.so.*
-usr/lib/*/libsnmp.so.*

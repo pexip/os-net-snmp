@@ -4,6 +4,7 @@
 config_belongs_in(agent_module)
 
 config_require(agentx/protocol)
+config_require(agentx/client)
 config_require(agentx/master_admin)
 config_require(agentx/agentx_config)
 

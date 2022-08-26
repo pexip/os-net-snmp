@@ -10,11 +10,6 @@
  * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
- *
- * Portions of this file are copyrighted by:
- * Copyright (c) 2016 VMware, Inc. All rights reserved.
- * Use is subject to license terms specified in the COPYING file
- * distributed with the Net-SNMP package.
  */
 
 #include <net-snmp/net-snmp-config.h>
@@ -108,7 +103,7 @@ init_vacm_vars(void)
          var_vacm_view, 3, {2, 1, 4}},
         {VIEWSTORAGE, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
          var_vacm_view, 3, {2, 1, 5}},
-        {VACMVIEWSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
+        {VIEWSTATUS, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
          var_vacm_view, 3, {2, 1, 6}},
     };
 
@@ -150,7 +145,7 @@ var_vacm_sec2group(struct variable * vp,
     struct vacm_groupEntry *gp;
     oid            *groupSubtree;
     ssize_t         groupSubtreeLen;
-    oid             secmodel;
+    int             secmodel;
     char            secname[VACMSTRINGLEN], *cp;
 
     /*
@@ -272,7 +267,7 @@ var_vacm_access(struct variable * vp,
                 int exact, size_t * var_len, WriteMethod ** write_method)
 {
     struct vacm_accessEntry *gp;
-    oid             secmodel, seclevel;
+    int             secmodel, seclevel;
     char            groupName[VACMSTRINGLEN] = { 0 };
     char            contextPrefix[VACMSTRINGLEN] = { 0 };
     oid            *op;
@@ -377,12 +372,11 @@ var_vacm_access(struct variable * vp,
             if (len > VACM_MAX_STRING)
                 return NULL;
             cp = groupName;
-            for (i = 0; i <= len && op < name + *length; i++) {
+            for (i = 0; i <= len; i++) {
                 if (*op > 255) {
-                    *cp++ = (char) 255;
-                    ++op;
-                } else
-                    *cp++ = (char) *op++;
+                    return NULL;   /* illegal value */
+                }
+                *cp++ = (char) *op++;
             }
             *cp = 0;
         }
@@ -392,12 +386,11 @@ var_vacm_access(struct variable * vp,
             if (len > VACM_MAX_STRING)
                 return NULL;
             cp = contextPrefix;
-            for (i = 0; i <= len && op < name + *length; i++) {
+            for (i = 0; i <= len; i++) {
                 if (*op > 255) {
-                    *cp++ = (char) 255;
-                    ++op;
-                } else
-                    *cp++ = (char) *op++;
+                    return NULL;   /* illegal value */
+                }
+                *cp++ = (char) *op++;
             }
             *cp = 0;
         }
@@ -522,7 +515,7 @@ var_vacm_view(struct variable * vp,
     case VIEWSTORAGE:
         *write_method = write_vacmViewStorageType;
         break;
-    case VACMVIEWSTATUS:
+    case VIEWSTATUS:
         *write_method = write_vacmViewStatus;
         break;
 #endif /* !NETSNMP_NO_WRITE_SUPPORT */ 
@@ -590,10 +583,9 @@ var_vacm_view(struct variable * vp,
                 cp = viewName;
                 for (i = 0; i <= len && op < name + *length; i++) {
                     if (*op > 255) {
-                        *cp++ = (char) 255;
-                        ++op;
-                    } else
-                        *cp++ = (char) *op++;
+                        return NULL;
+                    }
+                    *cp++ = (char) *op++;
                 }
                 *cp = 0;
             }
@@ -670,7 +662,7 @@ var_vacm_view(struct variable * vp,
         long_return = gp->viewStorageType;
         return (u_char *) & long_return;
 
-    case VACMVIEWSTATUS:
+    case VIEWSTATUS:
         long_return = gp->viewStatus;
         return (u_char *) & long_return;
     }

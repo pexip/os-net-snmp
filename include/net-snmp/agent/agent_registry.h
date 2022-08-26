@@ -57,7 +57,6 @@ typedef struct subtree_context_cache_s {
 
 void             setup_tree		  (void);
 void             shutdown_tree    (void);
-void             dump_registry(void);
 
 
 netsnmp_subtree *netsnmp_subtree_find	  (const oid *, size_t,

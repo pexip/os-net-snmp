@@ -225,10 +225,8 @@ netSnmpHostsTable_commit_row(void **my_data_context, int new_or_del)
     if ((out = fopen(HOSTS_FILE ".snmp", "w")) == NULL)
         return SNMP_ERR_COMMITFAILED;
     
-    if ((in = fopen(HOSTS_FILE, "r")) == NULL) {
-        fclose(out);
+    if ((in = fopen(HOSTS_FILE, "r")) == NULL)
         return SNMP_ERR_COMMITFAILED;
-    }
 
     while(fgets(line, sizeof(line), in)) {
         copy_nword(line,myaddr,sizeof(myaddr));

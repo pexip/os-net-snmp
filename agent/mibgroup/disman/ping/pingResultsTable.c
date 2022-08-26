@@ -72,24 +72,29 @@ struct variable2 pingResultsTable_variables[] = {
 };
 
 
+
+
+/*
+ * global storage of our data, saved in and configured by header_complex() 
+ */
+
+extern struct header_complex_index *pingCtlTableStorage;
+extern struct header_complex_index *pingResultsTableStorage;
 int
 pingResultsTable_inadd(struct pingResultsTable_data *thedata);
 
-#if 0
 void
 pingResultsTable_cleaner(struct header_complex_index *thestuff)
 {
-    struct header_complex_index *hciptr, *nhciptr;
+    struct header_complex_index *hciptr;
 
     DEBUGMSGTL(("pingResultsTable", "cleanerout  "));
-    for (hciptr = thestuff; hciptr; hciptr = nhciptr) {
-        nhciptr = hciptr->next;
+    for (hciptr = thestuff; hciptr != NULL; hciptr = hciptr->next) {
         header_complex_extract_entry(&pingResultsTableStorage, hciptr);
         DEBUGMSGTL(("pingResultsTable", "cleaner  "));
     }
-}
-#endif
 
+}
 void
 init_pingResultsTable(void)
 {

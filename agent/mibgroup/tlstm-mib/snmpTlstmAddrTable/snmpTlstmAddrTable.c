@@ -13,15 +13,15 @@
 #include "tlstm-mib.h"
 #include "snmpTlstmAddrTable.h"
 
-netsnmp_feature_require(table_tdata);
-netsnmp_feature_require(tlstmaddr_container);
-netsnmp_feature_require(table_tdata_delete_table);
-netsnmp_feature_require(table_tdata_extract_table);
-netsnmp_feature_require(table_tdata_remove_row);
+netsnmp_feature_require(table_tdata)
+netsnmp_feature_require(tlstmaddr_container)
+netsnmp_feature_require(table_tdata_delete_table)
+netsnmp_feature_require(table_tdata_extract_table)
+netsnmp_feature_require(table_tdata_remove_row)
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(check_vb_storagetype);
-netsnmp_feature_require(check_vb_type_and_max_size);
-netsnmp_feature_require(table_tdata_insert_row);
+netsnmp_feature_require(check_vb_storagetype)
+netsnmp_feature_require(check_vb_type_and_max_size)
+netsnmp_feature_require(table_tdata_insert_row)
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /** XXX - move these to table_data header? */
@@ -87,6 +87,12 @@ typedef struct tlstmAddrTable_entry_s {
     char                     addr_flags;
 
 } tlstmAddrTable_entry;
+
+netsnmp_tdata_row *tlstmAddrTable_createEntry(netsnmp_tdata * table_data,
+                                              char *snmpTargetAddrName,
+                                              size_t snmpTargetAddrName_len);
+void tlstmAddrTable_removeEntry(netsnmp_tdata * table_data,
+                                netsnmp_tdata_row * row);
 
 static Netsnmp_Node_Handler tlstmAddrTable_handler;
 static int _cache_load(netsnmp_cache *cache, netsnmp_tdata *table);
@@ -844,7 +850,7 @@ tlstmAddrTable_handler(netsnmp_mib_handler *handler,
 
             /** release undo data for requests with no rowstatus */
             if (table_entry->undo &&
-                table_entry->undo->req[COLUMN_SNMPTLSTMADDRROWSTATUS] == NULL) {
+                !table_entry->undo->req[COLUMN_SNMPTLSTMADDRROWSTATUS] != 0) {
 
                 _freeUndo(table_entry);
 
@@ -1234,7 +1240,7 @@ _tlstmAddr_init_persistence(void)
 static int
 _save_entry(tlstmAddrTable_entry *entry, void *type)
 {
-    char *buf = NULL, *hashType;
+    char   buf[SNMP_MAXBUF_SMALL], *hashType;
 
     hashType = se_find_label_in_slist("cert_hash_alg", entry->hashType);
     if (NULL == hashType) {
@@ -1250,17 +1256,15 @@ _save_entry(tlstmAddrTable_entry *entry, void *type)
                        entry->snmpTargetAddrName_len]);
     netsnmp_assert(0 == entry->tlstmAddrServerFingerprint[
                        entry->tlstmAddrServerFingerprint_len]);
-    if (asprintf(&buf, "%s %s --%s %s %s %d", mib_token,
-                 entry->snmpTargetAddrName, hashType,
-                 entry->tlstmAddrServerFingerprint,
-                 entry->tlstmAddrServerIdentity,
-                 entry->tlstmAddrRowStatus) < 0) {
-        return SNMP_ERR_GENERR;
-    }
+    snprintf(buf, sizeof(buf), "%s %s --%s %s %s %d", mib_token,
+             entry->snmpTargetAddrName, hashType,
+             entry->tlstmAddrServerFingerprint,
+             entry->tlstmAddrServerIdentity,
+             entry->tlstmAddrRowStatus);
+    buf[sizeof(buf)-1] = 0;
 
     read_config_store(type, buf);
     DEBUGMSGTL(("tlstmAddrTable:row:save", "saving entry '%s'\n", buf));
-    free(buf);
 
     return SNMP_ERR_NOERROR;
 }

@@ -20,13 +20,11 @@
 
 #include <net-snmp/net-snmp-features.h>
 
-netsnmp_feature_require(cert_util);
-netsnmp_feature_require(sockaddr_size);
+netsnmp_feature_require(cert_util)
+netsnmp_feature_require(sockaddr_size)
 
-#include <net-snmp/library/snmpIPBaseDomain.h>
 #include <net-snmp/library/snmpDTLSUDPDomain.h>
 #include <net-snmp/library/snmpUDPIPv6Domain.h>
-#include <net-snmp/library/snmp_assert.h>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -60,7 +58,9 @@ netsnmp_feature_require(sockaddr_size);
 #include <sys/uio.h>
 #endif
 
-#include "../memcheck.h"
+#if HAVE_DMALLOC_H
+#include <dmalloc.h>
+#endif
 
 #include <net-snmp/types.h>
 #include <net-snmp/output_api.h>
@@ -114,16 +114,14 @@ typedef struct bio_cache_s {
 
 /** bio_cache flags */
 #define NETSNMP_BIO_HAVE_COOKIE        0x0001 /* verified cookie */
-#define NETSNMP_BIO_CONNECTED          0x0002 /* received decoded data */
+#define NETSNMP_BIO_CONNECTED          0x0002 /* recieved decoded data */
 #define NETSNMP_BIO_DISCONNECTED       0x0004 /* peer shutdown */
 
 static bio_cache *biocache = NULL;
 
 static int openssl_addr_index = 0;
 
-static int netsnmp_dtls_verify_cookie(SSL *ssl,
-                                      SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER
-                                      unsigned char *cookie,
+static int netsnmp_dtls_verify_cookie(SSL *ssl, unsigned char *cookie,
                                       unsigned int cookie_len);
 static int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
                                    unsigned int *cookie_len);
@@ -133,11 +131,10 @@ static int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
 /* XXX: handle state issues for new connections to reduce DOS issues */
 /*      (TLS should do this, but openssl can't do more than one ctx per sock */
 /* XXX: put a timer on the cache for expirary purposes */
-static bio_cache *find_bio_cache(const netsnmp_sockaddr_storage *from_addr)
-{
+static bio_cache *find_bio_cache(netsnmp_sockaddr_storage *from_addr) {
     bio_cache *cachep = NULL;
     
-    for (cachep = biocache; cachep; cachep = cachep->next) {
+    for(cachep = biocache; cachep; cachep = cachep->next) {
 
         if (cachep->sas.sa.sa_family != from_addr->sa.sa_family)
             continue;
@@ -165,12 +162,10 @@ static bio_cache *find_bio_cache(const netsnmp_sockaddr_storage *from_addr)
 
 /* removes a single cache entry and returns SUCCESS on finding and
    removing it. */
-static int remove_bio_cache(bio_cache *thiscache)
-{
+static int remove_bio_cache(bio_cache *thiscache) {
     bio_cache *cachep = NULL, *prevcache = NULL;
-
     cachep = biocache;
-    while (cachep) {
+    while(cachep) {
         if (cachep == thiscache) {
 
             /* remove it from the list */
@@ -190,20 +185,18 @@ static int remove_bio_cache(bio_cache *thiscache)
 }
 
 /* frees the contents of a bio_cache */
-static void free_bio_cache(bio_cache *cachep)
-{
+static void free_bio_cache(bio_cache *cachep) {
 /* These are freed by the SSL_free() call */
 /*
         BIO_free(cachep->read_bio);
         BIO_free(cachep->write_bio);
 */
     DEBUGMSGTL(("9:dtlsudp:bio_cache", "releasing %p\n", cachep));
-    SNMP_FREE(cachep->write_cache);
-    netsnmp_tlsbase_free_tlsdata(cachep->tlsdata);
+        SNMP_FREE(cachep->write_cache);
+        netsnmp_tlsbase_free_tlsdata(cachep->tlsdata);
 }
 
-static void remove_and_free_bio_cache(bio_cache *cachep)
-{
+static void remove_and_free_bio_cache(bio_cache *cachep) {
     /** no debug, remove_bio_cache does it */
     remove_bio_cache(cachep);
     free_bio_cache(cachep);
@@ -215,9 +208,8 @@ static void remove_and_free_bio_cache(bio_cache *cachep)
 
 static bio_cache *
 start_new_cached_connection(netsnmp_transport *t,
-                            const netsnmp_sockaddr_storage *remote_addr,
-                            int we_are_client)
-{
+                            netsnmp_sockaddr_storage *remote_addr,
+                            int we_are_client) {
     bio_cache *cachep = NULL;
     _netsnmpTLSBaseData *tlsdata;
 
@@ -323,12 +315,12 @@ start_new_cached_connection(netsnmp_transport *t,
         DEBUGMSGTL(("dtlsudp",
                     "starting a new connection as a client to sock: %d\n",
                     t->sock));
-        tlsdata->ssl = SSL_new(sslctx_client_setup(DTLS_method(), tlsdata));
+        tlsdata->ssl = SSL_new(sslctx_client_setup(DTLSv1_method(), tlsdata));
 
         /* XXX: session setting 735 */
     } else {
         /* we're the server */
-        SSL_CTX *ctx = sslctx_server_setup(DTLS_method());
+        SSL_CTX *ctx = sslctx_server_setup(DTLSv1_method());
         if (!ctx) {
             BIO_free(cachep->read_bio);
             BIO_free(cachep->write_bio);
@@ -377,7 +369,7 @@ start_new_cached_connection(netsnmp_transport *t,
            failures and an unexpected presented certificate identity.
     */
     /* Implementation notes:
-       + Because we're working asynchronously the real "end" point of
+       + Because we're working asyncronously the real "end" point of
          opening a connection doesn't occur here as certificate
          verification and other things needs to happen first in the
          verify callback, etc.  See the netsnmp_dtlsudp_recv()
@@ -415,11 +407,9 @@ start_new_cached_connection(netsnmp_transport *t,
 
 static bio_cache *
 find_or_create_bio_cache(netsnmp_transport *t,
-                         const netsnmp_sockaddr_storage *from_addr,
-                         int we_are_client)
-{
+                         netsnmp_sockaddr_storage *from_addr,
+                         int we_are_client) {
     bio_cache *cachep = find_bio_cache(from_addr);
-
     if (NULL == cachep) {
         /* none found; need to start a new context */
         cachep = start_new_cached_connection(t, from_addr, we_are_client);
@@ -432,47 +422,38 @@ find_or_create_bio_cache(netsnmp_transport *t,
     return cachep;
 }
 
-static const netsnmp_indexed_addr_pair *
-_extract_addr_pair(netsnmp_transport *t, const void *opaque, int olen)
+static netsnmp_indexed_addr_pair *
+_extract_addr_pair(netsnmp_transport *t, void *opaque, int olen)
 {
-    if (opaque) {
-        switch (olen) {
-        case sizeof(netsnmp_tmStateReference): {
-            const netsnmp_tmStateReference *tmStateRef = opaque;
+    netsnmp_indexed_addr_pair *addr_pair = NULL;
 
-            if (tmStateRef->have_addresses)
-                return &tmStateRef->addresses;
-            break;
-        }
-        default:
-            netsnmp_assert(0);
-        }
+    if (opaque && olen == sizeof(netsnmp_tmStateReference)) {
+        netsnmp_tmStateReference *tmStateRef =
+            (netsnmp_tmStateReference *) opaque;
+
+        if (tmStateRef->have_addresses)
+            addr_pair = &(tmStateRef->addresses);
     }
-    if (t && t->data) {
-        switch (t->data_length) {
-        case sizeof(netsnmp_indexed_addr_pair):
-            return t->data;
-        case sizeof(_netsnmpTLSBaseData): {
-            _netsnmpTLSBaseData *tlsdata = t->data;
-
-            return tlsdata->addr;
-        }
-        default:
-            netsnmp_assert(0);
+    if ((NULL == addr_pair) && (NULL != t)) {
+        if (t->data != NULL &&
+            t->data_length == sizeof(netsnmp_indexed_addr_pair))
+            addr_pair = (netsnmp_indexed_addr_pair *) (t->data);
+        else if (t->data != NULL &&
+                 t->data_length == sizeof(_netsnmpTLSBaseData)) {
+            _netsnmpTLSBaseData *tlsdata = (_netsnmpTLSBaseData *) t->data;
+            addr_pair = (netsnmp_indexed_addr_pair *) (tlsdata->addr);
         }
     }
 
-    return NULL;
+    return addr_pair;
 }
 
-static const struct sockaddr *
-_find_remote_sockaddr(netsnmp_transport *t, const void *opaque, int olen,
-                      int *socklen)
+static struct sockaddr *
+_find_remote_sockaddr(netsnmp_transport *t, void *opaque, int olen, int *socklen)
 {
-    const netsnmp_indexed_addr_pair *addr_pair;
-    const struct sockaddr *sa = NULL;
+    netsnmp_indexed_addr_pair *addr_pair = _extract_addr_pair(t, opaque, olen);
+    struct sockaddr *sa = NULL;
 
-    addr_pair = _extract_addr_pair(t, opaque, olen);
     if (NULL == addr_pair)
         return NULL;
 
@@ -487,10 +468,9 @@ _find_remote_sockaddr(netsnmp_transport *t, const void *opaque, int olen,
  * queued packets out the UDP port
  */
 static int
-_netsnmp_send_queued_dtls_pkts(netsnmp_transport *t, bio_cache *cachep)
-{
+_netsnmp_send_queued_dtls_pkts(netsnmp_transport *t, bio_cache *cachep) {
     int outsize, rc2;
-    void *outbuf;
+    u_char outbuf[65535];
     
     DEBUGTRACETOK("9:dtlsudp");
 
@@ -498,32 +478,24 @@ _netsnmp_send_queued_dtls_pkts(netsnmp_transport *t, bio_cache *cachep)
        buffer (ie, the packet to go out) and send it out
        the udp port manually */
 
-    outsize = BIO_ctrl_pending(cachep->write_bio);
-    outbuf = malloc(outsize);
-    if (outsize > 0 && outbuf) {
-        int socksize;
-        void *sa;
-
+    outsize = BIO_read(cachep->write_bio, outbuf, sizeof(outbuf));
+    if (outsize > 0) {
         DEBUGMSGTL(("dtlsudp", "have %d bytes to send\n", outsize));
 
-        outsize = BIO_read(cachep->write_bio, outbuf, outsize);
-        MAKE_MEM_DEFINED(outbuf, outsize);
-        sa = NETSNMP_REMOVE_CONST(struct sockaddr *,
-                                  _find_remote_sockaddr(t, NULL, 0, &socksize));
+        /* should always be true. */
+        int socksize;
+        struct sockaddr *sa;
+        sa = _find_remote_sockaddr(t, NULL, 0, &socksize);
         if (NULL == sa)
             sa = &cachep->sas.sa;
         socksize = netsnmp_sockaddr_size(sa);
-        rc2 = t->base_transport->f_send(t, outbuf, outsize, &sa, &socksize);
+        rc2 = t->base_transport->f_send(t, outbuf, outsize, (void**)&sa,
+                                        &socksize);
         if (rc2 == -1) {
             snmp_log(LOG_ERR, "failed to send a DTLS specific packet\n");
         }
-    } else if (outsize == 0) {
+    } else
         DEBUGMSGTL(("9:dtlsudp", "have 0 bytes to send\n"));
-    } else {
-        DEBUGMSGTL(("9:dtlsudp", "buffer allocation failed\n"));
-    }
-
-    free(outbuf);
 
     return outsize;
 }
@@ -536,8 +508,7 @@ _netsnmp_send_queued_dtls_pkts(netsnmp_transport *t, bio_cache *cachep)
 /* returns SNMPERR_SUCCESS if we succeeded in getting the data out */
 /* returns SNMPERR_GENERR if we still need more time */
 static int
-_netsnmp_bio_try_and_write_buffered(netsnmp_transport *t, bio_cache *cachep)
-{
+_netsnmp_bio_try_and_write_buffered(netsnmp_transport *t, bio_cache *cachep) {
     int rc;
     _netsnmpTLSBaseData *tlsdata;
     
@@ -573,8 +544,10 @@ _netsnmp_bio_try_and_write_buffered(netsnmp_transport *t, bio_cache *cachep)
 
         /* If want_read/write but failed to actually send anything
            then we need to wait for the other side, so quit */
-        if (bytesout <= 0) {
-            /* sending failed; must wait longer */
+        if ((errnum == SSL_ERROR_WANT_READ ||
+             errnum == SSL_ERROR_WANT_WRITE) &&
+            bytesout <= 0) {
+            /* we've failed; must need to wait longer */
             return SNMPERR_GENERR;
         }
 
@@ -598,8 +571,7 @@ _netsnmp_bio_try_and_write_buffered(netsnmp_transport *t, bio_cache *cachep)
 }
 
 static int
-_netsnmp_add_buffered_data(bio_cache *cachep, const char *buf, size_t size)
-{
+_netsnmp_add_buffered_data(bio_cache *cachep, char *buf, size_t size) {
     if (cachep->write_cache && cachep->write_cache_len > 0) {
         size_t newsize = cachep->write_cache_len + size;
 
@@ -633,6 +605,7 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
 {
     int             rc = -1;
     netsnmp_indexed_addr_pair *addr_pair = NULL;
+    struct sockaddr *from;
     netsnmp_tmStateReference *tmStateRef = NULL;
     _netsnmpTLSBaseData *tlsdata;
     bio_cache *cachep;
@@ -659,17 +632,14 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
 
     addr_pair = &tmStateRef->addresses;
     tmStateRef->have_addresses = 1;
+    from = (struct sockaddr *) &(addr_pair->remote_addr);
 
     while (rc < 0) {
-        void *opaque = NULL;
+        char *opaque = NULL;
         int olen;
-        rc = t->base_transport->f_recv(t, buf, size, &opaque, &olen);
-        if (rc > 0) {
-            if (olen > sizeof(*addr_pair))
-                snmp_log(LOG_ERR, "%s: from address length %d > %d\n",
-                         __func__, olen, (int)sizeof(*addr_pair));
-            memcpy(addr_pair, opaque, SNMP_MIN(sizeof(*addr_pair), olen));
-        }
+        rc = t->base_transport->f_recv(t, buf, size, (void**)&opaque, &olen);
+        if (rc > 0)
+            memcpy(from, opaque, olen);
         SNMP_FREE(opaque);
         if (rc < 0 && errno != EINTR) {
             break;
@@ -780,9 +750,6 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
        net-snmp select loop because it's already been pulled
        out; need to deal with this) */
     rc = SSL_read(tlsdata->ssl, buf, size);
-    MAKE_MEM_DEFINED(&rc, sizeof(rc));
-    if (rc > 0)
-        MAKE_MEM_DEFINED(buf, rc);
 
     /*
      * moved netsnmp_openssl_null_checks to netsnmp_tlsbase_wrapup_recv.
@@ -809,15 +776,14 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
         /* If want_read/write but failed to actually send
            anything then we need to wait for the other side,
            so quit */
-        if (bytesout <= 0)
+        if ((errnum == SSL_ERROR_WANT_READ ||
+             errnum == SSL_ERROR_WANT_WRITE) &&
+            bytesout <= 0)
             break;
 
         /* retry reading */
         DEBUGMSGTL(("9:dtlsudp", "recalling ssl_read\n")); 
         rc = SSL_read(tlsdata->ssl, buf, size);
-        MAKE_MEM_DEFINED(&rc, sizeof(rc));
-        if (rc > 0)
-            MAKE_MEM_DEFINED(buf, rc);
     }
 
     if (rc == -1) {
@@ -826,7 +792,7 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
         DEBUGMSGTL(("9:dtlsudp", "no decoded data from dtls\n"));
 
         if (SSL_get_error(tlsdata->ssl, rc) == SSL_ERROR_WANT_READ) {
-            DEBUGMSGTL(("9:dtlsudp", "ssl error want read\n"));
+            DEBUGMSGTL(("9dtlsudp","here: want read!\n"));
 
             /* see if we have buffered write date to send out first */
             if (cachep->write_cache) {
@@ -1041,7 +1007,7 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
           IN   tmStateReference    -- transport info
            )
     */
-    /* Implementation notes: those parameters are all passed outward
+    /* Implementation notes: those pamateres are all passed outward
        using the functions arguments and the return code below (the length) */
 
     return rc;
@@ -1050,17 +1016,17 @@ netsnmp_dtlsudp_recv(netsnmp_transport *t, void *buf, int size,
 
 
 static int
-netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
-                     void **opaque, int *olength)
+netsnmp_dtlsudp_send(netsnmp_transport *t, void *buf, int size,
+		 void **opaque, int *olength)
 {
     int rc = -1;
-    const netsnmp_indexed_addr_pair *addr_pair = NULL;
+    netsnmp_indexed_addr_pair *addr_pair = NULL;
     bio_cache *cachep = NULL;
-    const netsnmp_tmStateReference *tmStateRef = NULL;
-    void *outbuf;
+    netsnmp_tmStateReference *tmStateRef = NULL;
+    u_char outbuf[65535];
     _netsnmpTLSBaseData *tlsdata = NULL;
     int socksize;
-    void *sa;
+    struct sockaddr *sa;
     
     DEBUGTRACETOK("9:dtlsudp");
     DEBUGMSGTL(("dtlsudp", "sending %d bytes\n", size));
@@ -1103,7 +1069,7 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
     */
     if (opaque != NULL && *opaque != NULL &&
         olength != NULL && *olength == sizeof(netsnmp_tmStateReference))
-        tmStateRef = *opaque;
+        tmStateRef = (netsnmp_tmStateReference *) *opaque;
 
 
     /* RFC5953: section 5.2, step 3:
@@ -1159,7 +1125,7 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
 
     tlsdata = cachep->tlsdata;
     if (NULL == tlsdata || NULL == tlsdata->ssl) {
-        /** xxx mem leak? free created bio cache? */
+        /** xxx mem lean? free created bio cache? */
         snmp_increment_statistic(STAT_TLSTM_SNMPTLSTMSESSIONNOSESSIONS);
         snmp_log(LOG_ERR, "bad tls data or ssl ptr in netsnmp_dtlsudp_send\n");
         return -1;
@@ -1175,14 +1141,6 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
         if (SNMPERR_GENERR == _netsnmp_bio_try_and_write_buffered(t, cachep)) {
             /* we still have data that can't get out in the buffer */
 
-            DEBUGIF ("9:dtlsudp") {
-                char *str = t->base_transport->f_fmtaddr(t, addr_pair,
-                                            sizeof(netsnmp_indexed_addr_pair));
-                DEBUGMSGTL(("9:dtlsudp", "cached %d bytes for %s on fd %d\n",
-                            size, str, t->sock));
-                free(str);
-            }
-
             /* add the new data to the end of the existing cache */
             if (_netsnmp_add_buffered_data(cachep, buf, size) !=
                 SNMPERR_SUCCESS) {
@@ -1193,7 +1151,7 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
     }
 
     DEBUGIF ("9:dtlsudp") {
-        char *str = t->base_transport->f_fmtaddr(t, addr_pair,
+        char *str = t->base_transport->f_fmtaddr(t, (void *) addr_pair,
                                         sizeof(netsnmp_indexed_addr_pair));
         DEBUGMSGTL(("9:dtlsudp", "send %d bytes from %p to %s on fd %d\n",
                     size, buf, str, t->sock));
@@ -1227,14 +1185,13 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
         /* If want_read/write but failed to actually send
            anything then we need to wait for the other side,
            so quit */
-        if (bytesout <= 0) {
+        if ((errnum == SSL_ERROR_WANT_READ ||
+             errnum == SSL_ERROR_WANT_WRITE) &&
+            bytesout <= 0) {
             /* We need more data written to or read from the socket
                but we're failing to do so and need to wait till the
                socket is ready again; unfortunately this means we need
                to buffer the SNMP data temporarily in the mean time */
-
-            DEBUGMSGTL(("9:dtlsudp", "cached %d bytes for fd %d\n", size,
-                        t->sock));
 
             /* remember the packet */
             if (_netsnmp_add_buffered_data(cachep, buf, size) !=
@@ -1244,7 +1201,7 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
                 return -1;
             }
 
-            /* exit out of the loop until we get called again from
+            /* exit out of the loop until we get caled again from
                socket data */ 
             break;
         }
@@ -1257,20 +1214,14 @@ netsnmp_dtlsudp_send(netsnmp_transport *t, const void *buf, int size,
 
     /* for memory bios, we now read from openssl's write buffer (ie,
        the packet to go out) and send it out the udp port manually */
-    rc = BIO_ctrl_pending(cachep->write_bio);
+    rc = BIO_read(cachep->write_bio, outbuf, sizeof(outbuf));
     if (rc <= 0) {
         /* in theory an ok thing */
         return 0;
     }
-    outbuf = malloc(rc);
-    if (!outbuf)
-        return -1;
-    rc = BIO_read(cachep->write_bio, outbuf, rc);
-    MAKE_MEM_DEFINED(outbuf, rc);
     socksize = netsnmp_sockaddr_size(&cachep->sas.sa);
     sa = &cachep->sas.sa;
-    rc = t->base_transport->f_send(t, outbuf, rc, &sa, &socksize);
-    free(outbuf);
+    rc = t->base_transport->f_send(t, outbuf, rc, (void**)&sa, &socksize);
 
     return rc;
 }
@@ -1302,7 +1253,7 @@ netsnmp_dtlsudp_close(netsnmp_transport *t)
        + Our session id is stored as the t->data pointer
     */
     if (NULL != t->data && t->data_length == sizeof(_netsnmpTLSBaseData)) {
-        tlsbase = t->data;
+        tlsbase = (_netsnmpTLSBaseData *) t->data;
 
         if (tlsbase->addr)
             cachep = find_bio_cache(&tlsbase->addr->remote_addr);
@@ -1315,7 +1266,7 @@ netsnmp_dtlsudp_close(netsnmp_transport *t)
     if (NULL == cachep)
         return netsnmp_socketbase_close(t);
 
-    /* if we have any remaining packets to send, try to send them */
+    /* if we have any remaining packtes to send, try to send them */
     if (cachep->write_cache_len > 0) {
         int i = 0;
         char buf[8192];
@@ -1323,7 +1274,7 @@ netsnmp_dtlsudp_close(netsnmp_transport *t)
         void *opaque = NULL;
         int opaque_len = 0;
         fd_set readfs;
-        NETSNMP_SELECT_TIMEVAL tv;
+        struct timeval tv;
  
         DEBUGMSGTL(("dtlsudp:close",
 		    "%" NETSNMP_PRIz "d bytes remain in write_cache\n",
@@ -1333,7 +1284,7 @@ netsnmp_dtlsudp_close(netsnmp_transport *t)
          * if negotiations have completed and we've received data, try and
          * send any queued packets.
          */
-        if (1) {
+        if (cachep->flags & NETSNMP_BIO_CONNECTED) {
             /* make configurable:
                - do this at all?
                - retries
@@ -1353,12 +1304,10 @@ netsnmp_dtlsudp_close(netsnmp_transport *t)
                 tv.tv_usec = 50000;
                 rc = select(t->sock+1, &readfs, NULL, NULL, &tv);
                 if (rc > 0) {
-                    /* junk recv for catching negotiations still in play */
+                    /* junk recv for catching negotations still in play */
                     opaque_len = 0;
-                    rc = netsnmp_dtlsudp_recv(t, buf, sizeof(buf),
-                                              &opaque, &opaque_len);
-                    DEBUGMSGTL(("dtlsudp:close",
-                                "netsnmp_dtlsudp_recv() returned %d\n", rc));
+                    netsnmp_dtlsudp_recv(t, buf, sizeof(buf),
+                                         &opaque, &opaque_len);
                     SNMP_FREE(opaque);
                 }
             } /* for loop */
@@ -1394,64 +1343,17 @@ netsnmp_dtlsudp_close(netsnmp_transport *t)
     return netsnmp_socketbase_close(t);
 }
 
-static char *
-netsnmp_dtlsudp_fmtaddr(netsnmp_transport *t, const void *data, int len,
-                        const char *pfx,
-                        char *(*fmt_base_addr)(const char *pfx,
-                                               netsnmp_transport *t,
-                                               const void *data, int len))
+char *
+netsnmp_dtlsudp_fmtaddr(netsnmp_transport *t, void *data, int len)
 {
-    if (!data) {
-        data = t->data;
-        len = t->data_length;
+    int              sa_len;
+    struct sockaddr *sa = _find_remote_sockaddr(t, data, len, &sa_len);
+    if (sa) {
+        data = sa;
+        len = sa_len;
     }
 
-    switch (data ? len : 0) {
-    case sizeof(netsnmp_indexed_addr_pair):
-        return netsnmp_ipv4_fmtaddr(pfx, t, data, len);
-    case sizeof(netsnmp_tmStateReference): {
-        const netsnmp_tmStateReference *r = data;
-        const netsnmp_indexed_addr_pair *p = &r->addresses;
-        netsnmp_transport *bt = t->base_transport;
-
-        if (r->have_addresses) {
-            return fmt_base_addr("DTLSUDP", t, p, sizeof(*p));
-        } else if (bt && t->data_length == sizeof(_netsnmpTLSBaseData)) {
-            _netsnmpTLSBaseData *tlsdata = t->data;
-            netsnmp_indexed_addr_pair *tls_addr = tlsdata->addr;
-
-            return bt->f_fmtaddr(bt, tls_addr, sizeof(*tls_addr));
-        } else if (bt) {
-            return bt->f_fmtaddr(bt, t->data, t->data_length);
-        } else {
-            return strdup("DTLSUDP: unknown");
-        }
-    }
-    case sizeof(_netsnmpTLSBaseData): {
-        const _netsnmpTLSBaseData *b = data;
-        char *buf;
-
-        if (asprintf(&buf, "DTLSUDP: %s", b->addr_string) < 0)
-            buf = NULL;
-        return buf;
-    }
-    case 0:
-        return strdup("DTLSUDP: unknown");
-    default: {
-        char *buf;
-
-        if (asprintf(&buf, "DTLSUDP: len %d", len) < 0)
-            buf = NULL;
-        return buf;
-    }
-    }
-}
-
-static char *
-netsnmp_dtlsudp4_fmtaddr(netsnmp_transport *t, const void *data, int len)
-{
-    return netsnmp_dtlsudp_fmtaddr(t, data, len, "DTLSUDP",
-                                   netsnmp_ipv4_fmtaddr);
+    return netsnmp_ipv4_fmtaddr("DTLSUDP", t, data, len);
 }
 
 /*
@@ -1504,8 +1406,7 @@ _transport_common(netsnmp_transport *t, int local)
     t->f_config        = netsnmp_tlsbase_config;
     t->f_setup_session = netsnmp_tlsbase_session_init;
     t->f_accept        = NULL;
-    t->f_fmtaddr       = netsnmp_dtlsudp4_fmtaddr;
-    t->f_get_taddr     = netsnmp_ipv4_get_taddr;
+    t->f_fmtaddr       = netsnmp_dtlsudp_fmtaddr;
 
     t->flags = NETSNMP_TRANSPORT_FLAG_TUNNELED;
 
@@ -1513,40 +1414,41 @@ _transport_common(netsnmp_transport *t, int local)
 }
 
 netsnmp_transport *
-netsnmp_dtlsudp_transport(const struct netsnmp_ep *ep, int local)
+netsnmp_dtlsudp_transport(struct sockaddr_in *addr, int local)
 {
-    const struct sockaddr_in *addr = &ep->a.sin;
-    netsnmp_transport *t, *t2;
+    netsnmp_transport *t = NULL;
 
     DEBUGTRACETOK("dtlsudp");
 
-    t = netsnmp_udp_transport(ep, local);
+    t = netsnmp_udp_transport(addr, local);
     if (NULL == t)
         return NULL;
 
-    t2 = _transport_common(t, local);
-    if (!t2) {
-        netsnmp_transport_free(t);
-        return NULL;
-    }
+    _transport_common(t, local);
 
     if (!local) {
         /* dtls needs to bind the socket for SSL_write to work */
-	if (connect(t->sock, (const struct sockaddr *)addr, sizeof(*addr)) < 0)
+        if (connect(t->sock, (struct sockaddr *) addr, sizeof(*addr)) == -1)
             snmp_log(LOG_ERR, "dtls: failed to connect\n");
     }
 
-    return t2;
+    return t;
 }
 
 
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
 
-static char *
-netsnmp_dtlsudp6_fmtaddr(netsnmp_transport *t, const void *data, int len)
+char *
+netsnmp_dtlsudp6_fmtaddr(netsnmp_transport *t, void *data, int len)
 {
-    return netsnmp_dtlsudp_fmtaddr(t, data, len, "DTLSUDP6",
-                                   netsnmp_ipv6_fmtaddr);
+    int              sa_len;
+    struct sockaddr *sa = _find_remote_sockaddr(t, data, len, &sa_len);
+    if (sa) {
+        data = sa;
+        len = sa_len;
+    }
+
+    return netsnmp_ipv6_fmtaddr("DTLSUDP6", t, data, len);
 }
 
 /*
@@ -1556,36 +1458,30 @@ netsnmp_dtlsudp6_fmtaddr(netsnmp_transport *t, const void *data, int len)
  */
 
 netsnmp_transport *
-netsnmp_dtlsudp6_transport(const struct netsnmp_ep *ep, int local)
+netsnmp_dtlsudp6_transport(struct sockaddr_in6 *addr, int local)
 {
-    const struct sockaddr_in6 *addr = &ep->a.sin6;
-    netsnmp_transport *t, *t2;
+    netsnmp_transport *t = NULL;
 
     DEBUGTRACETOK("dtlsudp");
 
-    t = netsnmp_udp6_transport(ep, local);
+    t = netsnmp_udp6_transport(addr, local);
     if (NULL == t)
         return NULL;
 
-    t2 = _transport_common(t, local);
-    if (!t2) {
-        netsnmp_transport_free(t);
-        return NULL;
-    }
+    _transport_common(t, local);
 
     if (!local) {
         /* dtls needs to bind the socket for SSL_write to work */
-        if (connect(t->sock, (const struct sockaddr *)addr, sizeof(*addr)) < 0)
+        if (connect(t->sock, (struct sockaddr *) addr, sizeof(*addr)) == -1)
             snmp_log(LOG_ERR, "dtls: failed to connect\n");
     }
 
     /* XXX: Potentially set sock opts here (SO_SNDBUF/SO_RCV_BUF) */      
     /* XXX: and buf size */        
 
-    t2->f_fmtaddr   = netsnmp_dtlsudp6_fmtaddr;
-    t2->f_get_taddr = netsnmp_ipv6_get_taddr;
+    t->f_fmtaddr       = netsnmp_dtlsudp6_fmtaddr;
 
-    return t2;
+    return t;
 }
 #endif
 
@@ -1594,16 +1490,19 @@ netsnmp_transport *
 netsnmp_dtlsudp_create_tstring(const char *str, int isserver,
                                const char *default_target)
 {
-    struct netsnmp_ep ep;
+#ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
+    struct sockaddr_in6 addr6;
+#endif
+    struct sockaddr_in addr;
     netsnmp_transport *t;
     _netsnmpTLSBaseData *tlsdata;
     char buf[SPRINT_MAX_LEN], *cp;
 
-    if (netsnmp_sockaddr_in3(&ep, str, default_target))
-        t = netsnmp_dtlsudp_transport(&ep, isserver);
+    if (netsnmp_sockaddr_in2(&addr, str, default_target))
+        t = netsnmp_dtlsudp_transport(&addr, isserver);
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
-    else if (netsnmp_sockaddr_in6_3(&ep, str, default_target))
-        t = netsnmp_dtlsudp6_transport(&ep, isserver);
+    else if (netsnmp_sockaddr_in6_2(&addr6, str, default_target))
+        t = netsnmp_dtlsudp6_transport(&addr6, isserver);
 #endif
     else
         return NULL;
@@ -1611,7 +1510,7 @@ netsnmp_dtlsudp_create_tstring(const char *str, int isserver,
 
     /* see if we can extract the remote hostname */
     if (!isserver && t && t->data && str) {
-        tlsdata = t->data;
+        tlsdata = (_netsnmpTLSBaseData *) t->data;
         /* search for a : */
         if (NULL != (cp = strrchr(str, ':'))) {
             sprintf(buf, "%.*s", (int) SNMP_MIN(cp - str, sizeof(buf) - 1),
@@ -1627,25 +1526,34 @@ netsnmp_dtlsudp_create_tstring(const char *str, int isserver,
 
 
 netsnmp_transport *
-netsnmp_dtlsudp_create_ostring(const void *o, size_t o_len, int local)
+netsnmp_dtlsudp_create_ostring(const u_char * o, size_t o_len, int local)
 {
-    struct netsnmp_ep ep;
+    struct sockaddr_in addr;
 
-    memset(&ep, 0, sizeof(ep));
-    if (netsnmp_ipv4_ostring_to_sockaddr(&ep.a.sin, o, o_len))
-        return netsnmp_dtlsudp_transport(&ep, local);
+    if (o_len == 6) {
+        unsigned short porttmp = (o[4] << 8) + o[5];
+        addr.sin_family = AF_INET;
+        memcpy((u_char *) & (addr.sin_addr.s_addr), o, 4);
+        addr.sin_port = htons(porttmp);
+        return netsnmp_dtlsudp_transport(&addr, local);
+    }
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
-    else if (netsnmp_ipv6_ostring_to_sockaddr(&ep.a.sin6, o, o_len))
-        return netsnmp_dtlsudp6_transport(&ep, local);
+    else if (o_len == 18) {
+        struct sockaddr_in6 addr6;
+        unsigned short porttmp = (o[16] << 8) + o[17];
+        addr6.sin6_family = AF_INET6;
+        memcpy((u_char *) & (addr6.sin6_addr.s6_addr), o, 4);
+        addr6.sin6_port = htons(porttmp);
+        return netsnmp_dtlsudp6_transport(&addr6, local);
+    }
 #endif
-    else
-        return NULL;
+    return NULL;
 }
 
 void
 netsnmp_dtlsudp_ctor(void)
 {
-    static const char indexname[] = "_netsnmp_addr_info";
+    char indexname[] = "_netsnmp_addr_info";
     static const char *prefixes[] = { "dtlsudp", "dtls"
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
                                       , "dtlsudp6", "dtls6"
@@ -1653,7 +1561,7 @@ netsnmp_dtlsudp_ctor(void)
     };
     int i, num_prefixes = sizeof(prefixes) / sizeof(char *);
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
-    static const char indexname6[] = "_netsnmp_addr_info6";
+    char indexname6[] = "_netsnmp_addr_info6";
 #endif
 
     DEBUGMSGTL(("dtlsudp", "registering DTLS constructor\n"));
@@ -1663,23 +1571,23 @@ netsnmp_dtlsudp_ctor(void)
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
     if (!openssl_addr_index6)
         openssl_addr_index6 =
-            SSL_get_ex_new_index(0, NETSNMP_REMOVE_CONST(void *, indexname6),
-                                 NULL, NULL, NULL);
+            SSL_get_ex_new_index(0, indexname6, NULL, NULL, NULL);
 #endif
 
     dtlsudpDomain.name = netsnmpDTLSUDPDomain;
     dtlsudpDomain.name_length = netsnmpDTLSUDPDomain_len;
-    dtlsudpDomain.prefix = calloc(num_prefixes + 1, sizeof(char *));
+    dtlsudpDomain.prefix = (const char**)calloc(num_prefixes + 1,
+                                                sizeof(char *));
     for (i = 0; i < num_prefixes; ++ i)
         dtlsudpDomain.prefix[i] = prefixes[i];
 
+    dtlsudpDomain.f_create_from_tstring     = NULL;
     dtlsudpDomain.f_create_from_tstring_new = netsnmp_dtlsudp_create_tstring;
     dtlsudpDomain.f_create_from_ostring     = netsnmp_dtlsudp_create_ostring;
 
     if (!openssl_addr_index)
         openssl_addr_index =
-            SSL_get_ex_new_index(0, NETSNMP_REMOVE_CONST(void *, indexname),
-                                 NULL, NULL, NULL);
+            SSL_get_ex_new_index(0, indexname, NULL, NULL, NULL);
 
     netsnmp_tdomain_register(&dtlsudpDomain);
 }
@@ -1692,13 +1600,21 @@ netsnmp_dtlsudp_ctor(void)
 int cookie_initialized=0;
 unsigned char cookie_secret[NETSNMP_COOKIE_SECRET_LENGTH];
 
+typedef union {
+       struct sockaddr sa;
+       struct sockaddr_in s4;
+#ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
+       struct sockaddr_in6 s6;
+#endif
+} _peer_union;
+
 int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
                             unsigned int *cookie_len)
 {
     unsigned char *buffer, result[EVP_MAX_MD_SIZE];
     unsigned int length, resultlength;
     bio_cache *cachep = NULL;
-    const netsnmp_sockaddr_storage *peer;
+    _peer_union *peer;
 
     /* Initialize a random secret */
     if (!cookie_initialized) {
@@ -1706,7 +1622,6 @@ int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
             snmp_log(LOG_ERR, "dtls: error setting random cookie secret\n");
             return 0;
         }
-        MAKE_MEM_DEFINED(cookie_secret, NETSNMP_COOKIE_SECRET_LENGTH);
         cookie_initialized = 1;
     }
 
@@ -1718,19 +1633,19 @@ int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
         snmp_log(LOG_ERR, "dtls: failed to get the peer address\n");
         return 0;
     }
-    peer = &cachep->sas;
+    peer = (_peer_union *)&cachep->sas;
 
     /* Create buffer with peer's address and port */
     length = 0;
     switch (peer->sa.sa_family) {
     case AF_INET:
         length += sizeof(struct in_addr);
-        length += sizeof(peer->sin.sin_port);
+        length += sizeof(peer->s4.sin_port);
         break;
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
     case AF_INET6:
         length += sizeof(struct in6_addr);
-        length += sizeof(peer->sin6.sin6_port);
+        length += sizeof(peer->s6.sin6_port);
         break;
 #endif
     default:
@@ -1747,32 +1662,31 @@ int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
     switch (peer->sa.sa_family) {
     case AF_INET:
         memcpy(buffer,
-               &peer->sin.sin_port,
-               sizeof(peer->sin.sin_port));
-        memcpy(buffer + sizeof(peer->sin.sin_port),
-               &peer->sin.sin_addr,
+               &peer->s4.sin_port,
+               sizeof(peer->s4.sin_port));
+        memcpy(buffer + sizeof(peer->s4.sin_port),
+               &peer->s4.sin_addr,
                sizeof(struct in_addr));
         break;
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
     case AF_INET6:
         memcpy(buffer,
-               &peer->sin6.sin6_port,
-               sizeof(peer->sin6.sin6_port));
-        memcpy(buffer + sizeof(peer->sin6.sin6_port),
-               &peer->sin6.sin6_addr,
+               &peer->s6.sin6_port,
+               sizeof(peer->s6.sin6_port));
+        memcpy(buffer + sizeof(peer->s6.sin6_port),
+               &peer->s6.sin6_addr,
                sizeof(struct in6_addr));
         break;
 #endif
     default:
         snmp_log(LOG_ERR, "dtls: unknown address family generating a cookie\n");
-        free(buffer);
         return 0;
     }
 
     /* Calculate HMAC of buffer using the secret */
     HMAC(EVP_sha1(), cookie_secret, NETSNMP_COOKIE_SECRET_LENGTH,
          buffer, length, result, &resultlength);
-    free(buffer);
+    OPENSSL_free(buffer);
 
     memcpy(cookie, result, resultlength);
     *cookie_len = resultlength;
@@ -1782,15 +1696,13 @@ int netsnmp_dtls_gen_cookie(SSL *ssl, unsigned char *cookie,
     return 1;
 }
 
-int netsnmp_dtls_verify_cookie(SSL *ssl,
-                               SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER
-                               unsigned char *cookie,
+int netsnmp_dtls_verify_cookie(SSL *ssl, unsigned char *cookie,
                                unsigned int cookie_len)
 {
     unsigned char *buffer, result[EVP_MAX_MD_SIZE];
     unsigned int length, resultlength, rc;
     bio_cache *cachep = NULL;
-    const netsnmp_sockaddr_storage *peer;
+    _peer_union *peer;
 
     /* If secret isn't initialized yet, the cookie can't be valid */
     if (!cookie_initialized)
@@ -1803,19 +1715,19 @@ int netsnmp_dtls_verify_cookie(SSL *ssl,
         snmp_log(LOG_ERR, "dtls: failed to get the peer address\n");
         return 0;
     }
-    peer = &cachep->sas;
+    peer = (_peer_union *)&cachep->sas;
 
     /* Create buffer with peer's address and port */
     length = 0;
     switch (peer->sa.sa_family) {
     case AF_INET:
         length += sizeof(struct in_addr);
-        length += sizeof(peer->sin.sin_port);
+        length += sizeof(peer->s4.sin_port);
         break;
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
     case AF_INET6:
         length += sizeof(struct in6_addr);
-        length += sizeof(peer->sin6.sin6_port);
+        length += sizeof(peer->s6.sin6_port);
         break;
 #endif
     default:
@@ -1833,19 +1745,19 @@ int netsnmp_dtls_verify_cookie(SSL *ssl,
     switch (peer->sa.sa_family) {
     case AF_INET:
         memcpy(buffer,
-               &peer->sin.sin_port,
-               sizeof(peer->sin.sin_port));
-        memcpy(buffer + sizeof(peer->sin.sin_port),
-               &peer->sin.sin_addr,
+               &peer->s4.sin_port,
+               sizeof(peer->s4.sin_port));
+        memcpy(buffer + sizeof(peer->s4.sin_port),
+               &peer->s4.sin_addr,
                sizeof(struct in_addr));
         break;
 #ifdef NETSNMP_TRANSPORT_UDPIPV6_DOMAIN
     case AF_INET6:
         memcpy(buffer,
-               &peer->sin6.sin6_port,
-               sizeof(peer->sin6.sin6_port));
-        memcpy(buffer + sizeof(peer->sin6.sin6_port),
-               &peer->sin6.sin6_addr,
+               &peer->s6.sin6_port,
+               sizeof(peer->s6.sin6_port));
+        memcpy(buffer + sizeof(peer->s6.sin6_port),
+               &peer->s6.sin6_addr,
                sizeof(struct in6_addr));
         break;
 #endif
@@ -1853,14 +1765,13 @@ int netsnmp_dtls_verify_cookie(SSL *ssl,
         snmp_log(LOG_ERR,
                  "dtls: unknown address family %d generating a cookie\n",
                  peer->sa.sa_family);
-        free(buffer);
         return 0;
     }
 
     /* Calculate HMAC of buffer using the secret */
     HMAC(EVP_sha1(), cookie_secret, NETSNMP_COOKIE_SECRET_LENGTH,
          buffer, length, result, &resultlength);
-    free(buffer);
+    OPENSSL_free(buffer);
 
     if (cookie_len != resultlength || memcmp(result, cookie, resultlength) != 0)
         rc = 0;

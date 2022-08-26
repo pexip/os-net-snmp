@@ -6,22 +6,15 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 #include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/snmp_agent.h>
-#include <net-snmp/agent/snmp_vars.h>
-#include "interface_private.h"
 
-netsnmp_feature_require(fd_event_manager);
-netsnmp_feature_require(delete_prefix_info);
-netsnmp_feature_require(create_prefix_info);
-netsnmp_feature_child_of(interface_arch_set_admin_status, interface_all);
+netsnmp_feature_require(fd_event_manager)
+netsnmp_feature_require(delete_prefix_info)
+netsnmp_feature_require(create_prefix_info)
+netsnmp_feature_child_of(interface_arch_set_admin_status, interface_all)
 
 #ifdef NETSNMP_FEATURE_REQUIRE_INTERFACE_ARCH_SET_ADMIN_STATUS
-netsnmp_feature_require(interface_ioctl_flags_set);
+netsnmp_feature_require(interface_ioctl_flags_set)
 #endif /* NETSNMP_FEATURE_REQUIRE_INTERFACE_ARCH_SET_ADMIN_STATUS */
-
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
 
 #ifdef HAVE_PCI_LOOKUP_NAME
 #include <pci/pci.h>
@@ -53,19 +46,19 @@ netsnmp_pci_error(char *msg, ...)
 #endif
 
 #ifdef HAVE_LINUX_ETHTOOL_H
-#ifdef HAVE_LINUX_ETHTOOL_NEEDS_U64
 #include <linux/types.h>
+#ifndef HAVE_PCI_LOOKUP_NAME
 typedef __u64 u64;         /* hack, so we may include kernel's ethtool.h */
 typedef __u32 u32;         /* ditto */
 typedef __u16 u16;         /* ditto */
 typedef __u8 u8;           /* ditto */
 #endif
+
 #include <linux/ethtool.h>
 #endif /* HAVE_LINUX_ETHTOOL_H */
 
 #include "mibII/mibII_common.h"
 #include "if-mib/ifTable/ifTable_constants.h"
-#include "ip-mib/data_access/ipaddress_ioctl.h"
 
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
@@ -137,41 +130,6 @@ netsnmp_prefix_listen_info list_info;
 int netsnmp_prefix_listen(void);
 #endif
 
-#ifdef HAVE_PCI_LOOKUP_NAME
-static void init_libpci(void)
-{
-    struct stat stbuf;
-
-    /*
-     * When snmpd is run inside an OpenVZ container /proc/bus/pci is not
-     * available.
-     */
-    if (stat("/proc/vz", &stbuf) == 0)
-        return;
-
-    pci_access = pci_alloc();
-    if (!pci_access) {
-	snmp_log(LOG_ERR, "pcilib: pci_alloc failed\n");
-	return;
-    }
-
-    pci_access->error = netsnmp_pci_error;
-
-    do_longjmp = 1;
-    if (setjmp(err_buf)) {
-        pci_cleanup(pci_access);
-	snmp_log(LOG_ERR, "pcilib: pci_init failed\n");
-        pci_access = NULL;
-    }
-    else if (pci_access)
-	pci_init(pci_access);
-    do_longjmp = 0;
-}
-#else
-static void init_libpci(void)
-{
-}
-#endif
 
 void
 netsnmp_arch_interface_init(void)
@@ -211,7 +169,25 @@ netsnmp_arch_interface_init(void)
     netsnmp_prefix_listen();
 #endif
 
-    init_libpci();
+#ifdef HAVE_PCI_LOOKUP_NAME
+    pci_access = pci_alloc();
+    if (!pci_access) {
+	snmp_log(LOG_ERR, "pcilib: pci_alloc failed\n");
+	return;
+    }
+
+    pci_access->error = netsnmp_pci_error;
+
+    do_longjmp = 1;
+    if (setjmp(err_buf)) {
+        pci_cleanup(pci_access);
+	snmp_log(LOG_ERR, "pcilib: pci_init failed\n");
+        pci_access = NULL;
+    }
+    else if (pci_access)
+	pci_init(pci_access);
+    do_longjmp = 0;
+#endif
 }
 
 /*
@@ -485,6 +461,7 @@ _parse_stats(netsnmp_interface_entry *entry, char *stats, int expected)
      *  [               OUT                               ]
      *   byte pkts errs drop fifo colls carrier compressed
      */
+#ifdef SCNuMAX
     uintmax_t       rec_pkt, rec_oct, rec_err, rec_drop, rec_mcast;
     uintmax_t       snd_pkt, snd_oct, snd_err, snd_drop, coll;
     const char     *scan_line_2_2 =
@@ -496,6 +473,14 @@ _parse_stats(netsnmp_interface_entry *entry, char *stats, int expected)
         "%"   SCNuMAX " %"  SCNuMAX " %*" SCNuMAX " %*" SCNuMAX
         " %*" SCNuMAX " %"  SCNuMAX " %"  SCNuMAX " %*" SCNuMAX
         " %*" SCNuMAX " %"  SCNuMAX;
+#else
+    unsigned long   rec_pkt, rec_oct, rec_err, rec_drop, rec_mcast;
+    unsigned long   snd_pkt, snd_oct, snd_err, snd_drop, coll;
+    const char     *scan_line_2_2 =
+        "%lu %lu %lu %lu %*lu %*lu %*lu %lu %lu %lu %lu %lu %*lu %lu";
+    const char     *scan_line_2_0 =
+        "%lu %lu %*lu %*lu %*lu %lu %lu %*lu %*lu %lu";
+#endif
     static const char     *scan_line_to_use = NULL;
     int             scan_count;
 
@@ -535,8 +520,10 @@ _parse_stats(netsnmp_interface_entry *entry, char *stats, int expected)
              */
             entry->ns_flags |= NETSNMP_INTERFACE_FLAGS_HAS_MCAST_PKTS;
             entry->ns_flags |= NETSNMP_INTERFACE_FLAGS_HAS_HIGH_SPEED;
+#ifdef SCNuMAX   /* XXX - should be flag for 64-bit variables */
             entry->ns_flags |= NETSNMP_INTERFACE_FLAGS_HAS_HIGH_BYTES;
             entry->ns_flags |= NETSNMP_INTERFACE_FLAGS_HAS_HIGH_PACKETS;
+#endif
         }
     } else {
         scan_count = sscanf(stats, scan_line_to_use,
@@ -572,11 +559,13 @@ _parse_stats(netsnmp_interface_entry *entry, char *stats, int expected)
     entry->stats.imcast.low = rec_mcast & 0xffffffff;
     entry->stats.obytes.low = snd_oct & 0xffffffff;
     entry->stats.oucast.low = snd_pkt & 0xffffffff;
+#ifdef SCNuMAX   /* XXX - should be flag for 64-bit variables */
     entry->stats.ibytes.high = rec_oct >> 32;
     entry->stats.iall.high = rec_pkt >> 32;
     entry->stats.imcast.high = rec_mcast >> 32;
     entry->stats.obytes.high = snd_oct >> 32;
     entry->stats.oucast.high = snd_pkt >> 32;
+#endif
     entry->stats.ierrors   = rec_err;
     entry->stats.idiscards = rec_drop;
     entry->stats.oerrors   = snd_err;
@@ -612,8 +601,6 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
     netsnmp_interface_entry *entry = NULL;
     static char     scan_expected = 0;
     int             fd;
-    int             interfaces = 0;
-    struct ifconf   ifc;
 #ifdef NETSNMP_ENABLE_IPV6
     netsnmp_container *addr_container;
 #endif
@@ -629,7 +616,7 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
     if (!(devin = fopen("/proc/net/dev", "r"))) {
         DEBUGMSGTL(("access:interface",
                     "Failed to load Interface Table (linux1)\n"));
-        snmp_log_perror("interface_linux: cannot open /proc/net/dev");
+        NETSNMP_LOGONCE((LOG_ERR, "cannot open /proc/net/dev ...\n"));
         return -2;
     }
 
@@ -638,7 +625,7 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
      */
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(fd < 0) {
-        snmp_log_perror("interface_linux: could not create socket");
+        snmp_log(LOG_ERR, "could not create socket\n");
         fclose(devin);
         return -2;
     }
@@ -659,8 +646,8 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
      * to detect the position of individual fields directly,
      * but I suspect this is probably more trouble than it's worth.
      */
-    NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), devin));
-    NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), devin));
+    fgets(line, sizeof(line), devin);
+    fgets(line, sizeof(line), devin);
 
     if( 0 == scan_expected ) {
         if (strstr(line, "compressed")) {
@@ -673,16 +660,6 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
                         "using linux 2.0 kernel /proc/net/dev\n"));
         }
     }
-
-    interfaces = netsnmp_access_ipaddress_ioctl_get_interface_count(fd, &ifc);
-    if (interfaces < 0) {
-        snmp_log(LOG_ERR,"get interface count failed\n");
-        fclose(devin);
-        close(fd);
-        return -2;
-    }
-    netsnmp_assert(NULL != ifc.ifc_buf);
-
 
     /*
      * The rest of the file provides the statistics for each interface.
@@ -721,12 +698,8 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
          */
         *stats++ = 0; /* null terminate name */
 
-	if (!netsnmp_access_interface_include(ifstart))
-		continue;
+        if_index = netsnmp_arch_interface_index_find(ifstart);
 
-	if (netsnmp_access_interface_max_reached(ifstart))
-		/* we may need to stop tracking ifaces if a max was set */
-		continue;
         /*
          * set address type flags.
          * the only way I know of to check an interface for
@@ -734,10 +707,9 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
          * knows a better way, put it here!
          */
 #ifdef NETSNMP_ENABLE_IPV6
-        if_index = netsnmp_arch_interface_index_find(ifstart);
         _arch_interface_has_ipv6(if_index, &flags, addr_container);
 #endif
-        netsnmp_access_interface_ioctl_has_ipv4(fd, ifstart, 0, &flags, &ifc);
+        netsnmp_access_interface_ioctl_has_ipv4(fd, ifstart, 0, &flags);
 
         /*
          * do we only want one address type?
@@ -761,7 +733,6 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
                                                     NETSNMP_ACCESS_INTERFACE_FREE_NOFLAGS);
             fclose(devin);
             close(fd);
-            free(ifc.ifc_buf);
             return -3;
         }
         entry->ns_flags = flags; /* initial flags; we'll set more later */
@@ -929,7 +900,6 @@ netsnmp_arch_interface_container_load(netsnmp_container* container,
 #endif
     fclose(devin);
     close(fd);
-    free(ifc.ifc_buf);
     return 0;
 }
 
@@ -954,29 +924,43 @@ netsnmp_arch_set_admin_status(netsnmp_interface_entry * entry,
 
 #ifdef HAVE_LINUX_ETHTOOL_H
 /**
- * Determines network interface speed from ETHTOOL_GLINKSETTINGS
- * In case of failure revert to obsolete ETHTOOL_GSET
+ * Determines network interface speed from ETHTOOL_GSET
  */
 unsigned long long
 netsnmp_linux_interface_get_if_speed(int fd, const char *name,
             unsigned long long defaultspeed)
 {
     int ret;
-    struct netsnmp_linux_link_settings nlls;
-    uint32_t speed = -1;
+    struct ifreq ifr;
+    struct ethtool_cmd edata;
+    uint16_t speed_hi;
+    uint32_t speed;
 
-    ret = netsnmp_get_link_settings(&nlls, fd, name);
-    if (ret < 0) {
+    memset(&ifr, 0, sizeof(ifr));
+    memset(&edata, 0, sizeof(edata));
+    edata.cmd = ETHTOOL_GSET;
+    
+    strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+    ifr.ifr_data = (char *) &edata;
+    
+    ret = ioctl(fd, SIOCETHTOOL, &ifr);
+    if (ret == -1 || edata.speed == 0) {
         DEBUGMSGTL(("mibII/interfaces", "ETHTOOL_GSET on %s failed (%d / %d)\n",
-                    name, ret, speed));
-        return netsnmp_linux_interface_get_if_speed_mii(fd, name, defaultspeed);
+                    ifr.ifr_name, ret, edata.speed));
+        return netsnmp_linux_interface_get_if_speed_mii(fd,name,defaultspeed);
     }
-    speed = nlls.speed;
+
+#ifdef HAVE_STRUCT_ETHTOOL_CMD_SPEED_HI
+    speed_hi = edata.speed_hi;
+#else
+    speed_hi = 0;
+#endif
+    speed = speed_hi << 16 | edata.speed;
     if (speed == 0xffff || speed == 0xffffffffUL /*SPEED_UNKNOWN*/)
         speed = defaultspeed;
     /* return in bps */
-    DEBUGMSGTL(("mibII/interfaces", "ETHTOOL_GSET on %s speed = %#x = %d\n",
-                name, speed, speed));
+    DEBUGMSGTL(("mibII/interfaces", "ETHTOOL_GSET on %s speed = %#x -> %d\n",
+                ifr.ifr_name, speed_hi << 16 | edata.speed, speed));
     return speed * 1000LL * 1000LL;
 }
 #endif
@@ -1080,7 +1064,7 @@ netsnmp_linux_interface_get_if_speed(int fd, const char *name,
 void netsnmp_prefix_process(int fd, void *data);
 
 /* Open netlink socket to watch new ipv6 addresses and prefixes. */
-int netsnmp_prefix_listen(void)
+int netsnmp_prefix_listen()
 {
     struct {
                 struct nlmsghdr n;

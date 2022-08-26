@@ -12,10 +12,6 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-#if HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 /*
  * include our parent header 
  */
@@ -290,7 +286,6 @@ dot3StatsTable_container_load(netsnmp_container * container)
         rowreq_ctx = dot3StatsTable_allocate_rowreq_ctx(NULL);
         if (NULL == rowreq_ctx) {
             snmp_log(LOG_ERR, "memory allocation for dot3StatsTable failed\n");
-            dot3stats_interface_name_list_free(list_head);
             close(fd);
             return MFD_RESOURCE_UNAVAILABLE;
         }
@@ -313,11 +308,6 @@ dot3StatsTable_container_load(netsnmp_container * container)
          */
 
         memset (&rowreq_ctx->data, 0, sizeof (rowreq_ctx->data));
-
-	interface_sysclassnet_dot3stats_get(rowreq_ctx, p->name);
-
-	interface_dot3stats_get_errorcounters(rowreq_ctx, p->name);
-
         rc = interface_ioctl_dot3stats_get (rowreq_ctx, fd, p->name);
 
         if (rc < 0) {
@@ -334,6 +324,10 @@ dot3StatsTable_container_load(netsnmp_container * container)
             dot3StatsTable_release_rowreq_ctx(rowreq_ctx);
             continue;
         }
+
+	interface_sysclassnet_dot3stats_get(rowreq_ctx, p->name);
+
+	interface_dot3stats_get_errorcounters(rowreq_ctx, p->name);
 
         /*
          * insert into table container

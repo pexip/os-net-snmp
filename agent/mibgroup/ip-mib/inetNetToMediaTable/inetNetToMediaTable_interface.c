@@ -47,18 +47,18 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(inetNetToMediaTable_external_access, libnetsnmpmibs);
+netsnmp_feature_child_of(inetNetToMediaTable_external_access, libnetsnmpmibs)
 
-netsnmp_feature_require(row_merge);
-netsnmp_feature_require(baby_steps);
-netsnmp_feature_require(table_container_row_insert);
-netsnmp_feature_require(check_all_requests_error);
+netsnmp_feature_require(row_merge)
+netsnmp_feature_require(baby_steps)
+netsnmp_feature_require(table_container_row_insert)
+netsnmp_feature_require(check_all_requests_error)
 
 
-netsnmp_feature_child_of(inetNetToMediaTable_container_size, inetNetToMediaTable_external_access);
-netsnmp_feature_child_of(inetNetToMediaTable_registration_set, inetNetToMediaTable_external_access);
-netsnmp_feature_child_of(inetNetToMediaTable_registration_get, inetNetToMediaTable_external_access);
-netsnmp_feature_child_of(inetNetToMediaTable_container_get, inetNetToMediaTable_external_access);
+netsnmp_feature_child_of(inetNetToMediaTable_container_size, inetNetToMediaTable_external_access)
+netsnmp_feature_child_of(inetNetToMediaTable_registration_set, inetNetToMediaTable_external_access)
+netsnmp_feature_child_of(inetNetToMediaTable_registration_get, inetNetToMediaTable_external_access)
+netsnmp_feature_child_of(inetNetToMediaTable_container_get, inetNetToMediaTable_external_access)
 
 /**********************************************************************
  **********************************************************************
@@ -292,12 +292,10 @@ _inetNetToMediaTable_initialize_interface(inetNetToMediaTable_registration
         netsnmp_handler_registration_create("inetNetToMediaTable", handler,
                                             inetNetToMediaTable_oid,
                                             inetNetToMediaTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP |
+                                            HANDLER_CAN_BABY_STEP
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                            HANDLER_CAN_RWRITE
-#else
-                                            HANDLER_CAN_RONLY
-#endif /* NETSNMP_DISABLE_SET_SUPPORT */
+                                          | HANDLER_CAN_RWRITE
+#endif
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table inetNetToMediaTable\n");

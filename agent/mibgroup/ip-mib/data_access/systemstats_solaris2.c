@@ -5,12 +5,11 @@
 #include <net-snmp/data_access/ipstats.h>
 #include <net-snmp/data_access/systemstats.h>
 
-#include "systemstats_private.h"
 #include "kernel_sunos5.h"
 
 static int _systemstats(mibgroup_e, netsnmp_container *, u_int);
 static void _add_ipstats(mib2_ipIfStatsEntry_t *, mib2_ipIfStatsEntry_t *);
-static int _insert_entry(netsnmp_container *, mib2_ipIfStatsEntry_t *, int);
+static int _insert_entry(netsnmp_container *, mib2_ipIfStatsEntry_t *);
 
 void
 netsnmp_access_systemstats_arch_init(void)
@@ -31,6 +30,9 @@ netsnmp_access_systemstats_container_arch_load(netsnmp_container* container,
     
     if (container == NULL)
         return (-1);
+
+    if (load_flags & NETSNMP_ACCESS_SYSTEMSTATS_LOAD_IFTABLE)
+	return 0; /* we do not support ipIfStatsTable yet */
 
     if ((rc = _systemstats(MIB_IP_TRAFFIC_STATS, container, load_flags)) < 0)
         return (rc);
@@ -61,19 +63,10 @@ _systemstats(mibgroup_e mib, netsnmp_container *container, u_int load_flags)
                       &Get_everything, NULL) == 0) { 
         req = GET_NEXT;
         netsnmp_assert(ipe.ipIfStatsIPVersion == ipversion);
-	if (ipe.ipIfStatsIfIndex == 0)
-	    continue;
-	if (load_flags & NETSNMP_ACCESS_SYSTEMSTATS_LOAD_IFTABLE) {
-	    if (_insert_entry(container, &ipe, ipe.ipIfStatsIfIndex) != 0)
-	        return -1;
-	}
-	else
         _add_ipstats(&iptot, &ipe);
     }
     iptot.ipIfStatsIPVersion = ipversion;
-    if (load_flags & NETSNMP_ACCESS_SYSTEMSTATS_LOAD_IFTABLE)
-        return 0;
-    return _insert_entry(container, &iptot, 0);
+    return _insert_entry(container, &iptot);
 }
 
 static void
@@ -131,18 +124,18 @@ _add_ipstats(mib2_ipIfStatsEntry_t *o1, mib2_ipIfStatsEntry_t *o2)
  * @retval -2 memory allocation error
  */
 static int 
-_insert_entry(netsnmp_container *container, mib2_ipIfStatsEntry_t *ipe, int index)
+_insert_entry(netsnmp_container *container, mib2_ipIfStatsEntry_t *ipe)
 {
     int i;
     
     netsnmp_systemstats_entry *ep =
-        netsnmp_access_systemstats_entry_create(ipe->ipIfStatsIPVersion, index,
+        netsnmp_access_systemstats_entry_create(ipe->ipIfStatsIPVersion, 0,
                 "ipSystemStatsTable"); 
 
     DEBUGMSGTL(("access:systemstats:arch", "insert entry for v%d\n",
                 ipe->ipIfStatsIPVersion)); 
     if (ep == NULL) {
-        DEBUGMSGT(("access:systemstats:arch", "insert failed (alloc)\n"));
+        DEBUGMSGT(("access:systemstats:arch", "insert failed (alloc)"));
         return (-2);
     }
 
@@ -212,7 +205,7 @@ _insert_entry(netsnmp_container *container, mib2_ipIfStatsEntry_t *ipe, int inde
         ep->stats.columnAvail[i] = 1;
     
     if (CONTAINER_INSERT(container, ep) < 0) {
-        DEBUGMSGT(("access:systemstats:arch", "unable to insert entry\n")); 
+        DEBUGMSGT(("access:systemstats:arch", "unable to insert entry")); 
         netsnmp_access_systemstats_entry_free(ep); 
         return (-1);
     }

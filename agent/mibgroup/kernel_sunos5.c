@@ -82,7 +82,7 @@ kstat_ctl_t    *kstat_fd = 0;
 static
 mibcache        Mibcache[MIBCACHE_SIZE+1] = {
     {MIB_SYSTEM, 0, (void *) -1, 0, 0, 0, 0},
-    {MIB_INTERFACES, 50 * sizeof(mib2_ifEntry_t), (void *) -1, 0, 3, 0,
+    {MIB_INTERFACES, 50 * sizeof(mib2_ifEntry_t), (void *) -1, 0, 30, 0,
      0},
     {MIB_AT, 0, (void *) -1, 0, 0, 0, 0},
     {MIB_IP, sizeof(mib2_ip_t), (void *) -1, 0, 60, 0, 0},
@@ -191,17 +191,19 @@ set_if_info(mib2_ifEntry_t *ifp, unsigned index, char *name, uint64_t flags,
             int mtu);
 static int get_if_stats(mib2_ifEntry_t *ifp);
 
-#if defined(HAVE_IF_NAMEINDEX)
+#if defined(HAVE_IF_NAMEINDEX) && defined(NETSNMP_INCLUDE_IFTABLE_REWRITES)
 static int _dlpi_open(const char *devname);
 static int _dlpi_get_phys_address(int fd, char *paddr, int maxlen,
                                   int *paddrlen);
 static int _dlpi_get_iftype(int fd, unsigned int *iftype);
 static int _dlpi_attach(int fd, int ppa);
 static int _dlpi_parse_devname(char *devname, int *ppap);
-#else
+#endif
+
+
+
 static int
 Name_cmp(void *, void *);
-#endif
 
 static void
 init_mibcache_element(mibcache * cp);
@@ -255,10 +257,14 @@ void
 init_kernel_sunos5(void)
 {
     static int creg   = 0;
-    const  int period = 3;
+    const  int period = 30;
     int    alarm_id   = 0;
 
     if (creg == 0) {
+	alarm_id = snmp_alarm_register(5, NULL, kernel_sunos5_cache_age,
+                                       NULL);
+	DEBUGMSGTL(("kernel_sunos5", "registered alarm %d with period 5s\n", 
+		    alarm_id));
 	alarm_id = snmp_alarm_register(period, SA_REPEAT, 
                                        kernel_sunos5_cache_age,
                                        (void *)period);
@@ -1066,10 +1072,11 @@ getmib(int groupname, int subgroupname, void **statbuf, size_t *size,
  * to be substituted later if SunSoft decides to extend its mib2 interface.
  */
 
-#if defined(HAVE_IF_NAMEINDEX)
+#if defined(HAVE_IF_NAMEINDEX) && defined(NETSNMP_INCLUDE_IFTABLE_REWRITES)
 
 /*
- * Use DLPI to obtain information from the NIC.
+ * If IFTABLE_REWRITES is enabled, then we will also rely on DLPI to obtain
+ * information from the NIC.
  */
 
 /*
@@ -1398,7 +1405,7 @@ getif(mib2_ifEntry_t *ifbuf, size_t size, req_e req_type,
      ifnp->if_index != 0 && (i < nentries); ifnp++) {
 
         DEBUGMSGTL(("kernel_sunos5", "...... getif %s\n", ifnp->if_name));
-        strlcpy(lifrp->lifr_name, ifnp->if_name, LIFNAMSIZ);
+        memcpy(lifrp->lifr_name, ifnp->if_name, LIFNAMSIZ);
         if_isv6 = B_FALSE;
 
         if (ioctl(ifsd, SIOCGLIFFLAGS, lifrp) < 0) {
@@ -1613,7 +1620,7 @@ getif(mib2_ifEntry_t *ifbuf, size_t size, req_e req_type,
     close(ifsd);
     return ret;
 }
-#endif /*defined(HAVE_IF_NAMEINDEX)*/
+#endif /*defined(HAVE_IF_NAMEINDEX)&&defined(NETSNMP_INCLUDE_IFTABLE_REWRITES)*/
 
 static void
 set_if_info(mib2_ifEntry_t *ifp, unsigned index, char *name, uint64_t flags,
@@ -1843,7 +1850,6 @@ Get_everything(void *x, void *y)
     return 0;             /* Always TRUE */
 }
 
-#if !defined(HAVE_IF_NAMEINDEX)
 /*
  * Compare name and IP address of the interface to ARP table entry.
  * Needed to obtain the physical address of the interface in getif.
@@ -1864,7 +1870,6 @@ Name_cmp(void *ifrp, void *ep)
 	return 1;
     }
 }
-#endif
 
 /*
  * Try to determine the index of a particular interface. If mfd-rewrites is
@@ -2065,3 +2070,20 @@ main(int argc, char **argv)
 }
 #endif /*_GETMIBSTAT_TEST */
 #endif                          /* SUNOS5 */
+
+
+/*-
+ * These variables describe the formatting of this file.  If you don't like the
+ * template defaults, feel free to change them here (not in your .emacs file).
+ *
+ * Local Variables:
+ * comment-column: 32
+ * c-indent-level: 4
+ * c-continued-statement-offset: 4
+ * c-brace-offset: -4
+ * c-argdecl-indent: 0
+ * c-label-offset: -4
+ * fill-column: 79
+ * fill-prefix: " * "
+ * End:
+ */

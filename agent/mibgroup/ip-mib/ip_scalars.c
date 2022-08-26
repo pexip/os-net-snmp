@@ -87,7 +87,7 @@ init_ip_scalars(void)
                              HANDLER_CAN_RWRITE));
 
     /* Initialize spin lock with random value */
-    ipAddressSpinLockValue = netsnmp_random();
+    ipAddressSpinLockValue = (int) random();
 
 }
 

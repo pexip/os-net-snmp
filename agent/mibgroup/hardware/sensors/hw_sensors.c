@@ -2,9 +2,10 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/hardware/sensors.h>
-#include "hw_sensors_private.h"
 
 
+extern NetsnmpCacheLoad netsnmp_sensor_arch_load;
+extern void             netsnmp_sensor_arch_init( void );
 static int  _sensor_load( void );
 static void _sensor_free( void );
 
@@ -167,7 +168,7 @@ sensor_by_name( const char *name, int create_type )
             free(sp);
             return NULL;
         }
-        strlcpy(sp->name, name, sizeof(sp->name));
+        strcpy( sp->name, name );
         sp->type = create_type;
         /*
          * Set up the index value.

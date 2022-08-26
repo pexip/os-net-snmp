@@ -106,13 +106,24 @@
 
 #include "struct.h"
 #include "extensible.h"
-#include "pass.h"
 #include "mibgroup/util_funcs.h"
 #include "utilities/execute.h"
 #include "util_funcs/header_simple_table.h"
 
-netsnmp_feature_require(get_exten_instance);
-netsnmp_feature_require(parse_miboid);
+netsnmp_feature_require(get_exten_instance)
+netsnmp_feature_require(parse_miboid)
+
+extern struct myproc *procwatch;        /* moved to proc.c */
+extern int      numprocs;       /* ditto */
+extern struct extensible *extens;       /* In exec.c */
+extern struct extensible *relocs;       /* In exec.c */
+extern int      numextens;      /* ditto */
+extern int      numrelocs;      /* ditto */
+extern struct extensible *passthrus;    /* In pass.c */
+extern int      numpassthrus;   /* ditto */
+extern netsnmp_subtree *subtrees;
+extern struct variable2 extensible_relocatable_variables[];
+extern struct variable2 extensible_passthru_variables[];
 
 /*
  * the relocatable extensible commands variables 
@@ -182,6 +193,8 @@ init_extensible(void)
                            extensible_unregister, NULL);
 }
 
+extern int pass_compare(const void *a, const void *b);
+
 void
 extensible_parse_config(const char *token, char *cptr)
 {
@@ -249,9 +262,7 @@ extensible_parse_config(const char *token, char *cptr)
         for (tcptr = cptr; *tcptr != 0 && *tcptr != '#'; tcptr++)
             if (*tcptr == ';' && ptmp->type == EXECPROC)
                 break;
-        free(ptmp->command);
-        if (asprintf(&ptmp->command, "%.*s", (int) (tcptr - cptr), cptr) < 0)
-            ptmp->command = NULL;
+        sprintf(ptmp->command, "%.*s", (int) (tcptr - cptr), cptr);
     }
 #ifdef NETSNMP_EXECFIXCMD
     sprintf(ptmp->fixcmd, NETSNMP_EXECFIXCMD, ptmp->name);
@@ -280,7 +291,7 @@ extensible_parse_config(const char *token, char *cptr)
         if (etmp == NULL)
             return;                 /* XXX memory alloc error */
         for (i = 0, ptmp = *pp;
-             i < scount && ptmp != NULL; i++, ptmp = ptmp->next)
+             i < scount && ptmp != 0; i++, ptmp = ptmp->next)
             etmp[i] = ptmp;
         qsort(etmp, scount, sizeof(struct extensible *),
               pass_compare);
@@ -418,7 +429,7 @@ var_extensible_shell(struct variable * vp,
                      size_t * var_len, WriteMethod ** write_method)
 {
 
-    static struct extensible *exten = NULL;
+    static struct extensible *exten = 0;
     static long     long_ret;
     int len;
 
@@ -496,14 +507,13 @@ fixExecError(int action,
         }
         tmp = *((long *) var_val);
         if ((tmp == 1) && (action == COMMIT) && (exten->fixcmd[0] != 0)) {
-            ex.command = strdup(exten->fixcmd);
+            strlcpy(ex.command, exten->fixcmd, sizeof(ex.command));
             if ((fd = get_exec_output(&ex)) != -1) {
                 file = fdopen(fd, "r");
                 while (fgets(ex.output, sizeof(ex.output), file) != NULL);
                 fclose(file);
                 wait_on_exec(&ex);
             }
-            free(ex.command);
         }
         return SNMP_ERR_NOERROR;
     }
@@ -520,7 +530,7 @@ var_extensible_relocatable(struct variable *vp,
 
     int             i;
     int             len;
-    struct extensible *exten = NULL;
+    struct extensible *exten = 0;
     static long     long_ret;
     static char     errmsg[STRMAX];
     char            *cp, *cp1;
@@ -633,7 +643,7 @@ find_extensible(netsnmp_subtree *tp, oid *tname, size_t tnamelen, int exact)
 {
     size_t          tmp;
     int             i;
-    struct extensible *exten = NULL;
+    struct extensible *exten = 0;
     struct variable myvp;
     oid             name[MAX_OID_LEN];
     static netsnmp_subtree mysubtree[2] =

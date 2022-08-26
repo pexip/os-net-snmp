@@ -320,8 +320,6 @@ expValueTable_handler(netsnmp_mib_handler *handler,
                                (u_char *)value->val.counter64, value->val_len);
                 break;
             }
-            /* remember to free the variable list, or we will leak here.. */
-            snmp_free_varbind(value);
         }
         break;
 

@@ -29,16 +29,16 @@
 
 #include <net-snmp/library/container_list_ssll.h>
 
-netsnmp_feature_child_of(container_linked_list, container_types);
-netsnmp_feature_child_of(container_fifo, container_types);
-netsnmp_feature_child_of(container_lifo, container_types);
+netsnmp_feature_child_of(container_linked_list, container_types)
+netsnmp_feature_child_of(container_fifo, container_types)
+netsnmp_feature_child_of(container_lifo, container_types)
 
 /* this is a fancy way of cleaning up ifdefs */
 #ifdef NETSNMP_FEATURE_REQUIRE_CONTAINER_FIFO
-netsnmp_feature_require(container_linked_list);
+netsnmp_feature_require(container_linked_list)
 #endif /* NETSNMP_FEATURE_REQUIRE_CONTAINER_FIFO */
 #ifdef NETSNMP_FEATURE_REQUIRE_CONTAINER_LIFO
-netsnmp_feature_require(container_linked_list);
+netsnmp_feature_require(container_linked_list)
 #endif /* NETSNMP_FEATURE_REQUIRE_CONTAINER_LIFO */
 
 #ifndef NETSNMP_FEATURE_REMOVE_CONTAINER_LINKED_LIST
@@ -139,15 +139,13 @@ static int
 _ssll_insert(netsnmp_container *c, const void *data)
 {
     sl_container *sl = (sl_container*)c;
-    sl_node  *new_node, *curr;
+    sl_node  *new_node, *curr = sl->head;
     
-    if (c == NULL)
+    if(NULL == c)
         return -1;
-
-    curr = sl->head;
-
+    
     new_node = SNMP_MALLOC_TYPEDEF(sl_node);
-    if (new_node == NULL)
+    if(NULL == new_node)
         return -1;
     new_node->data = NETSNMP_REMOVE_CONST(void *, data);
     ++sl->count;
@@ -210,15 +208,11 @@ static int
 _ssll_remove(netsnmp_container *c, const void *data)
 {
     sl_container *sl = (sl_container*)c;
-    sl_node  *curr;
+    sl_node  *curr = sl->head;
     
-    if (c == NULL)
+    if((NULL == c) || (NULL == curr))
         return -1;
-
-    curr = sl->head;
-    if (curr == NULL)
-        return -1;
-
+    
     /*
      * special case for NULL data, act like stack
      */
@@ -496,8 +490,11 @@ _ssll_iterator_last(ssll_iterator *it)
     if (NULL == n)
         return NULL;
 
-    while (n->next)
+    while(n->next)
         n = n->next;
+
+    if (NULL == n)
+        return NULL;
 
     it->last = n;
 

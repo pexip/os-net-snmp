@@ -186,9 +186,7 @@ main(int argc, char *argv[])
     int             running;
     int             status = STAT_ERROR;
     int             check;
-    int             exitval = 1;
-
-    SOCK_STARTUP;
+    int             exitval = 0;
 
     netsnmp_ds_register_config(ASN_BOOLEAN, "snmpwalk", "includeRequested",
 			       NETSNMP_DS_APPLICATION_ID, 
@@ -205,13 +203,12 @@ main(int argc, char *argv[])
      */
     switch (arg = snmp_parse_args(argc, argv, &session, "C:", optProc)) {
     case NETSNMP_PARSE_ARGS_ERROR:
-        goto out;
+        exit(1);
     case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
-        exitval = 0;
-        goto out;
+        exit(0);
     case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
-        goto out;
+        exit(1);
     default:
         break;
     }
@@ -226,7 +223,7 @@ main(int argc, char *argv[])
         rootlen = MAX_OID_LEN;
         if (snmp_parse_oid(argv[arg], root, &rootlen) == NULL) {
             snmp_perror(argv[arg]);
-            goto out;
+            exit(1);
         }
     } else {
         /*
@@ -235,6 +232,8 @@ main(int argc, char *argv[])
         memmove(root, objid_mib, sizeof(objid_mib));
         rootlen = sizeof(objid_mib) / sizeof(oid);
     }
+
+    SOCK_STARTUP;
 
     /*
      * open an SNMP session 
@@ -245,7 +244,8 @@ main(int argc, char *argv[])
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmpbulkwalk", &session);
-        goto out;
+        SOCK_CLEANUP;
+        exit(1);
     }
 
     /*
@@ -262,8 +262,6 @@ main(int argc, char *argv[])
 			       NETSNMP_DS_WALK_INCLUDE_REQUESTED)) {
         snmp_get_and_print(ss, root, rootlen);
     }
-
-    exitval = 0;
 
     while (running) {
         /*
@@ -306,7 +304,6 @@ main(int argc, char *argv[])
                             && snmp_oid_compare(name, name_length,
                                                 vars->name,
                                                 vars->name_length) >= 0) {
-                            fflush(stdout);
                             fprintf(stderr, "Error: OID not increasing: ");
                             fprint_objid(stderr, name, name_length);
                             fprintf(stderr, " >= ");
@@ -384,7 +381,6 @@ main(int argc, char *argv[])
         printf("Variables found: %d\n", numprinted);
     }
 
-out:
     SOCK_CLEANUP;
     return exitval;
 }

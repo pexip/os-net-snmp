@@ -79,6 +79,9 @@ struct variable2 expErrorTable_variables[] = {
      var_expErrorTable, 2, {1, 4}}
 };
 
+extern struct header_complex_index *expExpressionTableStorage;
+
+
 void
 init_expErrorTable(void)
 {

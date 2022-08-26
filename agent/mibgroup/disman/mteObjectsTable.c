@@ -19,7 +19,7 @@
 #endif
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry);
+netsnmp_feature_require(header_complex_find_entry)
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*
@@ -801,7 +801,7 @@ write_mteObjectsEntryStatus(int action,
          * permanently.  Make sure that anything done here can't fail! 
          */
         if (StorageDel != NULL) {
-            StorageDel = NULL;
+            StorageDel = 0;
             /*
              * XXX: free it, its dead 
              */

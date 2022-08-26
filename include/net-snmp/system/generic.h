@@ -17,6 +17,12 @@
 #define IFADDR_SYMBOL "in_ifaddr"
 
 /*
+ * nlist symbols in at.c 
+ */
+#define ARPTAB_SYMBOL "arptab"
+#define ARPTAB_SIZE_SYMBOL "arptab_size"
+
+/*
  * load average lookup symbol 
  */
 #define LOADAVE_SYMBOL "avenrun"

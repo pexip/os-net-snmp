@@ -29,6 +29,17 @@
  * SUCH DAMAGE.
  */
 
+#ifdef  INHERITED_CODE
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)inet.c	8.4 (Berkeley) 4/20/94";
+#else
+/*__RCSID("$OpenBSD: inet6.c,v 1.31 2004/11/17 01:47:20 itojun Exp $");*/
+/*__RCSID("KAME Id: inet6.c,v 1.10 2000/02/09 10:49:31 itojun Exp");*/
+#endif
+#endif /* not lint */
+#endif
+
 #include <net-snmp/net-snmp-config.h>
 
 #if HAVE_UNISTD_H
@@ -219,14 +230,10 @@ tcpxprotopr(const char *name)
     snmp_varlist_add_variable( &var, tcpConnectionState_oid,
                                      tcpConnectionState_len,
                                      ASN_NULL, NULL,  0);
-    if (netsnmp_query_walk( var, ss ) != SNMP_ERR_NOERROR) {
-        snmp_free_varbind(var);
+    if (netsnmp_query_walk( var, ss ) != SNMP_ERR_NOERROR)
         return;
-    }
-    if ((var->type & 0xF0) == 0x80) {	/* Exception */
-        snmp_free_varbind(var);
+    if ((var->type & 0xF0) == 0x80)	/* Exception */
         return;
-    }
 
     for (vp = var; vp ; vp=vp->next_variable) {
 	char lname[5];
@@ -368,14 +375,10 @@ udpxprotopr(const char *name)
     snmp_varlist_add_variable( &var, udpEndpointProcess_oid,
                                      udpEndpointProcess_len,
                                      ASN_NULL, NULL,  0);
-    if (netsnmp_query_walk( var, ss ) != SNMP_ERR_NOERROR) {
-	snmp_free_varbind(var);
+    if (netsnmp_query_walk( var, ss ) != SNMP_ERR_NOERROR)
         return;
-    }
-    if ((var->type & 0xF0) == 0x80) {	/* Exception */
-	snmp_free_varbind(var);
+    if ((var->type & 0xF0) == 0x80)	/* Exception */
         return;
-    }
 
     printf("Active Internet (%s) Connections\n", "udp");
     printf("%-5.5s %-27.27s %-27.27s %5s\n", "Proto", "Local Address", "Remote Address", "PID");
