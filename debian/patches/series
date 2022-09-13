@@ -37,3 +37,5 @@ snmpd_conf_5_ro_extend
 Link-libnetsnmptrapd-against-MYSQL_LIBS.patch
 pkgconfig_install_mode
 perl_makefile_man3pods
+snmpd_fix_bounds_checking
+snmpd_recover_set_status
