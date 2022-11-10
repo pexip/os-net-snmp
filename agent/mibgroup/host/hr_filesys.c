@@ -205,7 +205,7 @@ struct mntent  *HRFS_entry;
 #define	FULL_DUMP	0
 #define	PART_DUMP	1
 
-static u_char  *when_dumped(char *filesys, int level, size_t * length);
+static u_char *when_dumped(const char *filesys, int level, size_t *length);
 
         /*********************
 	 *
@@ -622,7 +622,7 @@ Init_HR_FileSys(void)
 #if defined(HAVE_STATVFS) && defined(__NetBSD__)
     fscount = getvfsstat(NULL, 0, ST_NOWAIT);
 #else
-    fscount = getfsstat(NULL, 0, MNT_NOWAIT);
+    fscount = getfsstat(NULL, 0, MNT_WAIT);
 #endif
     if (fsstats)
         free((char *) fsstats);
@@ -631,7 +631,7 @@ Init_HR_FileSys(void)
 #if defined(HAVE_STATVFS) && defined(__NetBSD__)
     getvfsstat(fsstats, fscount * sizeof(*fsstats), ST_NOWAIT);
 #else
-    getfsstat(fsstats, fscount * sizeof(*fsstats), MNT_NOWAIT);
+    getfsstat(fsstats, fscount * sizeof(*fsstats), MNT_WAIT);
 #endif
     HRFS_index = 0;
 #elif defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
@@ -866,7 +866,7 @@ End_HR_FileSys(void)
 
 
 static u_char  *
-when_dumped(char *filesys, int level, size_t * length)
+when_dumped(const char *filesys, int level, size_t *length)
 {
     time_t          dumpdate = 0, tmp;
     FILE           *dump_fp;

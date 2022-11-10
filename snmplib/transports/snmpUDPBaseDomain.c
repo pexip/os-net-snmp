@@ -27,19 +27,19 @@
 #else
 #include <strings.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_NET_IF_H
+#ifdef HAVE_NET_IF_H
 #include <net/if.h>
 #endif
-#if HAVE_ARPA_INET_H
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#if HAVE_NETDB_H
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
-#if HAVE_SYS_UIO_H
+#ifdef HAVE_SYS_UIO_H
 #include <sys/uio.h>
 #endif
 #ifdef WIN32
@@ -533,9 +533,6 @@ netsnmp_udpbase_send(netsnmp_transport *t, const void *buf, int size,
 void
 netsnmp_udp_base_ctor(void)
 {
-    netsnmp_static_assert(sizeof(in_addr_t) ==
-                          sizeof((struct sockaddr_in *)NULL)->sin_addr);
-
 #if defined(WIN32) && defined(HAVE_IP_PKTINFO)
     SOCKET s = socket(AF_INET, SOCK_DGRAM, 0);
     GUID WSARecvMsgGuid = WSAID_WSARECVMSG;
@@ -543,6 +540,8 @@ netsnmp_udp_base_ctor(void)
     DWORD nbytes;
     int result;
 
+    netsnmp_static_assert(sizeof(in_addr_t) ==
+                          sizeof((struct sockaddr_in *)NULL)->sin_addr);
     netsnmp_assert(s != SOCKET_ERROR);
     /* WSARecvMsg(): Windows XP / Windows Server 2003 and later */
     result = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,

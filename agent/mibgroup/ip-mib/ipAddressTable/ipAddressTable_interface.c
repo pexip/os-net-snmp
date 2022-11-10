@@ -1010,7 +1010,7 @@ _mfd_ipAddressTable_get_values(netsnmp_mib_handler *handler,
 
         /*
          * if the buffer wasn't used previously for the old data (i.e. it
-         * was allcoated memory)  and the get routine replaced the pointer,
+         * was allocated memory)  and the get routine replaced the pointer,
          * we need to free the previous pointer.
          */
         if (old_string && (old_string != requests->requestvb->buf) &&
@@ -1065,10 +1065,7 @@ _ipAddressTable_check_indexes(ipAddressTable_rowreq_ctx * rowreq_ctx)
     /*
      * check defined range(s). 
      */
-    if ((SNMPERR_SUCCESS == rc)
-        && ((rowreq_ctx->tbl_idx.ipAddressAddr_len < 0)
-            || (rowreq_ctx->tbl_idx.ipAddressAddr_len > 255))
-        ) {
+    if (rc == SNMPERR_SUCCESS && rowreq_ctx->tbl_idx.ipAddressAddr_len > 255) {
         rc = SNMP_ERR_WRONGLENGTH;
     }
     if (MFD_SUCCESS != rc)
@@ -1991,11 +1988,8 @@ _container_free(netsnmp_container *container)
 {
     DEBUGMSGTL(("internal:ipAddressTable:_container_free", "called\n"));
 
-    if (NULL == container) {
-        snmp_log(LOG_ERR,
-                 "invalid container in ipAddressTable_container_free\n");
+    if (!container)
         return;
-    }
 
     /*
      * call user code

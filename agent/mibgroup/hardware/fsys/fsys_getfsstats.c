@@ -119,11 +119,11 @@ netsnmp_fsys_arch_load( void )
     /*
      * Retrieve information about the currently mounted filesystems...
      */
-    n = NSFS_GETFSSTAT( NULL, 0, MNT_NOWAIT );
+    n = NSFS_GETFSSTAT( NULL, 0, MNT_WAIT );
     if ( n==0 )
         return;
     stats = (struct NSFS_STATFS *)malloc( n * sizeof( struct NSFS_STATFS ));
-    n = NSFS_GETFSSTAT( stats, n * sizeof( struct NSFS_STATFS ), MNT_NOWAIT );
+    n = NSFS_GETFSSTAT( stats, n * sizeof( struct NSFS_STATFS ), MNT_WAIT );
 
     /*
      * ... and insert this into the filesystem container.
@@ -135,9 +135,7 @@ netsnmp_fsys_arch_load( void )
             continue;
 
         strlcpy( entry->path,   stats[i].f_mntonname,   sizeof(entry->path));
-        entry->path[sizeof(entry->path)-1] = '\0';
         strlcpy( entry->device, stats[i].f_mntfromname, sizeof(entry->device));
-        entry->device[sizeof(entry->device)-1] = '\0';
         entry->units = stats[i].f_bsize;    /* or f_frsize */
         entry->size  = stats[i].f_blocks;
         entry->used  = (stats[i].f_blocks - stats[i].f_bfree);
