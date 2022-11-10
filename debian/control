@@ -21,7 +21,7 @@ Standards-Version: 4.4.1
 Vcs-Git: https://salsa.debian.org/debian/net-snmp.git
 Vcs-Browser: https://salsa.debian.org/debian/net-snmp
 Homepage: http://net-snmp.sourceforge.net/
-XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
+XS-Pexip-Upstream: http://deb.debian.org/debian/ bookworm
 
 Package: snmpd
 Architecture: any
