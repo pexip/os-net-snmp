@@ -69,7 +69,7 @@ SOFTWARE.
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #if TIME_WITH_SYS_TIME
@@ -90,7 +90,7 @@ SOFTWARE.
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_SYS_SELECT_H
+#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 
@@ -1197,7 +1197,7 @@ sprint_realloc_timeticks(u_char ** buf, size_t * buf_len, size_t * out_len,
 
     if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_NUMERIC_TIMETICKS)) {
         char            str[32];
-        sprintf(str, "%lu", *(u_long *) var->val.integer);
+        snprintf(str, sizeof(str), "%lu", *(u_long *) var->val.integer);
         if (!snmp_strcat
             (buf, buf_len, out_len, allow_realloc, (const u_char *) str)) {
             return 0;
@@ -1206,7 +1206,8 @@ sprint_realloc_timeticks(u_char ** buf, size_t * buf_len, size_t * out_len,
     }
     if (!netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_QUICK_PRINT)) {
         char            str[32];
-        sprintf(str, "Timeticks: (%lu) ", *(u_long *) var->val.integer);
+        snprintf(str, sizeof(str), "Timeticks: (%lu) ",
+                 *(u_long *) var->val.integer);
         if (!snmp_strcat
             (buf, buf_len, out_len, allow_realloc, (const u_char *) str)) {
             return 0;
@@ -1387,7 +1388,7 @@ sprint_realloc_integer(u_char ** buf, size_t * buf_len, size_t * out_len,
             }
         } else {
             char            str[32];
-            sprintf(str, "%ld", *var->val.integer);
+            snprintf(str, sizeof(str), "%ld", *var->val.integer);
             if (!snmp_strcat
                 (buf, buf_len, out_len, allow_realloc,
                  (const u_char *) str)) {
@@ -1402,7 +1403,7 @@ sprint_realloc_integer(u_char ** buf, size_t * buf_len, size_t * out_len,
         }
     } else {
         char            str[32];
-        sprintf(str, "(%ld)", *var->val.integer);
+        snprintf(str, sizeof(str), "(%ld)", *var->val.integer);
         if (!snmp_strcat
             (buf, buf_len, out_len, allow_realloc,
              (const u_char *) enum_string)) {
@@ -1484,7 +1485,7 @@ sprint_realloc_uinteger(u_char ** buf, size_t * buf_len, size_t * out_len,
             }
         } else {
             char            str[32];
-            sprintf(str, "%lu", *var->val.integer);
+            snprintf(str, sizeof(str), "%lu", *var->val.integer);
             if (!snmp_strcat
                 (buf, buf_len, out_len, allow_realloc,
                  (const u_char *) str)) {
@@ -1499,7 +1500,7 @@ sprint_realloc_uinteger(u_char ** buf, size_t * buf_len, size_t * out_len,
         }
     } else {
         char            str[32];
-        sprintf(str, "(%lu)", *var->val.integer);
+        snprintf(str, sizeof(str), "(%lu)", *var->val.integer);
         if (!snmp_strcat
             (buf, buf_len, out_len, allow_realloc,
              (const u_char *) enum_string)) {
@@ -1908,7 +1909,7 @@ sprint_realloc_bitstring(u_char ** buf, size_t * buf_len, size_t * out_len,
                         netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
                                        NETSNMP_DS_LIB_PRINT_NUMERIC_ENUM)) {
                         char            str[32];
-                        sprintf(str, "%d ", (len * 8) + bit);
+                        snprintf(str, sizeof(str), "%d ", (len * 8) + bit);
                         if (!snmp_strcat
                             (buf, buf_len, out_len, allow_realloc,
                              (const u_char *) str)) {
@@ -1916,7 +1917,7 @@ sprint_realloc_bitstring(u_char ** buf, size_t * buf_len, size_t * out_len,
                         }
                     } else {
                         char            str[32];
-                        sprintf(str, "(%d) ", (len * 8) + bit);
+                        snprintf(str, sizeof(str), "(%d) ", (len * 8) + bit);
                         if (!snmp_strcat
                             (buf, buf_len, out_len, allow_realloc,
                              (const u_char *) enum_string)) {
@@ -2222,15 +2223,17 @@ handle_mibs_conf(const char *token, char *line)
 
     if (confmibs) {
         if ((*line == '+') || (*line == '-')) {
-            ctmp = (char *) malloc(strlen(confmibs) + strlen(line) + 2);
-            if (!ctmp) {
+            int res;
+
+            res = *line++ == '+' ?
+                /* Add specified dirs after existing ones */
+                asprintf(&ctmp, "%s%c%s", confmibs, ENV_SEPARATOR_CHAR, line) :
+                /* Add specified dirs before existing ones */
+                asprintf(&ctmp, "%s%c%s", line, ENV_SEPARATOR_CHAR, confmibs);
+            if (res < 0) {
                 DEBUGMSGTL(("read_config:initmib", "mibs conf malloc failed"));
                 return;
             }
-            if(*line++ == '+')
-                sprintf(ctmp, "%s%c%s", confmibs, ENV_SEPARATOR_CHAR, line);
-            else
-                sprintf(ctmp, "%s%c%s", line, ENV_SEPARATOR_CHAR, confmibdir);
         } else {
             ctmp = strdup(line);
             if (!ctmp) {
@@ -2488,7 +2491,7 @@ register_mib_handlers(void)
                                     "[mib-dirs|+mib-dirs|-mib-dirs]");
     register_prenetsnmp_mib_handler("snmp", "mibs",
                                     handle_mibs_conf, NULL,
-                                    "[mib-tokens|+mib-tokens]");
+                                    "[mib-tokens|+mib-tokens|-mib-tokens]");
     register_config_handler("snmp", "mibfile",
                             handle_mibfile_conf, NULL, "mibfile-to-read");
     /*
@@ -3005,7 +3008,7 @@ set_function(struct tree *subtree)
  * When called, out_len must hold the maximum length of the output array.
  *
  * @param input     the input string.
- * @param output    the oid wirte.
+ * @param output    the oid write.
  * @param out_len   number of subid's in output.
  * 
  * @return 1 if successful.
@@ -3016,7 +3019,7 @@ set_function(struct tree *subtree)
  */
 int
 read_objid(const char *input, oid * output, size_t * out_len)
-{                               /* number of subid's in "output" */
+{
 #ifndef NETSNMP_DISABLE_MIB_LOADING
     struct tree    *root = tree_top;
     char            buf[SPRINT_MAX_LEN];
@@ -3723,13 +3726,13 @@ build_oid_segment(netsnmp_variable_list * var)
  * Concatenate a prefix and the OIDs of a variable list.
  *
  * @param[out]    in         Output buffer.
- * @param[in]     in_len     Maximum number of OID components that fit in @in.
+ * @param[in]     in_len     Maximum number of OID components that fit in @p in.
  * @param[out]    out_len    Number of OID components of the result.
  * @param[in]     prefix     OID to be copied to the start of the output buffer.
- * @param[in]     prefix_len Number of OID components to copy from @prefix.
- * @param[in/out] indexes    Variable list for which var->name should be set
+ * @param[in]     prefix_len Number of OID components to copy from @p prefix.
+ * @param[in,out] indexes    Variable list for which var->name should be set
  *                           for each variable var in the list and whose OIDs
- *                           should be appended to @in.
+ *                           should be appended to @p in.
  */
 int
 build_oid_noalloc(oid * in, size_t in_len, size_t * out_len,
@@ -4024,7 +4027,7 @@ dump_realloc_oid_to_inetaddress(const int addr_type, const oid * objid, size_t o
         return 1;
 
     for (i = 0; i < objidlen; i++)
-        if (objid[i] < 0 || objid[i] > 255)
+        if (objid[i] > 255)
             return 2;
 
     p = intbuf;
@@ -4942,9 +4945,9 @@ print_tree_node(u_char ** buf, size_t * buf_len,
             cp = NULL;
             break;
         }
-#if NETSNMP_ENABLE_TESTING_CODE
+#ifdef NETSNMP_ENABLE_TESTING_CODE
         if (!cp && (tp->ranges || tp->enums)) { /* ranges without type ? */
-            sprintf(str, "?0 with %s %s ?",
+            snprintf(str, sizeof(str), "?0 with %s %s ?",
                     tp->ranges ? "Range" : "", tp->enums ? "Enum" : "");
             cp = str;
         }
@@ -4964,21 +4967,23 @@ print_tree_node(u_char ** buf, size_t * buf_len,
                 case TYPE_INTEGER:
                 case TYPE_INTEGER32:
                     if (rp->low == rp->high)
-                        sprintf(str, "%s%d", (first ? "" : " | "), rp->low );
+                        snprintf(str, sizeof(str), "%s%d", first ? "" : " | ",
+                                 rp->low );
                     else
-                        sprintf(str, "%s%d..%d", (first ? "" : " | "),
-                                rp->low, rp->high);
+                        snprintf(str, sizeof(str), "%s%d..%d",
+                                 first ? "" : " | ", rp->low, rp->high);
                     break;
                 case TYPE_UNSIGNED32:
                 case TYPE_OCTETSTR:
                 case TYPE_GAUGE:
                 case TYPE_UINTEGER:
                     if (rp->low == rp->high)
-                        sprintf(str, "%s%u", (first ? "" : " | "),
+                        snprintf(str, sizeof(str), "%s%u", first ? "" : " | ",
                                 (unsigned)rp->low );
                     else
-                        sprintf(str, "%s%u..%u", (first ? "" : " | "),
-                                (unsigned)rp->low, (unsigned)rp->high);
+                        snprintf(str, sizeof(str), "%s%u..%u",
+                                 first ? "" : " | ", (unsigned)rp->low,
+                                 (unsigned)rp->high);
                     break;
                 default:
                     /* No other range types allowed */
@@ -5060,7 +5065,7 @@ print_tree_node(u_char ** buf, size_t * buf_len,
             cp = NULL;
             break;
         default:
-            sprintf(str, "access_%d", tp->access);
+            snprintf(str, sizeof(str), "access_%d", tp->access);
             cp = str;
         }
         if (cp)
@@ -5089,12 +5094,13 @@ print_tree_node(u_char ** buf, size_t * buf_len,
             cp = NULL;
             break;
         default:
-            sprintf(str, "status_%d", tp->status);
+            snprintf(str, sizeof(str), "status_%d", tp->status);
             cp = str;
         }
-#if NETSNMP_ENABLE_TESTING_CODE
+#ifdef NETSNMP_ENABLE_TESTING_CODE
         if (!cp && (tp->indexes)) {     /* index without status ? */
-            sprintf(str, "?0 with %s ?", tp->indexes ? "Index" : "");
+            snprintf(str, sizeof(str), "?0 with %s ?",
+                     tp->indexes ? "Index" : "");
             cp = str;
         }
 #endif                          /* NETSNMP_ENABLE_TESTING_CODE */
@@ -5268,13 +5274,13 @@ get_module_node(const char *fname,
 static int
 node_to_oid(struct tree *tp, oid * objid, size_t * objidlen)
 {
-    int             numids, lenids;
+    size_t          numids, lenids;
     oid            *op;
 
     if (!tp || !objid || !objidlen)
         return 0;
 
-    lenids = (int) *objidlen;
+    lenids = *objidlen;
     op = objid + lenids;        /* points after the last element */
 
     for (numids = 0; tp; tp = tp->parent, numids++) {
@@ -5284,7 +5290,7 @@ node_to_oid(struct tree *tp, oid * objid, size_t * objidlen)
         *op = tp->subid;
     }
 
-    *objidlen = (size_t) numids;
+    *objidlen = numids;
     if (numids > lenids) {
         return 0;
     }
@@ -5292,7 +5298,7 @@ node_to_oid(struct tree *tp, oid * objid, size_t * objidlen)
     if (numids < lenids)
         memmove(objid, op, numids * sizeof(oid));
 
-    return (numids);
+    return numids;
 }
 
 /*
@@ -5677,6 +5683,8 @@ _add_strings_to_oid(void *tp, char *cp,
         case '"':
         case '\'':
             doingquote = *cp++;
+            if (*cp == '\0')
+                goto bad_id;
             /*
              * insert length if requested 
              */
@@ -6087,8 +6095,7 @@ snmp_parse_oid(const char *argv, oid * root, size_t * rootlen)
 #ifndef NETSNMP_DISABLE_MIB_LOADING
     size_t          savlen = *rootlen;
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
-    static size_t   tmpbuf_len = 0;
-    static char    *tmpbuf = NULL;
+    char           *tmpbuf = NULL;
     const char     *suffix, *prefix;
 
     suffix = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
@@ -6100,53 +6107,48 @@ snmp_parse_oid(const char *argv, oid * root, size_t * rootlen)
             suffix = "";
         if (!prefix)
             prefix = "";
-        if ((strlen(suffix) + strlen(prefix) + strlen(argv) + 2) > tmpbuf_len) {
-            tmpbuf_len = strlen(suffix) + strlen(argv) + strlen(prefix) + 2;
-            tmpbuf = malloc(tmpbuf_len);
+        if (asprintf(&tmpbuf, "%s%s%s%s", prefix, argv,
+                     suffix[0] == '.' || suffix[0] == '\0' ? "" : ".",
+                     suffix) < 0) {
+            DEBUGMSGTL(("snmp_parse_oid", "Out of memory\n"));
+            return NULL;
         }
-        snprintf(tmpbuf, tmpbuf_len, "%s%s%s%s", prefix, argv,
-                 ((suffix[0] == '.' || suffix[0] == '\0') ? "" : "."),
-                 suffix);
         argv = tmpbuf;
         DEBUGMSGTL(("snmp_parse_oid","Parsing: %s\n",argv));
     }
 
 #ifndef NETSNMP_DISABLE_MIB_LOADING
-    if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_RANDOM_ACCESS)
+    if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
+                               NETSNMP_DS_LIB_RANDOM_ACCESS)
         || strchr(argv, ':')) {
-        if (get_node(argv, root, rootlen)) {
-            free(tmpbuf);
-            return root;
-        }
-    } else if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_REGEX_ACCESS)) {
+        if (get_node(argv, root, rootlen))
+            goto out;
+    } else if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
+                                      NETSNMP_DS_LIB_REGEX_ACCESS)) {
 	clear_tree_flags(tree_head);
-        if (get_wild_node(argv, root, rootlen)) {
-            free(tmpbuf);
-            return root;
-        }
+        if (get_wild_node(argv, root, rootlen))
+            goto out;
     } else {
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
-        if (read_objid(argv, root, rootlen)) {
-            free(tmpbuf);
-            return root;
-        }
+        if (read_objid(argv, root, rootlen))
+            goto out;
 #ifndef NETSNMP_DISABLE_MIB_LOADING
         *rootlen = savlen;
-        if (get_node(argv, root, rootlen)) {
-            free(tmpbuf);
-            return root;
-        }
+        if (get_node(argv, root, rootlen))
+            goto out;
         *rootlen = savlen;
         DEBUGMSGTL(("parse_oid", "wildly parsing\n"));
 	clear_tree_flags(tree_head);
-        if (get_wild_node(argv, root, rootlen)) {
-            free(tmpbuf);
-            return root;
-        }
+        if (get_wild_node(argv, root, rootlen))
+            goto out;
     }
 #endif /* NETSNMP_DISABLE_MIB_LOADING */
+
+    root = NULL;
+
+out:
     free(tmpbuf);
-    return NULL;
+    return root;
 }
 
 #ifndef NETSNMP_DISABLE_MIB_LOADING

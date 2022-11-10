@@ -1,12 +1,12 @@
 [Unit]
 Description=Simple Network Management Protocol (SNMP) Daemon.
-After=network.target
+After=network-online.target
 ConditionPathExists=/etc/snmp/snmpd.conf
 
 [Service]
-Type=simple
-ExecStartPre=/bin/mkdir -p /var/run/agentx
-ExecStart=/usr/sbin/snmpd -LOw -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf -f -p /run/snmpd.pid
+Type=notify
+RuntimeDirectory=agentx
+ExecStart=/usr/sbin/snmpd -LOw -u Debian-snmp -g Debian-snmp -I -smux,mteTrigger,mteTriggerConf -f
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]

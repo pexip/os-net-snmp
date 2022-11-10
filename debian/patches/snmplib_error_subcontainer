@@ -9,7 +9,7 @@ Reviewed-by: Craig Small <csmall@debian.org>
 Last-Update: 2019-10-10
 --- a/snmplib/container.c
 +++ b/snmplib/container.c
-@@ -332,8 +332,8 @@
+@@ -344,8 +344,8 @@
      if(x) {
          int rc = x->insert(x,k);
          if(rc)

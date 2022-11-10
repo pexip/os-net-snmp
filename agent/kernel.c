@@ -32,10 +32,10 @@
 #if HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_KVM_H
+#ifdef HAVE_KVM_H
 #include <kvm.h>
 #endif
 
@@ -44,7 +44,7 @@
 #include "kernel.h"
 #include <net-snmp/agent/ds_agent.h>
 
-#if HAVE_KVM_H
+#if defined(HAVE_KVM_H) && !defined(NETSNMP_NO_KMEM_USAGE)
 kvm_t *kd;
 
 /**
@@ -130,7 +130,8 @@ free_kmem(void)
     }
 }
 
-#elif defined(HAVE_NLIST_H) && !defined(__linux__)
+#elif defined(HAVE_NLIST_H) && !defined(__linux__) &&   \
+    !defined(NETSNMP_NO_KMEM_USAGE)
 
 static off_t    klseek(off_t);
 static int      klread(char *, int);

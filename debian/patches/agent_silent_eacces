@@ -6,7 +6,7 @@ Author: Craig Small <csmall@debian.org>
 Origin: Debian
 Bug-Debian: https://bugs.debian.org/792832
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2020-08-21
+Last-Update: 2021-09-20
 --- a/agent/mibgroup/hardware/fsys/fsys_mntent.c
 +++ b/agent/mibgroup/hardware/fsys/fsys_mntent.c
 @@ -6,6 +6,7 @@
@@ -17,7 +17,7 @@ Last-Update: 2020-08-21
  #if HAVE_MNTENT_H
  #include <mntent.h>
  #endif
-@@ -264,7 +265,10 @@
+@@ -269,7 +270,10 @@
  
              if (!logged &&
                  asprintf(&tmpbuf, "Cannot statfs %s", entry->path) >= 0) {

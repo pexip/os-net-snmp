@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#if HAVE_SYSLOG_H
+#ifdef HAVE_SYSLOG_H
 #include <syslog.h>
 #ifndef LOG_CONS                /* Interesting Ultrix feature */
 #include <sys/syslog.h>
@@ -57,7 +57,7 @@
 #  include <time.h>
 # endif
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 
@@ -996,11 +996,11 @@ netsnmp_register_loghandler( int type, int priority )
 
     logh->type     = type;
     switch ( type ) {
+#ifndef NETSNMP_FEATURE_REMOVE_LOGGING_STDIO
     case NETSNMP_LOGHANDLER_STDOUT:
         logh->imagic  = 1;
         logh->handler = log_handler_stdouterr;
         break;
-#ifndef NETSNMP_FEATURE_REMOVE_LOGGING_STDIO
     case NETSNMP_LOGHANDLER_STDERR:
         logh->handler = log_handler_stdouterr;
         break;

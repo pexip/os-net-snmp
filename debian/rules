@@ -7,7 +7,7 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 LIB_VERSION = 40
 
 MIB_MODULES = smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib
-EXCL_MIB_MODULES = 
+EXCL_MIB_MODULES =
 
 MIBS_DIR="/usr/share/snmp/mibs:/usr/share/snmp/mibs/iana:/usr/share/snmp/mibs/ietf"
 
@@ -53,8 +53,12 @@ override_dh_auto_configure:
 	  --with-mnttab=/etc/mtab \
 	  --with-mibdirs="\$$HOME/.snmp/mibs:$(MIBS_DIR)" \
 	  --without-mysql \
-	  --with-defaults \
-	  --disable-md5
+	  --disable-md5 \
+	  --with-systemd \
+	  --enable-blumenthal-aes \
+	  UNAMEPROG=/bin/uname \
+	  PSPROG=/bin/ps \
+	  --with-defaults
 # --with-dnssec-local-validation  # not enabled since libval doesn't exist in Debian yet
 
 override_dh_clean:
@@ -84,15 +88,11 @@ override_dh_installdocs:
 override_dh_fixperms-arch:
 	dh_fixperms
 	chmod -x debian/libsnmp-dev/etc/snmp/*.conf
-	chmod 600 debian/snmpd/etc/snmp/snmp*d.conf
+	chmod 640 debian/snmpd/etc/snmp/snmp*d.conf
 
 override_dh_auto_test:
 	# prevent test since it fails with network configuration under pbuilder/etc.
 	true
-
-override_dh_installsystemd:
-	dh_installsystemd -psnmptrapd --no-enable --no-start
-	dh_installsystemd -Nsnmptrapd
 
 override_dh_installinit:
 	dh_installinit -psnmptrapd --no-enable --no-start

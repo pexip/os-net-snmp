@@ -41,6 +41,7 @@ sub NetSNMPGetOpts {
 	$ret{'define'}   = $ENV{'NET-SNMP-DEFINE'};
 	$ret{'inc'}      = $ENV{'NET-SNMP-INC'};
 	$ret{'cflags'}   = $ENV{'NET-SNMP-CFLAGS'};
+	# $ret{'prefix'} is not used on Windows.
     } else {
 	# don't have env vars, pull from command line and put there
 	GetOptions("NET-SNMP-CONFIG=s"    => \$ret{'nsconfig'},
@@ -113,6 +114,9 @@ sub AddCommonParams {
 	my $cflags = `$opts->{'nsconfig'} --cflags` or
 	    die "net-snmp-config failed\n";
 	chomp($cflags);
+	# Remove -Wimplicit-fallthrough since it is not supported by older
+	# versions of gcc.
+	$cflags =~ s/-Wimplicit-fallthrough=[0-9]//g;
 	append($Params->{'CCFLAGS'}, $cflags);
 	append($Params->{'CCFLAGS'}, $Config{'ccflags'});
 	# Suppress known Perl header shortcomings.

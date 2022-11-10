@@ -181,7 +181,7 @@ SOFTWARE.
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 
@@ -301,16 +301,13 @@ _asn_length_err(const char *str, size_t wrongsize, size_t rightsize)
  * @param wrongsize  wrong  length
  * @param rightsize  expected length
  */
-static
-    void
+static void
 _asn_short_err(const char *str, size_t wrongsize, size_t rightsize)
 {
     char            ebuf[128];
 
-    snprintf(ebuf, sizeof(ebuf),
-            "%s length %lu too short: need %lu", str,
+    snprintf(ebuf, sizeof(ebuf), "%s length %lu too short: need %lu", str,
 	    (unsigned long)wrongsize, (unsigned long)rightsize);
-    ebuf[ sizeof(ebuf)-1 ] = 0;
     ERROR_MSG(ebuf);
 }
 
@@ -348,7 +345,7 @@ asn_parse_nlength(u_char *pkt, size_t pkt_len, u_long *data_len)
          * long length; first byte is length of length (after masking high bit)
          */
         len_len = (int) ((*pkt & ~0x80) + 1);
-        if ((int) pkt_len <= len_len )
+        if (pkt_len < len_len)
             return NULL;           /* still too short for length and data */
 
         /* now we know we have enough data to parse length */
@@ -774,7 +771,7 @@ asn_build_int(u_char * data,
     while ((((integer & mask) == 0) || ((integer & mask) == mask))
            && intsize > 1) {
         intsize--;
-        integer <<= 8;
+        integer = (u_long)integer << 8;
     }
     data = asn_build_header(data, datalength, type, intsize);
     if (_asn_build_header_check(errpre, data, *datalength, intsize))
@@ -783,11 +780,11 @@ asn_build_int(u_char * data,
     *datalength -= intsize;
     mask = ((u_long) 0xFF) << (8 * (sizeof(long) - 1));
     /*
-     * mask is 0xFF000000 on a big-endian machine 
+     * mask is 0xFF000000 if sizeof(long) == 4.
      */
     while (intsize--) {
         *data++ = (u_char) ((integer & mask) >> (8 * (sizeof(long) - 1)));
-        integer <<= 8;
+        integer = (u_long)integer << 8;
     }
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
     DEBUGMSG(("dumpv_send", "  Integer:\t%ld (0x%.2lX)\n", *intp, *intp));

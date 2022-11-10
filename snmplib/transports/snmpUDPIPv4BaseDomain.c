@@ -28,16 +28,16 @@
 #else
 #include <strings.h>
 #endif
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_ARPA_INET_H
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#if HAVE_NETDB_H
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
 #include <errno.h>
@@ -208,6 +208,11 @@ netsnmp_udpipv4base_transport_bind(netsnmp_transport *t,
                     t->sock, str));
         free(str);
     }
+    if (flags & NETSNMP_TSPEC_PREBOUND) {
+        DEBUGMSGTL(("netsnmp_udpbase", "socket %d is prebound, nothing to do\n",
+                    t->sock));
+        return 0;
+    }
     rc = netsnmp_bindtodevice(t->sock, ep->iface);
     if (rc != 0) {
         DEBUGMSGTL(("netsnmp_udpbase", "failed to bind to iface %s: %s\n",
@@ -282,6 +287,8 @@ netsnmp_udpipv4base_transport_with_source(const struct netsnmp_ep *ep,
          */
         t->sock = netsnmp_sd_find_inet_socket(PF_INET, SOCK_DGRAM, -1,
                                               ntohs(ep->a.sin.sin_port));
+        if (t->sock >= 0)
+            flags |= NETSNMP_TSPEC_PREBOUND;
 #endif
     }
     else
@@ -302,7 +309,7 @@ netsnmp_udpipv4base_transport_with_source(const struct netsnmp_ep *ep,
         return t;
 
     /* for Linux VRF Traps we try to bind the iface if clientaddr is not set */
-    if (ep) {
+    if (ep && ep->iface[0]) {
         rc = netsnmp_bindtodevice(t->sock, ep->iface);
         if (rc)
             DEBUGMSGTL(("netsnmp_udpbase", "VRF: Could not bind socket %d to %s\n",
