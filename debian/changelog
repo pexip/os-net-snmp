@@ -2,6 +2,9 @@ net-snmp (5.9.3+dfsg-1pexip1) pexip; urgency=medium
 
   * New upstream release.
   * Build-Depend on libssl-dev 3
+  * debian/rules: disable DES support
+  * debian/patches/openssl3-deprecations.patch: Avoid use of deprecated
+    OpenSSL APIs
 
  -- John-Mark Bell <jmb@pexip.com>  Thu, 10 Nov 2022 17:01:13 +0000
 
