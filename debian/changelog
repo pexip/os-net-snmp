@@ -1,4 +1,4 @@
-net-snmp (5.9.3+dfsg-1pexip1) pexip; urgency=medium
+net-snmp (5.9.3+dfsg-1pexip1) pexip-bullseye-openssl3; urgency=medium
 
   * New upstream release.
   * Build-Depend on libssl-dev 3
