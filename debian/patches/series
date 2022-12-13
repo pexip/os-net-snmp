@@ -41,3 +41,4 @@ snmptrapd_correct_mysql_includes
 makefile_trap_needs_agent
 includes_fix_national_encoding
 openssl3-deprecations.patch
+openssl3-aes.patch

@@ -1,0 +1,126 @@
+diff --git a/configure.d/config_net_snmp_config_h b/configure.d/config_net_snmp_config_h
+index 2997957..a472918 100644
+--- a/configure.d/config_net_snmp_config_h
++++ b/configure.d/config_net_snmp_config_h
+@@ -38,7 +38,7 @@ AH_BOTTOM([/* end of definitions added by configure on-the-fly */
+ 
+ /* If you have openssl 0.9.7 or above, you likely have AES support. */
+ #undef NETSNMP_USE_OPENSSL
+-#if (defined(NETSNMP_USE_OPENSSL) && defined(HAVE_OPENSSL_AES_H) && defined(HAVE_AES_CFB128_ENCRYPT)) || defined(NETSNMP_USE_INTERNAL_CRYPTO)
++#if (defined(NETSNMP_USE_OPENSSL) && defined(HAVE_OPENSSL_AES_H) && (defined(HAVE_AES_CFB128_ENCRYPT) || defined(HAVE_EVP_AES_128_CFB128))) || defined(NETSNMP_USE_INTERNAL_CRYPTO)
+ #define HAVE_AES 1
+ #endif
+ 
+diff --git a/configure.d/config_os_libs2 b/configure.d/config_os_libs2
+index a2c7bf1..d70376f 100644
+--- a/configure.d/config_os_libs2
++++ b/configure.d/config_os_libs2
+@@ -349,7 +349,7 @@ if test "x$tryopenssl" != "xno" -a "x$tryopenssl" != "xinternal"; then
+                 [Define to 1 if you have the OpenSSL library (-lcrypto or -leay32).])
+             netsnmp_save_LIBS="$LIBS"
+             LIBS="$LIBCRYPTO"
+-            AC_CHECK_FUNCS([AES_cfb128_encrypt]dnl
++            AC_CHECK_FUNCS([AES_cfb128_encrypt EVP_aes_128_cfb128]dnl
+                            [EVP_sha224        EVP_sha384        ]dnl
+                            [EVP_MD_CTX_create EVP_MD_CTX_destroy]dnl
+                            [EVP_MD_CTX_new    EVP_MD_CTX_free   ]dnl
+diff --git a/configure.d/config_os_misc2 b/configure.d/config_os_misc2
+index b0b4bca..0483be5 100644
+--- a/configure.d/config_os_misc2
++++ b/configure.d/config_os_misc2
+@@ -96,6 +96,7 @@ if test "x$enable_md5" = "xno"; then
+     authmodes=`echo $authmodes | $SED 's/MD5 *//;'`
+ fi
+ if test "x$ac_cv_func_AES_cfb128_encrypt" = xyes ||
++   test "x$ac_cv_func_EVP_aes_128_cfb128" = xyes ||
+    test "x$CRYPTO" = xinternal; then
+     encrmodes="$encrmodes AES128"
+     if test "x$aes_capable" = "xyes"; then
+diff --git a/include/net-snmp/net-snmp-config.h.in b/include/net-snmp/net-snmp-config.h.in
+index a8ba19a..1cdf09e 100644
+--- a/include/net-snmp/net-snmp-config.h.in
++++ b/include/net-snmp/net-snmp-config.h.in
+@@ -190,6 +190,9 @@
+ /* Define to 1 if you have the `eval_pv' function. */
+ #undef HAVE_EVAL_PV
+ 
++/* Define to 1 if you have the `EVP_aes_128_cfb128' function. */
++#undef HAVE_EVP_AES_128_CFB128
++
+ /* Define to 1 if you have the `EVP_MD_CTX_create' function. */
+ #undef HAVE_EVP_MD_CTX_CREATE
+ 
+@@ -1906,7 +1909,7 @@
+ 
+ /* If you have openssl 0.9.7 or above, you likely have AES support. */
+ #undef NETSNMP_USE_OPENSSL
+-#if (defined(NETSNMP_USE_OPENSSL) && defined(HAVE_OPENSSL_AES_H) && defined(HAVE_AES_CFB128_ENCRYPT)) || defined(NETSNMP_USE_INTERNAL_CRYPTO)
++#if (defined(NETSNMP_USE_OPENSSL) && defined(HAVE_OPENSSL_AES_H) && (defined(HAVE_AES_CFB128_ENCRYPT) || defined(HAVE_EVP_AES_128_CFB128))) || defined(NETSNMP_USE_INTERNAL_CRYPTO)
+ #define HAVE_AES 1
+ #endif
+ 
+diff --git a/testing/fulltests/default/Sv3config b/testing/fulltests/default/Sv3config
+index 55df5b4..c11d09a 100644
+--- a/testing/fulltests/default/Sv3config
++++ b/testing/fulltests/default/Sv3config
+@@ -20,7 +20,7 @@ if test "x$DEFPRIVTYPE" = "x"; then
+   # XXX: HAVE_AES depends on cpp logic, so we need to test for lower-level stuff
+   if grep '^#define NETSNMP_USE_OPENSSL 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null ; then
+     if grep '^#define HAVE_OPENSSL_AES_H 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null ; then
+-      if grep '^#define HAVE_AES_CFB128_ENCRYPT 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null ; then
++      if grep '^#define HAVE_\(AES_CFB128_ENCRYPT\|EVP_AES_128_CFB128\) 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null ; then
+         DEFPRIVTYPE="AES"
+       else
+         DEFPRIVTYPE="DES"
+diff --git a/testing/fulltests/default/Sv3usmconfigbase b/testing/fulltests/default/Sv3usmconfigbase
+index b2e1eb2..bfd9236 100644
+--- a/testing/fulltests/default/Sv3usmconfigbase
++++ b/testing/fulltests/default/Sv3usmconfigbase
+@@ -41,7 +41,7 @@ fi
+ # XXX: HAVE_AES depends on cpp logic, so we need to test for lower-level stuff
+ if grep '^#define NETSNMP_USE_OPENSSL 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null; then
+   if grep '^#define HAVE_OPENSSL_AES_H 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null && \
+-   grep '^#define HAVE_AES_CFB128_ENCRYPT 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null ; then
++   grep '^#define HAVE_\(AES_CFB128_ENCRYPT\|EVP_AES_128_CFB128\) 1' $SNMP_UPDIR/include/net-snmp/net-snmp-config.h $SNMP_UPDIR/include/net-snmp/agent/mib_module_config.h > /dev/null ; then
+     MAXPRIVTYPE=AES
+   else
+     MAXPRIVTYPE=DES
+diff --git a/testing/fulltests/default/T023snmpv3getMD5AES_simple b/testing/fulltests/default/T023snmpv3getMD5AES_simple
+index 781dab1..9b15512 100644
+--- a/testing/fulltests/default/T023snmpv3getMD5AES_simple
++++ b/testing/fulltests/default/T023snmpv3getMD5AES_simple
+@@ -7,7 +7,7 @@ HEADER SNMPv3 get using MD5/AES of .1.3.6.1.2.1.1.3.0
+ SKIPIFNOT NETSNMP_CAN_DO_CRYPTO
+ SKIPIFNOT NETSNMP_ENABLE_SCAPI_AUTHPRIV
+ SKIPIFNOT HAVE_OPENSSL_AES_H
+-SKIPIFNOT HAVE_AES_CFB128_ENCRYPT
++SKIPIFNOT '\(HAVE_AES_CFB128_ENCRYPT\|HAVE_EVP_AES_128_CFB128\)'
+ SKIPIF NETSNMP_DISABLE_MD5
+ 
+ #
+diff --git a/testing/fulltests/default/T026snmpv3getSHAAES_simple b/testing/fulltests/default/T026snmpv3getSHAAES_simple
+index 561cdab..20d3ff2 100644
+--- a/testing/fulltests/default/T026snmpv3getSHAAES_simple
++++ b/testing/fulltests/default/T026snmpv3getSHAAES_simple
+@@ -6,7 +6,7 @@ HEADER SNMPv3 get using SHA/AES of .1.3.6.1.2.1.1.3.0
+ 
+ SKIPIFNOT NETSNMP_CAN_DO_CRYPTO
+ SKIPIFNOT NETSNMP_ENABLE_SCAPI_AUTHPRIV
+-SKIPIFNOT HAVE_AES_CFB128_ENCRYPT
++SKIPIFNOT '\(HAVE_AES_CFB128_ENCRYPT\|HAVE_EVP_AES_128_CFB128\)'
+ 
+ #
+ # Begin test
+diff --git a/testing/fulltests/default/T027snmpv3Defaults_simple b/testing/fulltests/default/T027snmpv3Defaults_simple
+index 3bbf5e0..7a9aee5 100644
+--- a/testing/fulltests/default/T027snmpv3Defaults_simple
++++ b/testing/fulltests/default/T027snmpv3Defaults_simple
+@@ -6,7 +6,7 @@ HEADER SNMPv3 get using default config of .1.3.6.1.2.1.1.3.0
+ 
+ SKIPIFNOT NETSNMP_CAN_DO_CRYPTO
+ SKIPIFNOT NETSNMP_ENABLE_SCAPI_AUTHPRIV
+-SKIPIFNOT HAVE_AES_CFB128_ENCRYPT
++SKIPIFNOT '\(HAVE_AES_CFB128_ENCRYPT\|HAVE_EVP_AES_128_CFB128\)'
+ 
+ #
+ # Begin test
