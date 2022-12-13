@@ -1,3 +1,9 @@
+net-snmp (5.9.3+dfsg-1pexip2) pexip-bullseye-openssl3; urgency=medium
+
+  * debian/patches/openssl3-aes.patch: Cope without AES_cfb128_encrypt()
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 12 Dec 2022 16:29:24 +0000
+
 net-snmp (5.9.3+dfsg-1pexip1) pexip-bullseye-openssl3; urgency=medium
 
   * New upstream release.
