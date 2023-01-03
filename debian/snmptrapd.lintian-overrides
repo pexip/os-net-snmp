@@ -1,1 +1,1 @@
-snmptrapd: non-standard-file-perm etc/snmp/snmptrapd.conf 0600 != 0644
+snmptrapd: non-standard-file-perm 0600 != 0644 [etc/snmp/snmptrapd.conf]
