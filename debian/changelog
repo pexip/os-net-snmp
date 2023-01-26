@@ -1,3 +1,9 @@
+net-snmp (5.9.3+dfsg-1pexip3) pexip; urgency=medium
+
+  * Merge openssl3 changes to bullseye
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Thu, 26 Jan 2023 11:04:02 +0000
+
 net-snmp (5.9.3+dfsg-1pexip2) pexip-bullseye-openssl3; urgency=medium
 
   * debian/patches/openssl3-aes.patch: Cope without AES_cfb128_encrypt()
