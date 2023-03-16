@@ -1,3 +1,9 @@
+net-snmp (5.9.3+dfsg-2pexip1) pexip; urgency=medium
+
+  * New upstream version
+
+ -- Huw Jones <huw@pexip.com>  Thu, 16 Mar 2023 16:20:13 +0000
+
 net-snmp (5.9.3+dfsg-2) unstable; urgency=medium
 
   [ Helmut Grohne ]
