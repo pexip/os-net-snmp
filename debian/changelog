@@ -1,3 +1,25 @@
+net-snmp (5.9.3+dfsg-2) unstable; urgency=medium
+
+  [ Helmut Grohne ]
+  * Fix FTCBFS: Closes: #1025922
+    + Initialize architecture variables.
+    + Fix build vs host confusion.
+    + Use the host architecture pkg-config.
+    + export a PERL5LIB for cross building.
+    + cross.patch: Pass PERL5LIB along.
+
+  [ Debian Janitor ]
+  * Update lintian override info to new format on line 1, 2.
+  * Use secure URI in Homepage field.
+
+  [ Craig Small ]
+  * Remove email list from maintainers
+  * Add patch agent_set_null_varbind Closes: #1024020 fixes:
+    + CVE-2022-44792 NULL Pointer Exception when handling ipDefaultTTL
+    + CVE-2022-44793 NULL Pointer Exception when handling pv6IpForwarding
+
+ -- Craig Small <csmall@debian.org>  Tue, 03 Jan 2023 13:01:46 +1100
+
 net-snmp (5.9.3+dfsg-1pexip3) pexip; urgency=medium
 
   * Merge openssl3 changes to bullseye
