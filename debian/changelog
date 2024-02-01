@@ -1,3 +1,9 @@
+net-snmp (5.9.3+dfsg-2+pexip24u4) pexip-bookworm; urgency=medium
+
+  * New versioning scheme
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Thu, 01 Feb 2024 16:13:00 +0000
+
 net-snmp (5.9.3+dfsg-2pexip3) pexip-bookworm; urgency=medium
 
   * Bookworm build for product distribution
