@@ -2,7 +2,7 @@ Source: net-snmp
 Section: net
 Priority: optional
 Maintainer: Craig Small <csmall@debian.org>
-Build-Depends: debhelper-compat (= 12),
+Build-Depends: dpkg-dev (>= 1.22.5), debhelper-compat (= 12),
  libtool, libwrap0-dev, libssl-dev, perl:any, perl-xs-dev,
  autoconf, automake, procps,
  pkg-config,
@@ -19,7 +19,7 @@ Homepage: https://net-snmp.sourceforge.net/
 Package: snmpd
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, debconf, lsb-base, libsnmp-base
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, debconf, libsnmp-base
 Breaks: libsnmp-dev (<< 5.8+dfsg-3)
 Replaces: libsnmp-dev (<< 5.8+dfsg-3)
 Suggests: snmptrapd
@@ -74,7 +74,10 @@ Description: SNMP configuration script, MIBs and documentation
  description, you need to activate the non-free repository and install the
  "snmp-mibs-downloader" package.
 
-Package: libsnmp40
+Package: libsnmp40t64
+Provides: ${t64:Provides}
+Replaces: libsnmp40
+Breaks: libsnmp40 (<< ${source:Version})
 Section: libs
 Architecture: any
 Multi-Arch: same
@@ -89,14 +92,15 @@ Description: SNMP (Simple Network Management Protocol) library
  sending, receiving, decoding, and manipulation of the SNMP requests
  and responses.
 
-Package: libnetsnmptrapd40
+Package: libnetsnmptrapd40t64
+Provides: ${t64:Provides}
 Section: libs
 Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}, libsnmp-base
-Breaks: libsnmp40 (<= 5.9+dfsg-1)
-Replaces: libsnmp40 (<= 5.9+dfsg-1)
+Breaks: libnetsnmptrapd40 (<< ${source:Version}), libsnmp40t64 (<= 5.9+dfsg-1)
+Replaces: libnetsnmptrapd40, libsnmp40t64 (<= 5.9+dfsg-1)
 Description: SNMP (Simple Network Management Protocol) trap library
  The Simple Network Management Protocol (SNMP) provides a framework
  for the exchange of management information between agents (servers)
@@ -109,7 +113,7 @@ Package: libsnmp-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: no
-Depends: libc6-dev, libsnmp40 (=${binary:Version}), libnetsnmptrapd40 (=${binary:Version}),
+Depends: libc6-dev, libsnmp40t64 (=${binary:Version}), libnetsnmptrapd40t64 (=${binary:Version}),
          libwrap0-dev, libssl-dev, procps,
          libkvm-dev [kfreebsd-any], libsensors-dev [linux-any], ${misc:Depends},
          libpci-dev

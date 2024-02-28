@@ -1,7 +1,7 @@
 Description: Let Perl access EngineID
 Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2019-02-07
+Last-Update: 2023-08-19
 --- a/perl/SNMP/SNMP.pm
 +++ b/perl/SNMP/SNMP.pm
 @@ -1245,6 +1245,16 @@
@@ -41,7 +41,7 @@ Last-Update: 2019-02-07
  =head1 SNMP::TrapSession
 --- a/perl/SNMP/SNMP.xs
 +++ b/perl/SNMP/SNMP.xs
-@@ -4714,6 +4714,50 @@
+@@ -4718,6 +4718,50 @@
  
  
  char *

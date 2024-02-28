@@ -11,12 +11,12 @@ Origin: Debian
 Bug: https://github.com/net-snmp/net-snmp/pull/91
 Bug-Debian: https://bugs.debian.org/905668
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2020-04-04
+Last-Update: 2023-08-19
 --- a/agent/mibgroup/host/data_access/swinst_apt.c
 +++ b/agent/mibgroup/host/data_access/swinst_apt.c
 @@ -33,17 +33,14 @@
  
- config_require(date_n_time)
+ config_require(date_n_time);
  
 -char pkg_directory[SNMP_MAXBUF];
  static char apt_fmt[SNMP_MAXBUF];
