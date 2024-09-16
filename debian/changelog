@@ -1,3 +1,9 @@
+net-snmp (5.9.3+dfsg-2+pexip24u5) pexip; urgency=medium
+
+  * Backport upstream patch to cope with Linux 6.7 SNMP changes
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Mon, 16 Sep 2024 18:05:37 +0100
+
 net-snmp (5.9.3+dfsg-2+pexip24u4) pexip-bookworm; urgency=medium
 
   * New versioning scheme
