@@ -1,7 +1,5 @@
-diff --git a/include/net-snmp/library/cert_util.h b/include/net-snmp/library/cert_util.h
-index 80e2a19..ec7b5ba 100644
---- a/include/net-snmp/library/cert_util.h
-+++ b/include/net-snmp/library/cert_util.h
+--- net-snmp.orig/include/net-snmp/library/cert_util.h
++++ net-snmp/include/net-snmp/library/cert_util.h
 @@ -2,10 +2,10 @@
  
  #if defined(NETSNMP_USE_OPENSSL) && defined(HAVE_LIBSSL)
@@ -15,10 +13,8 @@ index 80e2a19..ec7b5ba 100644
  #error "must include <openssl/x509.h> before cert_util.h"
  #endif
  
-diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
-index 79c28aa..bd8c76d 100644
---- a/snmplib/snmp_api.c
-+++ b/snmplib/snmp_api.c
+--- net-snmp.orig/snmplib/snmp_api.c
++++ net-snmp/snmplib/snmp_api.c
 @@ -138,6 +138,7 @@ SOFTWARE.
  #include <net-snmp/library/vacm.h>
  #if defined(NETSNMP_USE_OPENSSL) && defined(HAVE_LIBSSL)
@@ -27,10 +23,8 @@ index 79c28aa..bd8c76d 100644
  #include <net-snmp/library/cert_util.h>
  #endif
  
-diff --git a/snmplib/transports/snmpDTLSUDPDomain.c b/snmplib/transports/snmpDTLSUDPDomain.c
-index c7032e6..58fd55a 100644
---- a/snmplib/transports/snmpDTLSUDPDomain.c
-+++ b/snmplib/transports/snmpDTLSUDPDomain.c
+--- net-snmp.orig/snmplib/transports/snmpDTLSUDPDomain.c
++++ net-snmp/snmplib/transports/snmpDTLSUDPDomain.c
 @@ -75,6 +75,7 @@ netsnmp_feature_require(sockaddr_size);
  #include "openssl/ssl.h"
  #include "openssl/err.h"
@@ -39,11 +33,9 @@ index c7032e6..58fd55a 100644
  
  #include <net-snmp/library/snmpSocketBaseDomain.h>
  #include <net-snmp/library/snmpTLSBaseDomain.h>
-diff --git a/snmplib/transports/snmpTLSBaseDomain.c b/snmplib/transports/snmpTLSBaseDomain.c
-index 1a907b4..127f658 100644
---- a/snmplib/transports/snmpTLSBaseDomain.c
-+++ b/snmplib/transports/snmpTLSBaseDomain.c
-@@ -223,7 +223,11 @@ netsnmp_tlsbase_verify_server_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
+--- net-snmp.orig/snmplib/transports/snmpTLSBaseDomain.c
++++ net-snmp/snmplib/transports/snmpTLSBaseDomain.c
+@@ -223,7 +223,11 @@ netsnmp_tlsbase_verify_server_cert(SSL *
      netsnmp_assert_or_return(ssl != NULL, SNMPERR_GENERR);
      netsnmp_assert_or_return(tlsdata != NULL, SNMPERR_GENERR);
  
@@ -55,7 +47,7 @@ index 1a907b4..127f658 100644
      if (!remote_cert) {
          /* no peer cert */
          DEBUGMSGTL(("tls_x509:verify",
-@@ -354,7 +358,11 @@ netsnmp_tlsbase_verify_client_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
+@@ -354,7 +358,11 @@ netsnmp_tlsbase_verify_client_cert(SSL *
           above.
         + fingerprint verification happens below.
      */
@@ -67,10 +59,8 @@ index 1a907b4..127f658 100644
      if (!remote_cert) {
          /* no peer cert */
          DEBUGMSGTL(("tls_x509:verify",
-diff --git a/snmplib/transports/snmpTLSTCPDomain.c b/snmplib/transports/snmpTLSTCPDomain.c
-index ea5423f..0c46dd4 100644
---- a/snmplib/transports/snmpTLSTCPDomain.c
-+++ b/snmplib/transports/snmpTLSTCPDomain.c
+--- net-snmp.orig/snmplib/transports/snmpTLSTCPDomain.c
++++ net-snmp/snmplib/transports/snmpTLSTCPDomain.c
 @@ -51,6 +51,11 @@ netsnmp_feature_require(cert_util);
  
  #include "../memcheck.h"
@@ -94,21 +84,21 @@ index ea5423f..0c46dd4 100644
  #ifndef INADDR_NONE
  #define INADDR_NONE	-1
  #endif
-diff --git a/snmplib/snmp_openssl.c b/snmplib/snmp_openssl.c
-index 4110b0e..e1ce9b5 100644
---- a/snmplib/snmp_openssl.c
-+++ b/snmplib/snmp_openssl.c
-@@ -21,6 +21,9 @@
+--- net-snmp.orig/snmplib/snmp_openssl.c
++++ net-snmp/snmplib/snmp_openssl.c
+@@ -21,7 +21,11 @@
  #if defined(NETSNMP_USE_OPENSSL)
  
  #include <string.h>
 +#include <openssl/opensslv.h>
 +
+ #include <net-snmp/library/openssl_config.h>
++
 +#if OPENSSL_VERSION_NUMBER < 0x30000000L
  #include <openssl/dh.h>
  
  #ifndef HAVE_DH_GET0_PQG
-@@ -78,6 +81,7 @@ DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
+@@ -79,6 +83,7 @@ DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q
     return 1;
  }
  #endif
@@ -116,7 +106,7 @@ index 4110b0e..e1ce9b5 100644
  #endif /* defined(NETSNMP_USE_OPENSSL) */
  
  /** TLS/DTLS certificatte support */
-@@ -697,7 +701,11 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
+@@ -698,7 +703,11 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
  
      netsnmp_assert_or_return(ssl != NULL, NULL);
  
@@ -128,7 +118,7 @@ index 4110b0e..e1ce9b5 100644
      if (!ocert) {
          /** no peer cert */
          snmp_log(LOG_ERR, "SSL peer has no certificate\n");
-@@ -736,7 +744,11 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
+@@ -737,7 +746,11 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
  
      /** check for a chain to a CA */
      ochain = SSL_get_peer_cert_chain(ssl);
@@ -140,7 +130,7 @@ index 4110b0e..e1ce9b5 100644
      if (!ochain || sk_num_res == 0) {
          DEBUGMSGT(("ssl:cert:chain", "peer has no cert chain\n"));
      }
-@@ -745,9 +757,17 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
+@@ -746,9 +759,17 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
           * loop over chain, adding fingerprint / cert for each
           */
          DEBUGMSGT(("ssl:cert:chain", "examining cert chain\n"));
@@ -158,11 +148,9 @@ index 4110b0e..e1ce9b5 100644
              fingerprint = netsnmp_openssl_cert_get_fingerprint(ocert_tmp, -1);
              if (NULL == fingerprint)
                  break;
-diff --git a/snmplib/snmpusm.c b/snmplib/snmpusm.c
-index 75fc952..3696a86 100644
---- a/snmplib/snmpusm.c
-+++ b/snmplib/snmpusm.c
-@@ -767,6 +767,7 @@ usm_free_user(struct usmUser *user)
+--- net-snmp.orig/snmplib/snmpusm.c
++++ net-snmp/snmplib/snmpusm.c
+@@ -768,6 +768,7 @@ usm_free_user(struct usmUser *user)
      }
  
  #ifdef NETSNMP_USE_OPENSSL
@@ -170,25 +158,25 @@ index 75fc952..3696a86 100644
      if (user->usmDHUserAuthKeyChange)
      {
          DH_free(user->usmDHUserAuthKeyChange);
-@@ -778,6 +779,7 @@ usm_free_user(struct usmUser *user)
-         DH_free(user->usmDHUserPrivKeyChange);
+@@ -780,6 +781,7 @@ usm_free_user(struct usmUser *user)
          user->usmDHUserPrivKeyChange = NULL;
      }
-+#endif
  #endif
++#endif
  
      /*
---- a/apps/snmpusm.c	2021-08-02 14:25:09.067239181 +0000
-+++ b/apps/snmpusm.c	2021-08-02 15:23:33.343662094 +0000
-@@ -21,6 +21,7 @@
+      * FIX  Why not put this check *first?*
+--- net-snmp.orig/apps/snmpusm.c
++++ net-snmp/apps/snmpusm.c
+@@ -22,6 +22,7 @@
  #include <net-snmp/library/snmp_openssl.h>
  #if defined(HAVE_OPENSSL_DH_H) && defined(HAVE_LIBCRYPTO)
  #include <openssl/dh.h>
 +#include <openssl/evp.h>
  #endif /* HAVE_OPENSSL_DH_H && HAVE_LIBCRYPTO */
  
- #if HAVE_STDLIB_H
-@@ -180,15 +181,259 @@
+ #ifdef HAVE_STDLIB_H
+@@ -181,15 +182,259 @@ setup_oid(oid * it, size_t * len, u_char
  }
  
  #if defined(HAVE_OPENSSL_DH_H) && defined(HAVE_LIBCRYPTO)
@@ -451,7 +439,7 @@ index 75fc952..3696a86 100644
      u_char *key;
      size_t key_len;
              
-@@ -198,26 +453,94 @@
+@@ -199,26 +444,94 @@ get_USM_DH_key(netsnmp_variable_list *va
      
      memcpy(dhkeychange, vars->val.string, vars->val_len);
  
@@ -516,27 +504,27 @@ index 75fc952..3696a86 100644
 +    }
 +    BN_free(g);
 +    BN_free(p);
- 
--    if (!dh || !g || !p) {
++
 +    pctx = EVP_PKEY_CTX_new(dhparams, NULL);
 +    if (pctx == NULL) {
-+        EVP_PKEY_free(dhparams);
-+        EVP_PKEY_free(peer_key);
-         SNMP_FREE(dhkeychange);
-         return SNMPERR_GENERR;
-     }
- 
--    if (!DH_generate_key(dh)) {
-+    if (EVP_PKEY_keygen_init(pctx) <= 0 || EVP_PKEY_keygen(pctx, &dh) <= 0) {
-+        EVP_PKEY_CTX_free(pctx);
 +        EVP_PKEY_free(dhparams);
 +        EVP_PKEY_free(peer_key);
 +        SNMP_FREE(dhkeychange);
 +        return SNMPERR_GENERR;
 +    }
+ 
+-    if (!dh || !g || !p) {
++    if (EVP_PKEY_keygen_init(pctx) <= 0 || EVP_PKEY_keygen(pctx, &dh) <= 0) {
++        EVP_PKEY_CTX_free(pctx);
++        EVP_PKEY_free(dhparams);
++        EVP_PKEY_free(peer_key);
+         SNMP_FREE(dhkeychange);
+         return SNMPERR_GENERR;
+     }
 +    EVP_PKEY_CTX_free(pctx);
 +    EVP_PKEY_free(dhparams);
-+
+ 
+-    if (!DH_generate_key(dh)) {
 +    if (EVP_PKEY_get_bn_param(dh, OSSL_PKEY_PARAM_PUB_KEY, &pub_key) == 0) {
 +        EVP_PKEY_free(dh);
 +        EVP_PKEY_free(peer_key);
@@ -552,7 +540,7 @@ index 75fc952..3696a86 100644
          SNMP_FREE(dhkeychange);
          fprintf(stderr,"incorrect diffie-helman lengths (%lu != %d)\n",
                  (unsigned long)vars->val_len, BN_num_bytes(pub_key));
-@@ -225,27 +538,41 @@
+@@ -226,27 +539,41 @@ get_USM_DH_key(netsnmp_variable_list *va
      }
  
      BN_bn2bin(pub_key, dhkeychange + vars->val_len);
@@ -603,7 +591,7 @@ index 75fc952..3696a86 100644
          u_char *kp;
  
          printf("new %s key: 0x", keyname);
-@@ -255,14 +582,15 @@
+@@ -256,14 +583,15 @@ get_USM_DH_key(netsnmp_variable_list *va
          }
          printf("\n");
      }
