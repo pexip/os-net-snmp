@@ -4,10 +4,10 @@ Author: Craig Small <csmall@debian.org>
 Origin: Debian
 Bug-Debian: https://bugs.debian.org/975477
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2021-09-20
+Last-Update: 2023-08-19
 --- a/ci/net-snmp-configure
 +++ b/ci/net-snmp-configure
-@@ -71,7 +71,7 @@
+@@ -72,7 +72,7 @@
  echo "libatmver=$libatmver"
  
  libmysqlver="$(rpm_version libmariadb-devel;

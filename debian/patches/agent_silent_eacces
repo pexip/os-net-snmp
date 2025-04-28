@@ -14,10 +14,10 @@ Last-Update: 2021-09-20
  
  #include <stdio.h>
 +#include <errno.h>
- #if HAVE_MNTENT_H
+ #ifdef HAVE_MNTENT_H
  #include <mntent.h>
  #endif
-@@ -269,7 +270,10 @@
+@@ -320,7 +321,10 @@
  
              if (!logged &&
                  asprintf(&tmpbuf, "Cannot statfs %s", entry->path) >= 0) {

@@ -19,9 +19,9 @@ case "$1" in
                 --shell "$SNMP_SHELL" --force-badname "$SNMP_USER"
 
         # care if SNMP_DIR is used by previous "snmp" user
-        chown "$SNMP_USER"."$SNMP_GROUP" "$SNMP_DIR"
+        chown "$SNMP_USER":"$SNMP_GROUP" "$SNMP_DIR"
 	if [ -f "$SNMP_DIR/snmpd.conf" ]; then
-            chown "$SNMP_USER"."$SNMP_GROUP" "$SNMP_DIR/snmpd.conf"
+            chown "$SNMP_USER":"$SNMP_GROUP" "$SNMP_DIR/snmpd.conf"
 	fi
 
 	# Change group of snmpd.conf to SNMP_GROUP #998152

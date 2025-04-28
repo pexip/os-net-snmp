@@ -5,7 +5,7 @@ export DEB_BUILD_MAINT_OPTIONS := hardening=+all
 include /usr/share/dpkg/architecture.mk
 include /usr/share/dpkg/buildtools.mk
 
-LIB_VERSION = 40
+LIB_VERSION = 40t64
 
 MIB_MODULES = smux ucd-snmp/dlmod mibII/mta_sendmail disman/event-mib
 EXCL_MIB_MODULES =

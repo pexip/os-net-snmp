@@ -3,15 +3,15 @@ Description: Makefile add correct flags
 Author: Craig Small <csmall@debian.org>
 Bug: https://github.com/net-snmp/net-snmp/issues/29
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2021-09-20
+Last-Update: 2023-08-19
 --- a/Makefile.in
 +++ b/Makefile.in
 @@ -114,7 +114,7 @@
  # local build rules
  #
- sedscript: sedscript.in include/net-snmp/net-snmp-config.h $(srcdir)/agent/mibgroup/mibdefs.h
--	$(CPP) $(srcdir)/sedscript.in | egrep '^s[/#]' | sed 's/REMOVEME//g;s# */#/#g;s/ *#/#/g;s#/ *#/#g;s/# g/#g/;' > sedscript
-+	$(CPP) $(CPPFLAGS) $(srcdir)/sedscript.in | egrep '^s[/#]' | sed 's/REMOVEME//g;s# */#/#g;s/ *#/#/g;s#/ *#/#g;s/# g/#g/;' > sedscript
+ sedscript: $(srcdir)/sedscript.in include/net-snmp/net-snmp-config.h $(srcdir)/agent/mibgroup/mibdefs.h
+-	$(CPP) -I$(srcdir) -Iinclude $(srcdir)/sedscript.in | $(EGREP) '^s[/#]' | sed 's/REMOVEME//g;s# */#/#g;s/ *#/#/g;s#/ *#/#g;s/# g/#g/;' > sedscript
++	$(CPP) $(CPPFLAGS) -I$(srcdir) -Iinclude $(srcdir)/sedscript.in | $(EGREP) '^s[/#]' | sed 's/REMOVEME//g;s# */#/#g;s/ *#/#/g;s#/ *#/#g;s/# g/#g/;' > sedscript
  	echo 's/VERSIONINFO/$(VERSION)/g' >> sedscript
  	echo 's#DATADIR#$(datadir)#g' >> sedscript
  	echo 's#LIBDIR#$(libdir)#g' >> sedscript

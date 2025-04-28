@@ -1,7 +1,7 @@
 Description: Perl - do not callback for failed reports
 Author: Net-SNMP Packaging Team <pkg-net-snmp-devel@lists.alioth.debian.org>
 Reviewed-by: Craig Small <csmall@debian.org>
-Last-Update: 2022-05-25
+Last-Update: 2023-08-19
 Bug-Debian: https://bugs.debian/org/1011440
 ===================================================================
 ---
@@ -10,7 +10,7 @@ Bug-Debian: https://bugs.debian/org/1011440
 
 --- a/snmplib/snmp_api.c
 +++ b/snmplib/snmp_api.c
-@@ -5772,9 +5772,6 @@
+@@ -5782,9 +5782,6 @@
         * should be per session ! 
         */
  
@@ -20,7 +20,7 @@ Bug-Debian: https://bugs.debian/org/1011440
  	if (pdu->command == SNMP_MSG_REPORT) {
  	  if (sp->s_snmp_errno == SNMPERR_NOT_IN_TIME_WINDOW ||
  	      snmpv3_get_report_type(pdu) ==
-@@ -5843,6 +5840,9 @@
+@@ -5853,6 +5850,9 @@
  	  }
  	}
  

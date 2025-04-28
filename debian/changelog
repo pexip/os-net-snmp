@@ -1,3 +1,18 @@
+net-snmp (5.9.4+dfsg-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Rename libraries for 64-bit time_t transition.  Closes: #1064249
+
+ -- Benjamin Drung <bdrung@debian.org>  Wed, 28 Feb 2024 22:43:19 +0000
+
+net-snmp (5.9.4+dfsg-1) unstable; urgency=medium
+
+  * New upstream release
+  * snmpd: Remove dependency to lsb-base
+  * postinst use chown user:group Closes: #1032201, #1027809
+
+ -- Craig Small <csmall@debian.org>  Sat, 19 Aug 2023 19:36:39 +1000
+
 net-snmp (5.9.3+dfsg-2+pexip24u5) pexip; urgency=medium
 
   * Backport upstream patch to cope with Linux 6.7 SNMP changes
