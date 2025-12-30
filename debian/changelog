@@ -1,3 +1,12 @@
+net-snmp (5.9.3+dfsg-2+deb12u1) bookworm-security; urgency=high
+
+  * Security patch
+     - Fixed a critical vulnerability in snmptrapd triggered by a specially
+       crafted trap CVE-2025-68615 Closes: #1123861
+  * Update systemstats_linux to get expected header length Closes: #1069087
+
+ -- Craig Small <csmall@debian.org>  Tue, 30 Dec 2025 12:46:17 +1100
+
 net-snmp (5.9.3+dfsg-2) unstable; urgency=medium
 
   [ Helmut Grohne ]
