@@ -43,4 +43,5 @@ includes_fix_national_encoding
 agent_set_null_varbind
 openssl3-deprecations.patch
 openssl3-aes.patch
-0001-Add-Linux-6.7-compatibility-parsing-proc-net-snmp.patch
+snmptrapd_trapoid_length
+linux_systemstats

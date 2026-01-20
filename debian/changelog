@@ -1,3 +1,19 @@
+net-snmp (5.9.3+dfsg-2+pexip24u6+deb12u1) pexip; urgency=medium
+
+  * New upstream release with security fix
+  * Switch to the Debian maintainer's version of the Linux SNMP patch
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Tue, 20 Jan 2026 11:21:13 +0000
+
+net-snmp (5.9.3+dfsg-2+deb12u1) bookworm-security; urgency=high
+
+  * Security patch
+     - Fixed a critical vulnerability in snmptrapd triggered by a specially
+       crafted trap CVE-2025-68615 Closes: #1123861
+  * Update systemstats_linux to get expected header length Closes: #1069087
+
+ -- Craig Small <csmall@debian.org>  Tue, 30 Dec 2025 12:46:17 +1100
+
 net-snmp (5.9.3+dfsg-2+pexip24u5) pexip; urgency=medium
 
   * Backport upstream patch to cope with Linux 6.7 SNMP changes

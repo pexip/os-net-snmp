@@ -1,21 +1,16 @@
-From 49d60ba57f4b462df7dc5fd5b38b4425dab0982c Mon Sep 17 00:00:00 2001
-From: Philippe Troin <phil+github-commits@fifi.org>
-Date: Sat, 3 Feb 2024 10:30:30 -0800
-Subject: [PATCH] Add Linux 6.7 compatibility parsing /proc/net/snmp
-
-Linux 6.7 adds a new OutTransmits field to Ip in /proc/net/snmp.
-This breaks the hard-coded assumptions about the Ip line length.
-Add compatibility to parse Linux 6.7 Ip header while keep support
-for previous versions.
----
- .../ip-mib/data_access/systemstats_linux.c    | 46 +++++++++++++++----
- 1 file changed, 37 insertions(+), 9 deletions(-)
-
-diff --git a/agent/mibgroup/ip-mib/data_access/systemstats_linux.c b/agent/mibgroup/ip-mib/data_access/systemstats_linux.c
-index 49e0a34d5c..f04e828a94 100644
+Description: Add Linux 6.7 compatibility parsing /proc/net/snmp 
+ Linux 6.7 adds a new OutTransmits field to Ip in /proc/net/snmp.
+ This breaks the hard-coded assumptions about the Ip line length.
+ Add compatibility to parse Linux 6.7 Ip header while keep support
+ for previous versions.
+Author: Philippe Troin <phil+github-commits@fifi.org>
+Origin: upstream, https://github.com/net-snmp/net-snmp/commit/49d60ba57f4b462df7dc5fd5b38b4425dab0982c
+Bug-Debian: https://bugs.debian.org/1069087
+Reviewed-by: Craig Small <csmall@debian.org>
+Last-Update: 2024-08-01
 --- a/agent/mibgroup/ip-mib/data_access/systemstats_linux.c
 +++ b/agent/mibgroup/ip-mib/data_access/systemstats_linux.c
-@@ -36,7 +36,7 @@ netsnmp_access_systemstats_arch_init(void)
+@@ -36,7 +36,7 @@
  }
  
  /*
@@ -24,7 +19,7 @@ index 49e0a34d5c..f04e828a94 100644
  
    Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates
    Ip: 2 64 7083534 0 0 0 0 0 6860233 6548963 0 0 1 286623 63322 1 259920 0 0
-@@ -49,6 +49,26 @@ netsnmp_access_systemstats_arch_init(void)
+@@ -49,6 +49,26 @@
    
    Udp: InDatagrams NoPorts InErrors OutDatagrams
    Udp: 1491094 122 0 1466178
@@ -51,7 +46,7 @@ index 49e0a34d5c..f04e828a94 100644
  */
  
  
-@@ -101,10 +121,10 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
+@@ -101,10 +121,10 @@
      FILE           *devin;
      char            line[1024];
      netsnmp_systemstats_entry *entry = NULL;
@@ -64,7 +59,7 @@ index 49e0a34d5c..f04e828a94 100644
  
      DEBUGMSGTL(("access:systemstats:container:arch", "load v4 (flags %x)\n",
                  load_flags));
-@@ -126,10 +146,17 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
+@@ -126,10 +146,17 @@
       */
      NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), devin));
      len = strlen(line);
@@ -84,7 +79,7 @@ index 49e0a34d5c..f04e828a94 100644
          return -4;
      }
  
-@@ -178,20 +205,20 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
+@@ -178,20 +205,20 @@
          memset(scan_vals, 0x0, sizeof(scan_vals));
          scan_count = sscanf(stats,
                              "%llu %llu %llu %llu %llu %llu %llu %llu %llu %llu"
@@ -109,7 +104,7 @@ index 49e0a34d5c..f04e828a94 100644
              netsnmp_access_systemstats_entry_free(entry);
              return -4;
          }
-@@ -223,6 +250,7 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
+@@ -223,6 +250,7 @@
          entry->stats.HCOutFragFails.high = scan_vals[17] >> 32;
          entry->stats.HCOutFragCreates.low = scan_vals[18] & 0xffffffff;
          entry->stats.HCOutFragCreates.high = scan_vals[18] >> 32;
@@ -117,6 +112,3 @@ index 49e0a34d5c..f04e828a94 100644
  
          entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINRECEIVES] = 1;
          entry->stats.columnAvail[IPSYSTEMSTATSTABLE_INHDRERRORS] = 1;
--- 
-2.39.5
-
