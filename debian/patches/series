@@ -42,5 +42,6 @@ makefile_trap_needs_agent
 includes_fix_national_encoding
 configure_fix_version
 linux_systemstats
+snmptrapd_trapoid_length
 openssl3-deprecations.patch
 openssl3-aes.patch
