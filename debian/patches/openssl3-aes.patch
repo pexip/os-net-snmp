@@ -1,3 +1,14 @@
+Detect AES support without AES_cfb128_encrypt
+
+When OpenSSL is compiled with deprecated APIs disabled, it will
+not declare AES_cfb128_encrypt(). However, this function is
+never actually used -- its existence is simply checked for by the
+buildsystem and then the EVP APIs are used in reality (which
+means that the existing configure checks are nonsense as what we
+really want is EVP_aes_128_cfb).
+
+Add a patch to test for the existence of EVP_aes_128_cfb() and
+consider AES available if either it or AES_cfb128_encrypt exist.
 diff --git a/configure.d/config_net_snmp_config_h b/configure.d/config_net_snmp_config_h
 index 2997957..a472918 100644
 --- a/configure.d/config_net_snmp_config_h

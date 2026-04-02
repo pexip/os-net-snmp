@@ -1,3 +1,4 @@
+Patch to only use non-deprecated APIs with OpenSSL3
 --- net-snmp.orig/include/net-snmp/library/cert_util.h
 +++ net-snmp/include/net-snmp/library/cert_util.h
 @@ -2,10 +2,10 @@
